@@ -1,0 +1,1896 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PieAgency — Accompagnement étudiant France & Belgique</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0D1B38;
+  --navy-mid: #1A2F5A;
+  --navy-light: #2A4070;
+  --gold: #C8A96B;
+  --gold-light: #E8D4A8;
+  --green: #3D7A68;
+  --white: #FAFAF8;
+  --gray-50: #F5F6F8;
+  --gray-100: #ECEDF1;
+  --gray-200: #D8DAE0;
+  --gray-400: #9AA0AE;
+  --gray-600: #5C6478;
+  --gray-800: #2E3447;
+  --text: #1A1F2E;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 24px rgba(13,27,56,0.08);
+  --shadow-md: 0 8px 40px rgba(13,27,56,0.12);
+  --shadow-lg: 0 16px 60px rgba(13,27,56,0.15);
+  --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--white);
+  color: var(--text);
+  line-height: 1.65;
+  overflow-x: hidden;
+}
+
+/* ───── TYPOGRAPHY ───── */
+h1, h2, h3, h4 { font-family: 'Playfair Display', serif; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; }
+h1 { font-size: clamp(2rem, 4.5vw, 3.6rem); }
+h2 { font-size: clamp(1.6rem, 3vw, 2.6rem); }
+h3 { font-size: clamp(1.1rem, 2vw, 1.4rem); }
+p { color: var(--gray-600); }
+a { text-decoration: none; color: inherit; }
+
+/* ───── LAYOUT ───── */
+.container { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+.section { padding: 96px 0; }
+.section-sm { padding: 64px 0; }
+
+/* ───── HEADER ───── */
+header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  background: rgba(250,250,248,0.96);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--gray-100);
+  transition: var(--transition);
+}
+.header-inner {
+  max-width: 1160px; margin: 0 auto; padding: 0 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 68px;
+}
+.logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem; font-weight: 700;
+  color: var(--navy);
+  letter-spacing: -0.02em;
+  cursor: pointer;
+}
+.logo span { color: var(--gold); }
+
+nav { display: flex; align-items: center; gap: 4px; }
+.nav-link {
+  font-size: 0.85rem; font-weight: 500; color: var(--gray-600);
+  padding: 6px 10px; border-radius: var(--radius-sm);
+  transition: var(--transition); cursor: pointer; white-space: nowrap;
+}
+.nav-link:hover { color: var(--navy); background: var(--gray-50); }
+.nav-link.active { color: var(--navy); }
+
+.header-ctas { display: flex; align-items: center; gap: 8px; }
+
+/* Mobile menu */
+.hamburger {
+  display: none; background: none; border: none;
+  width: 40px; height: 40px; cursor: pointer;
+  flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+}
+.hamburger span {
+  display: block; width: 22px; height: 2px;
+  background: var(--navy); border-radius: 2px; transition: var(--transition);
+}
+.mobile-menu {
+  display: none; position: fixed; top: 68px; left: 0; right: 0; bottom: 0;
+  background: var(--white); z-index: 999;
+  padding: 24px; overflow-y: auto;
+  flex-direction: column; gap: 4px;
+}
+.mobile-menu.open { display: flex; }
+.mobile-nav-link {
+  font-size: 1rem; font-weight: 500; color: var(--gray-800);
+  padding: 14px 16px; border-radius: var(--radius-sm);
+  border-bottom: 1px solid var(--gray-100);
+  cursor: pointer; transition: var(--transition);
+}
+.mobile-nav-link:hover { background: var(--gray-50); color: var(--navy); }
+.mobile-ctas { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+
+/* ───── BUTTONS ───── */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 600;
+  padding: 12px 22px; border-radius: var(--radius-sm);
+  border: none; cursor: pointer; transition: var(--transition);
+  letter-spacing: 0.01em; white-space: nowrap;
+}
+.btn-primary {
+  background: var(--navy); color: var(--white);
+}
+.btn-primary:hover { background: var(--navy-mid); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(13,27,56,0.25); }
+
+.btn-gold {
+  background: var(--gold); color: var(--white);
+}
+.btn-gold:hover { background: #b8952f; transform: translateY(-1px); }
+
+.btn-outline {
+  background: transparent; color: var(--navy);
+  border: 1.5px solid var(--navy);
+}
+.btn-outline:hover { background: var(--navy); color: var(--white); }
+
+.btn-outline-white {
+  background: transparent; color: var(--white);
+  border: 1.5px solid rgba(255,255,255,0.5);
+}
+.btn-outline-white:hover { background: rgba(255,255,255,0.1); border-color: var(--white); }
+
+.btn-green {
+  background: var(--green); color: var(--white);
+}
+.btn-green:hover { background: #2e6055; transform: translateY(-1px); }
+
+.btn-sm { padding: 9px 16px; font-size: 0.82rem; }
+.btn-lg { padding: 15px 30px; font-size: 0.95rem; }
+
+/* WhatsApp buttons */
+.btn-wa-togo { background: #25D366; color: white; }
+.btn-wa-togo:hover { background: #1db954; transform: translateY(-1px); }
+.btn-wa-france { background: #128C7E; color: white; }
+.btn-wa-france:hover { background: #0d6b60; transform: translateY(-1px); }
+
+/* ───── HERO ───── */
+.hero {
+  min-height: 100vh; display: flex; align-items: center;
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 60%, #1e3a6e 100%);
+  position: relative; overflow: hidden; padding-top: 68px;
+}
+.hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  pointer-events: none;
+}
+.hero-blob {
+  position: absolute; border-radius: 50%;
+  filter: blur(80px); opacity: 0.15; pointer-events: none;
+}
+.hero-blob-1 { width: 600px; height: 600px; background: var(--gold); top: -200px; right: -100px; }
+.hero-blob-2 { width: 400px; height: 400px; background: var(--green); bottom: -100px; left: -100px; }
+
+.hero-inner {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 64px; align-items: center;
+  max-width: 1160px; margin: 0 auto; padding: 80px 24px;
+}
+.hero-content { position: relative; z-index: 1; }
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+  padding: 6px 14px; border-radius: 100px; margin-bottom: 28px;
+}
+.hero-badge span { font-size: 0.78rem; font-weight: 500; color: var(--gold-light); letter-spacing: 0.05em; text-transform: uppercase; }
+.hero-dot { width: 6px; height: 6px; background: var(--gold); border-radius: 50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.6;transform:scale(0.8)} }
+
+.hero h1 { color: var(--white); margin-bottom: 20px; }
+.hero h1 em { font-style: normal; color: var(--gold-light); }
+.hero p { color: rgba(255,255,255,0.7); font-size: 1.05rem; margin-bottom: 36px; max-width: 500px; }
+
+.hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 48px; }
+
+.hero-trust {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 20px; background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius); backdrop-filter: blur(8px);
+}
+.hero-trust-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold); font-weight: 600; margin-bottom: 4px; }
+.hero-trust-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: rgba(255,255,255,0.75); }
+.hero-trust-item svg { flex-shrink: 0; }
+
+/* Hero visual: Dashboard mockup */
+.hero-visual { position: relative; z-index: 1; }
+.dashboard-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px; padding: 28px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.3);
+}
+.dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.dash-title { font-size: 0.9rem; font-weight: 600; color: var(--white); }
+.dash-badge { font-size: 0.72rem; font-weight: 600; color: var(--green); background: rgba(61,122,104,0.2); padding: 3px 10px; border-radius: 100px; border: 1px solid rgba(61,122,104,0.4); }
+.dash-progress { margin-bottom: 20px; }
+.dash-progress-label { display: flex; justify-content: space-between; font-size: 0.78rem; color: rgba(255,255,255,0.5); margin-bottom: 6px; }
+.dash-bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 100px; overflow: hidden; }
+.dash-bar-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--green), var(--gold)); }
+.dash-steps { display: flex; flex-direction: column; gap: 8px; }
+.dash-step {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.04);
+}
+.dash-step.done { background: rgba(61,122,104,0.15); }
+.dash-step-icon {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; flex-shrink: 0;
+}
+.dash-step.done .dash-step-icon { background: var(--green); color: white; }
+.dash-step.pending .dash-step-icon { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.15); }
+.dash-step-text { font-size: 0.82rem; color: rgba(255,255,255,0.7); }
+.dash-step.done .dash-step-text { color: rgba(255,255,255,0.9); }
+.dash-mini-badges { display: flex; gap: 6px; margin-top: 16px; flex-wrap: wrap; }
+.dash-mini-badge { font-size: 0.7rem; padding: 4px 10px; border-radius: 100px; font-weight: 500; }
+.dash-mini-badge.a { background: rgba(200,169,107,0.2); color: var(--gold-light); border: 1px solid rgba(200,169,107,0.3); }
+.dash-mini-badge.b { background: rgba(61,122,104,0.2); color: #7ecab9; border: 1px solid rgba(61,122,104,0.3); }
+
+/* ───── SECTION LABELS ───── */
+.section-label {
+  display: inline-block; font-size: 0.72rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--gold); margin-bottom: 12px;
+}
+.section-title { color: var(--navy); margin-bottom: 16px; }
+.section-subtitle { font-size: 1.05rem; color: var(--gray-600); max-width: 560px; margin-bottom: 48px; }
+.section-header { text-align: center; }
+.section-header .section-subtitle { margin-left: auto; margin-right: auto; }
+.section-divider { width: 48px; height: 3px; background: var(--gold); border-radius: 2px; margin: 16px auto 0; }
+
+/* ───── TRUST BAND ───── */
+.trust-band { background: var(--gray-50); }
+.trust-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+.trust-item {
+  background: var(--white); border-radius: var(--radius);
+  padding: 32px 24px; text-align: center;
+  border: 1px solid var(--gray-100);
+  transition: var(--transition);
+  box-shadow: var(--shadow);
+}
+.trust-item:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+.trust-icon {
+  width: 52px; height: 52px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--navy), var(--navy-mid));
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px; color: var(--gold);
+}
+.trust-item h3 { font-size: 1rem; color: var(--navy); margin-bottom: 6px; }
+.trust-item p { font-size: 0.85rem; }
+
+/* ───── SERVICE CARDS ───── */
+.services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.service-card {
+  background: var(--white); border-radius: var(--radius);
+  border: 1px solid var(--gray-100);
+  padding: 32px; transition: var(--transition);
+  box-shadow: var(--shadow);
+  display: flex; flex-direction: column;
+}
+.service-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-md); border-color: var(--gray-200); }
+.service-card-number {
+  font-family: 'DM Mono', monospace; font-size: 0.72rem;
+  color: var(--gold); margin-bottom: 12px; letter-spacing: 0.1em;
+}
+.service-card h3 { color: var(--navy); margin-bottom: 10px; font-size: 1.15rem; }
+.service-card p { font-size: 0.88rem; flex: 1; margin-bottom: 20px; }
+.service-card-cta { display: flex; gap: 8px; }
+
+/* ───── TIMELINE ───── */
+.timeline { position: relative; }
+.timeline::before {
+  content: ''; position: absolute; left: 24px; top: 0; bottom: 0; width: 2px;
+  background: linear-gradient(to bottom, var(--navy), var(--gold), var(--green));
+}
+.timeline-item { display: flex; gap: 32px; margin-bottom: 32px; position: relative; }
+.timeline-num {
+  width: 48px; height: 48px; flex-shrink: 0;
+  background: var(--navy); color: var(--white);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-family: 'DM Mono', monospace; font-size: 0.85rem; font-weight: 500;
+  position: relative; z-index: 1; border: 3px solid var(--white);
+  box-shadow: 0 0 0 2px var(--navy);
+}
+.timeline-content {
+  background: var(--white); border: 1px solid var(--gray-100);
+  border-radius: var(--radius); padding: 20px 24px; flex: 1;
+  box-shadow: var(--shadow);
+}
+.timeline-content h4 { color: var(--navy); font-size: 1rem; margin-bottom: 4px; }
+.timeline-content p { font-size: 0.85rem; }
+
+/* ───── FAQ ───── */
+.faq-item {
+  border: 1px solid var(--gray-100); border-radius: var(--radius);
+  margin-bottom: 12px; overflow: hidden; background: var(--white);
+}
+.faq-question {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px 24px; cursor: pointer; transition: var(--transition);
+  font-weight: 500; color: var(--navy); font-size: 0.95rem;
+}
+.faq-question:hover { background: var(--gray-50); }
+.faq-icon {
+  width: 28px; height: 28px; background: var(--gray-50);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: var(--transition);
+  color: var(--navy); font-size: 1rem;
+}
+.faq-item.open .faq-icon { transform: rotate(45deg); background: var(--navy); color: white; }
+.faq-answer {
+  padding: 0 24px; max-height: 0; overflow: hidden;
+  transition: max-height 0.4s ease, padding 0.3s ease;
+  font-size: 0.9rem; color: var(--gray-600);
+}
+.faq-item.open .faq-answer { max-height: 300px; padding: 0 24px 20px; }
+
+/* ───── COMMUNITY CARDS ───── */
+.community-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.community-card {
+  background: var(--white); border: 1px solid var(--gray-100);
+  border-radius: var(--radius); padding: 32px; text-align: center;
+  box-shadow: var(--shadow); transition: var(--transition);
+}
+.community-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+.community-icon {
+  width: 60px; height: 60px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px; font-size: 1.5rem;
+}
+.community-icon.wa { background: #E8F8EF; }
+.community-icon.fb-group { background: #E8F0FE; }
+.community-icon.fb-page { background: #E8F0FE; }
+.community-card h3 { color: var(--navy); margin-bottom: 8px; font-size: 1.1rem; }
+.community-card p { font-size: 0.88rem; margin-bottom: 20px; }
+
+/* ───── CONTACT ───── */
+.contact-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 48px; align-items: start; }
+.contact-info-card {
+  background: var(--navy); border-radius: var(--radius);
+  padding: 40px; color: var(--white);
+}
+.contact-info-card h3 { color: var(--white); margin-bottom: 8px; font-size: 1.2rem; }
+.contact-info-card > p { color: rgba(255,255,255,0.6); margin-bottom: 32px; font-size: 0.9rem; }
+.contact-item { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+.contact-item-icon {
+  width: 36px; height: 36px; background: rgba(255,255,255,0.08);
+  border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: var(--gold);
+}
+.contact-item-text { font-size: 0.85rem; }
+.contact-item-label { color: rgba(255,255,255,0.4); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px; }
+.contact-item-value { color: var(--white); font-weight: 500; }
+.contact-wa-btns { display: flex; gap: 10px; margin-top: 24px; }
+
+.form-card {
+  background: var(--white); border: 1px solid var(--gray-100);
+  border-radius: var(--radius); padding: 40px; box-shadow: var(--shadow);
+}
+.form-card h3 { color: var(--navy); margin-bottom: 4px; font-size: 1.2rem; }
+.form-card > p { font-size: 0.88rem; margin-bottom: 28px; }
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--gray-800); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+.form-input {
+  width: 100%; padding: 12px 16px;
+  border: 1.5px solid var(--gray-100); border-radius: var(--radius-sm);
+  font-family: 'DM Sans', sans-serif; font-size: 0.9rem; color: var(--text);
+  background: var(--white); transition: var(--transition); outline: none;
+}
+.form-input:focus { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(13,27,56,0.08); }
+textarea.form-input { resize: vertical; min-height: 110px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ───── CTA SECTION ───── */
+.cta-section {
+  background: linear-gradient(135deg, var(--navy), var(--navy-mid));
+  padding: 96px 0; text-align: center; position: relative; overflow: hidden;
+}
+.cta-section::before {
+  content: ''; position: absolute; width: 400px; height: 400px;
+  background: var(--gold); border-radius: 50%; filter: blur(100px);
+  opacity: 0.08; top: 50%; left: 50%; transform: translate(-50%, -50%);
+}
+.cta-section h2 { color: var(--white); margin-bottom: 16px; }
+.cta-section p { color: rgba(255,255,255,0.65); max-width: 520px; margin: 0 auto 36px; font-size: 1rem; }
+.cta-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; position: relative; z-index: 1; }
+
+/* ───── FOOTER ───── */
+footer {
+  background: var(--navy); color: var(--white);
+  padding: 64px 0 0;
+}
+.footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 48px; margin-bottom: 48px; }
+.footer-logo { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; margin-bottom: 12px; }
+.footer-logo span { color: var(--gold); }
+.footer-desc { font-size: 0.85rem; color: rgba(255,255,255,0.5); line-height: 1.7; }
+.footer-col h4 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--gold); margin-bottom: 16px; font-family: 'DM Sans', sans-serif; font-weight: 600; }
+.footer-link { display: block; font-size: 0.85rem; color: rgba(255,255,255,0.5); padding: 4px 0; cursor: pointer; transition: var(--transition); }
+.footer-link:hover { color: var(--white); }
+.footer-bottom {
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 20px 0; text-align: center;
+  font-size: 0.78rem; color: rgba(255,255,255,0.3);
+}
+
+/* ───── FLOATING WA BUTTONS ───── */
+.wa-float {
+  position: fixed; right: 20px; bottom: 20px; z-index: 990;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.wa-float-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px; border-radius: 50px;
+  font-size: 0.82rem; font-weight: 600; color: white;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2); transition: var(--transition);
+  text-decoration: none;
+}
+.wa-float-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+.wa-float-btn.togo { background: #25D366; }
+.wa-float-btn.france { background: #128C7E; }
+
+/* ───── METHOD STEPS ───── */
+.method-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+.method-step {
+  text-align: center; padding: 32px 20px;
+  background: var(--white); border: 1px solid var(--gray-100);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  position: relative; transition: var(--transition);
+}
+.method-step:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+.method-step::after {
+  content: '→'; position: absolute; right: -20px; top: 50%;
+  transform: translateY(-50%); color: var(--gold); font-size: 1.5rem;
+  font-weight: 300;
+}
+.method-step:last-child::after { display: none; }
+.method-num {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--navy), var(--navy-mid));
+  color: var(--white); font-family: 'Playfair Display', serif;
+  font-size: 1.3rem; display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px; font-weight: 600;
+}
+.method-step h3 { color: var(--navy); font-size: 1rem; margin-bottom: 8px; }
+.method-step p { font-size: 0.83rem; }
+
+/* ───── PAGES ───── */
+.page { display: none; }
+.page.active { display: block; }
+
+/* ───── PAGE HERO ───── */
+.page-hero {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+  padding: 140px 0 80px; position: relative; overflow: hidden;
+}
+.page-hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+.page-hero-gold { background: linear-gradient(135deg, #0D1B38 0%, #1A3A2A 100%); }
+.page-hero-inner { position: relative; z-index: 1; max-width: 760px; }
+.page-hero .breadcrumb { font-size: 0.78rem; color: rgba(255,255,255,0.4); margin-bottom: 20px; }
+.page-hero .breadcrumb span { color: var(--gold); }
+.page-hero h1 { color: var(--white); margin-bottom: 16px; }
+.page-hero p { color: rgba(255,255,255,0.7); font-size: 1.05rem; max-width: 580px; }
+
+/* ───── ALERT BLOCK ───── */
+.alert-block {
+  background: #F0F7FF; border: 1px solid #C5DEFF; border-left: 4px solid #3B82F6;
+  border-radius: var(--radius); padding: 20px 24px;
+  display: flex; gap: 16px; align-items: flex-start;
+}
+.alert-block-icon { color: #3B82F6; flex-shrink: 0; margin-top: 2px; }
+.alert-block-text h4 { color: #1E40AF; font-size: 0.9rem; margin-bottom: 4px; }
+.alert-block-text p { font-size: 0.85rem; color: #3B5DA0; }
+
+/* ───── DASHBOARD PREVIEW ───── */
+.dashboard-preview {
+  background: var(--gray-50); border-radius: 20px;
+  padding: 32px; border: 1px solid var(--gray-100);
+}
+.dash-preview-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;
+}
+.dash-preview-title { font-size: 1rem; font-weight: 600; color: var(--navy); }
+.dash-preview-meta { font-size: 0.78rem; color: var(--gray-400); }
+.dash-preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.dash-pcard {
+  background: var(--white); border-radius: var(--radius);
+  padding: 20px; border: 1px solid var(--gray-100);
+}
+.dash-pcard-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gray-400); margin-bottom: 8px; font-weight: 600; }
+.dash-pcard-val { font-size: 1.5rem; font-weight: 700; color: var(--navy); font-family: 'Playfair Display', serif; }
+.dash-pcard-sub { font-size: 0.78rem; color: var(--gray-400); margin-top: 2px; }
+.dash-checklist { background: var(--white); border-radius: var(--radius); padding: 20px; border: 1px solid var(--gray-100); }
+.dash-check-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gray-400); font-weight: 600; margin-bottom: 12px; }
+.dash-check-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--gray-50); font-size: 0.85rem; color: var(--gray-600); }
+.dash-check-item:last-child { border-bottom: none; }
+.dash-check-box { width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
+.dash-check-box.done { background: var(--green); color: white; }
+.dash-check-box.todo { border: 1.5px solid var(--gray-200); }
+.dash-check-box.alert { background: #FEF3C7; border: 1.5px solid #FCD34D; color: #92400E; }
+
+/* ───── INFO BLOCKS (about/other pages) ───── */
+.info-blocks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.info-block {
+  background: var(--white); border: 1px solid var(--gray-100);
+  border-radius: var(--radius); padding: 28px; box-shadow: var(--shadow);
+}
+.info-block-accent { display: block; width: 32px; height: 3px; background: var(--gold); border-radius: 2px; margin-bottom: 16px; }
+.info-block h3 { color: var(--navy); margin-bottom: 8px; font-size: 1.05rem; }
+.info-block p { font-size: 0.87rem; }
+
+/* ───── PRESENCE SECTION ───── */
+.presence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+.presence-card {
+  border-radius: var(--radius); padding: 36px; position: relative; overflow: hidden;
+}
+.presence-card.togo { background: linear-gradient(135deg, #0D1B38, #1A2F5A); }
+.presence-card.france { background: linear-gradient(135deg, #1A3A2A, #2e5440); }
+.presence-card-flag { font-size: 2.5rem; margin-bottom: 16px; }
+.presence-card h3 { color: var(--white); font-size: 1.3rem; margin-bottom: 8px; }
+.presence-card p { color: rgba(255,255,255,0.65); font-size: 0.88rem; margin-bottom: 20px; }
+.presence-card-contact { color: var(--gold); font-weight: 600; font-size: 0.95rem; }
+
+/* ───── ABOUT VISION ───── */
+.about-lead {
+  font-size: 1.3rem; color: var(--navy-mid); font-weight: 400;
+  line-height: 1.7; font-style: italic; border-left: 4px solid var(--gold);
+  padding-left: 24px; margin-bottom: 48px;
+}
+
+/* ───── RESPONSIVE ───── */
+@media (max-width: 1024px) {
+  nav { display: none; }
+  .hamburger { display: flex; }
+  .header-ctas { display: none; }
+  .hero-inner { grid-template-columns: 1fr; }
+  .hero-visual { display: none; }
+  .trust-grid { grid-template-columns: repeat(2, 1fr); }
+  .services-grid { grid-template-columns: repeat(2, 1fr); }
+  .footer-grid { grid-template-columns: 1fr 1fr; gap: 32px; }
+  .method-grid { grid-template-columns: repeat(2, 1fr); }
+  .method-step::after { display: none; }
+  .contact-grid { grid-template-columns: 1fr; }
+  .info-blocks { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .section { padding: 64px 0; }
+  .trust-grid { grid-template-columns: 1fr; }
+  .services-grid { grid-template-columns: 1fr; }
+  .community-grid { grid-template-columns: 1fr; }
+  .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+  .method-grid { grid-template-columns: 1fr; }
+  .presence-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  .dash-preview-grid { grid-template-columns: 1fr; }
+  h1 { font-size: 1.9rem; }
+  h2 { font-size: 1.5rem; }
+  .hero-ctas { flex-direction: column; }
+  .wa-float { right: 12px; bottom: 12px; }
+  .wa-float-btn { padding: 10px 14px; font-size: 0.78rem; }
+}
+
+/* ───── ANIMATIONS ───── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate { animation: fadeInUp 0.6s cubic-bezier(0.4,0,0.2,1) both; }
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+.delay-4 { animation-delay: 0.4s; }
+
+/* ───── MISC ───── */
+.text-center { text-align: center; }
+.text-gold { color: var(--gold); }
+.text-navy { color: var(--navy); }
+.mt-8 { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
+.mt-24 { margin-top: 24px; }
+.mt-32 { margin-top: 32px; }
+.mt-48 { margin-top: 48px; }
+.mb-8 { margin-bottom: 8px; }
+.flex { display: flex; }
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+.flex-wrap { flex-wrap: wrap; }
+.bg-gray { background: var(--gray-50); }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+@media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<header id="header">
+  <div class="header-inner">
+    <div class="logo" onclick="showPage('home')">Pie<span>Agency</span></div>
+    <nav>
+      <span class="nav-link" onclick="showPage('home')">Accueil</span>
+      <span class="nav-link" onclick="showPage('campus-france')">Campus France</span>
+      <span class="nav-link" onclick="showPage('visa')">Visa</span>
+      <span class="nav-link" onclick="showPage('belgique')">Belgique</span>
+      <span class="nav-link" onclick="showPage('paris-saclay')">Paris-Saclay</span>
+      <span class="nav-link" onclick="showPage('parcoursup')">Parcoursup</span>
+      <span class="nav-link" onclick="showPage('ecoles')">Écoles privées</span>
+      <span class="nav-link" onclick="showPage('communaute')">Communauté</span>
+      <span class="nav-link" onclick="showPage('faq')">FAQ</span>
+      <span class="nav-link" onclick="showPage('about')">À propos</span>
+      <span class="nav-link" onclick="showPage('contact')">Contact</span>
+    </nav>
+    <div class="header-ctas">
+      <a href="https://wa.me/33635320440" target="_blank" class="btn btn-outline btn-sm">💬 Conseiller</a>
+      <button class="btn btn-primary btn-sm" onclick="showPage('contact')">Commencer mon dossier</button>
+    </div>
+    <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<!-- Mobile Menu -->
+<div class="mobile-menu" id="mobileMenu">
+  <span class="mobile-nav-link" onclick="showPage('home');toggleMenu()">Accueil</span>
+  <span class="mobile-nav-link" onclick="showPage('campus-france');toggleMenu()">Campus France</span>
+  <span class="mobile-nav-link" onclick="showPage('visa');toggleMenu()">Procédure Visa</span>
+  <span class="mobile-nav-link" onclick="showPage('belgique');toggleMenu()">Campus Belgique</span>
+  <span class="mobile-nav-link" onclick="showPage('paris-saclay');toggleMenu()">Paris-Saclay</span>
+  <span class="mobile-nav-link" onclick="showPage('parcoursup');toggleMenu()">Parcoursup</span>
+  <span class="mobile-nav-link" onclick="showPage('ecoles');toggleMenu()">Écoles privées France</span>
+  <span class="mobile-nav-link" onclick="showPage('communaute');toggleMenu()">Communauté</span>
+  <span class="mobile-nav-link" onclick="showPage('faq');toggleMenu()">FAQ</span>
+  <span class="mobile-nav-link" onclick="showPage('about');toggleMenu()">À propos</span>
+  <span class="mobile-nav-link" onclick="showPage('contact');toggleMenu()">Contact</span>
+  <div class="mobile-ctas">
+    <a href="https://wa.me/22892092572" target="_blank" class="btn btn-wa-togo">📱 WhatsApp Togo</a>
+    <a href="https://wa.me/33635320440" target="_blank" class="btn btn-wa-france">📱 WhatsApp France</a>
+    <button class="btn btn-primary" onclick="showPage('contact');toggleMenu()">Commencer mon dossier</button>
+  </div>
+</div>
+
+<!-- ═══════════════════ PAGE: ACCUEIL ═══════════════════ -->
+<div id="page-home" class="page active">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero-inner">
+      <div class="hero-content animate">
+        <div class="hero-badge">
+          <div class="hero-dot"></div>
+          <span>Cabinet d'accompagnement étudiant</span>
+        </div>
+        <h1>Étudiez en France ou en Belgique avec un accompagnement <em>clair, humain</em> et structuré</h1>
+        <p>Analyse du dossier, choix des formations, rédaction des documents, préparation à l'entretien Campus France, accompagnement visa et suivi personnalisé.</p>
+        <div class="hero-ctas">
+          <button class="btn btn-gold btn-lg" onclick="showPage('contact')">Commencer mon dossier</button>
+          <a href="https://wa.me/33635320440" target="_blank" class="btn btn-outline-white btn-lg">💬 Parler à un conseiller</a>
+        </div>
+        <div class="hero-trust">
+          <div class="hero-trust-title">Nos contacts directs</div>
+          <div class="hero-trust-item">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#C8A96B" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .18h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.09 7.91A16 16 0 0016.09 17.9l1.09-1.09a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+            France : Ibrahim B. (+33) 6 35 32 04 40
+          </div>
+          <div class="hero-trust-item">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#C8A96B" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .18h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.09 7.91A16 16 0 0016.09 17.9l1.09-1.09a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+            Togo : Junior L. +228 92 09 25 72
+          </div>
+          <div class="hero-trust-item">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#C8A96B" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            contact@pieagency.fr
+          </div>
+        </div>
+      </div>
+      <div class="hero-visual animate delay-2">
+        <div class="dashboard-card">
+          <div class="dash-header">
+            <div class="dash-title">Suivi de dossier — Campus France</div>
+            <div class="dash-badge">● En cours</div>
+          </div>
+          <div class="dash-progress">
+            <div class="dash-progress-label"><span>Progression</span><span>4 / 7 étapes</span></div>
+            <div class="dash-bar"><div class="dash-bar-fill" style="width:57%"></div></div>
+          </div>
+          <div class="dash-steps">
+            <div class="dash-step done">
+              <div class="dash-step-icon">✓</div>
+              <div class="dash-step-text">Analyse du dossier complet</div>
+            </div>
+            <div class="dash-step done">
+              <div class="dash-step-icon">✓</div>
+              <div class="dash-step-text">Formulation du projet d'études</div>
+            </div>
+            <div class="dash-step done">
+              <div class="dash-step-icon">✓</div>
+              <div class="dash-step-text">Choix des formations</div>
+            </div>
+            <div class="dash-step done">
+              <div class="dash-step-icon">✓</div>
+              <div class="dash-step-text">Rédaction des lettres de motivation</div>
+            </div>
+            <div class="dash-step pending">
+              <div class="dash-step-icon">5</div>
+              <div class="dash-step-text">Correction du CV</div>
+            </div>
+            <div class="dash-step pending">
+              <div class="dash-step-icon">6</div>
+              <div class="dash-step-text">Soumission du dossier en ligne</div>
+            </div>
+            <div class="dash-step pending">
+              <div class="dash-step-icon">7</div>
+              <div class="dash-step-text">Préparation à l'entretien</div>
+            </div>
+          </div>
+          <div class="dash-mini-badges">
+            <span class="dash-mini-badge a">Campus France</span>
+            <span class="dash-mini-badge b">Suivi actif</span>
+            <span class="dash-mini-badge a">France 🇫🇷</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRUST BAND -->
+  <section class="section-sm trust-band">
+    <div class="container">
+      <div class="section-header" style="margin-bottom:40px">
+        <div class="section-label">Notre approche</div>
+        <h2 class="section-title">Un accompagnement pensé pour avancer avec méthode</h2>
+        <p class="section-subtitle">Chez PieAgency, chaque étudiant est accompagné avec une logique claire : compréhension du profil, structuration du projet, préparation des documents, soumission du dossier et accompagnement jusqu'aux étapes décisives.</p>
+      </div>
+      <div class="trust-grid">
+        <div class="trust-item">
+          <div class="trust-icon">
+            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+          <h3>Analyse du profil</h3>
+          <p>Chaque dossier commence par une lecture attentive du parcours et du projet de l'étudiant.</p>
+        </div>
+        <div class="trust-item">
+          <div class="trust-icon">
+            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <h3>Dossier structuré</h3>
+          <p>Les documents sont préparés avec soin, dans un ordre logique et cohérent avec la procédure visée.</p>
+        </div>
+        <div class="trust-item">
+          <div class="trust-icon">
+            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          </div>
+          <h3>Accompagnement humain</h3>
+          <p>Un suivi direct, clair et accessible, sans intermédiaire inutile.</p>
+        </div>
+        <div class="trust-item">
+          <div class="trust-icon">
+            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <h3>Suivi Togo / France</h3>
+          <p>Présence sur deux continents pour rester proche des étudiants avant et après le départ.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NOS ACCOMPAGNEMENTS -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header" style="margin-bottom:48px">
+        <div class="section-label">Ce que nous faisons</div>
+        <h2 class="section-title">Nos accompagnements</h2>
+        <p class="section-subtitle">Nous accompagnons les étudiants sur plusieurs parcours, selon leur profil, leur projet et la procédure concernée.</p>
+        <div class="section-divider"></div>
+      </div>
+      <div class="services-grid">
+        <div class="service-card">
+          <div class="service-card-number">01</div>
+          <h3>Accompagnement Campus France</h3>
+          <p>Analyse du dossier, choix de formations, rédaction de lettres, correction du CV, soumission et préparation à l'entretien.</p>
+          <div class="service-card-cta">
+            <button class="btn btn-primary btn-sm" onclick="showPage('campus-france')">En savoir plus</button>
+            <a href="https://wa.me/22892092572" target="_blank" class="btn btn-outline btn-sm">Démarrer</a>
+          </div>
+        </div>
+        <div class="service-card">
+          <div class="service-card-number">02</div>
+          <h3>Procédure Visa</h3>
+          <p>Rédaction des lettres, aide à la justification d'hébergement et de financement, analyse du dossier visa et accompagnement préparatoire.</p>
+          <div class="service-card-cta">
+            <button class="btn btn-primary btn-sm" onclick="showPage('visa')">En savoir plus</button>
+            <a href="https://wa.me/22892092572" target="_blank" class="btn btn-outline btn-sm">Démarrer</a>
+          </div>
+        </div>
+        <div class="service-card">
+          <div class="service-card-number">03</div>
+          <h3>Campus Belgique</h3>
+          <p>Accompagnement dans la préparation du projet et du dossier pour les démarches d'études en Belgique.</p>
+          <div class="service-card-cta">
+            <button class="btn btn-primary btn-sm" onclick="showPage('belgique')">En savoir plus</button>
+            <a href="https://wa.me/22892092572" target="_blank" class="btn btn-outline btn-sm">Démarrer</a>
+          </div>
+        </div>
+        <div class="service-card">
+          <div class="service-card-number">04</div>
+          <h3>Paris-Saclay</h3>
+          <p>Appui ciblé pour les candidatures vers Paris-Saclay, avec une attention portée au dossier, au projet et aux attentes de la formation.</p>
+          <div class="service-card-cta">
+            <button class="btn btn-primary btn-sm" onclick="showPage('paris-saclay')">En savoir plus</button>
+            <a href="https://wa.me/22892092572" target="_blank" class="btn btn-outline btn-sm">Démarrer</a>
+          </div>
+        </div>
+        <div class="service-card">
+          <div class="service-card-number">05</div>
+          <h3>Parcoursup</h3>
+          <p>Aide au choix des formations, compréhension de la procédure et préparation du dossier.</p>
+          <div class="service-card-cta">
+            <button class="btn btn-primary btn-sm" onclick="showPage('parcoursup')">En savoir plus</button>
+            <a href="https://wa.me/22892092572" target="_blank" class="btn btn-outline btn-sm">Démarrer</a>
+          </div>
+        </div>
+        <div class="service-card">
+          <div class="service-card-number">06</div>
+          <h3>Écoles privées France</h3>
+          <p>Accompagnement pour identifier des écoles adaptées au profil de l'étudiant et préparer une candidature cohérente.</p>
+          <div class="service-card-cta">
+            <button class="btn btn-primary btn-sm" onclick="showPage('ecoles')">En savoir plus</button>
+            <a href="https://wa.me/22892092572" target="_blank" class="btn btn-outline btn-sm">Démarrer</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CAMPUS FRANCE DETAIL -->
+  <section class="section bg-gray">
+    <div class="container">
+      <div class="two-col" style="gap:64px">
+        <div>
+          <div class="section-label">Service phare</div>
+          <h2 class="section-title">Accompagnement Campus France</h2>
+          <p style="margin-bottom:32px">Analyse de dossier, choix des formations, rédaction de lettres, préparation à l'entretien, et accompagnement tout au long de la procédure.</p>
+          <h4 style="color:var(--navy);margin-bottom:20px;font-size:1rem;">Comment ça fonctionne ?</h4>
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-num">01</div>
+              <div class="timeline-content">
+                <h4>Analyse du dossier complet</h4>
+                <p>Lecture détaillée des relevés, du parcours et du projet.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">02</div>
+              <div class="timeline-content">
+                <h4>Formulation du projet d'études et professionnel</h4>
+                <p>Définir un projet clair, cohérent et bien articulé.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">03</div>
+              <div class="timeline-content">
+                <h4>Choix des formations et des universités</h4>
+                <p>Sélection adaptée au profil et au projet de l'étudiant.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">04</div>
+              <div class="timeline-content">
+                <h4>Rédaction des lettres de motivation</h4>
+                <p>Des lettres structurées, personnalisées et convaincantes.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">05</div>
+              <div class="timeline-content">
+                <h4>Correction du CV de l'étudiant</h4>
+                <p>Mise en forme professionnelle et cohérente avec la candidature.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">06</div>
+              <div class="timeline-content">
+                <h4>Soumission du dossier en ligne</h4>
+                <p>Accompagnement dans la démarche de soumission sur la plateforme.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">07</div>
+              <div class="timeline-content">
+                <h4>Préparation à l'entretien Campus France</h4>
+                <p>Simulation, conseils et préparation pour l'étape décisive.</p>
+              </div>
+            </div>
+          </div>
+          <div class="mt-32">
+            <button class="btn btn-primary btn-lg" onclick="showPage('campus-france')">Lancer mon accompagnement Campus France</button>
+          </div>
+        </div>
+        <div>
+          <div class="section-label">Procédure Visa</div>
+          <h2 class="section-title">Accompagnement Visa</h2>
+          <p style="margin-bottom:32px">Rédaction de lettres, justification d'hébergement et de financement pour votre demande de visa.</p>
+          <h4 style="color:var(--navy);margin-bottom:20px;font-size:1rem;">Comment ça fonctionne ?</h4>
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-num">01</div>
+              <div class="timeline-content">
+                <h4>Rédaction de la lettre de motivation visa</h4>
+                <p>Un document adapté aux exigences consulaires.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">02</div>
+              <div class="timeline-content">
+                <h4>Rédaction de lettre explicative si nécessaire</h4>
+                <p>Pour clarifier certains éléments du dossier.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">03</div>
+              <div class="timeline-content">
+                <h4>Guide pour justifier l'hébergement</h4>
+                <p>Aide à la constitution des justificatifs d'hébergement.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">04</div>
+              <div class="timeline-content">
+                <h4>Guide pour justifier les ressources suffisantes</h4>
+                <p>Structurer les preuves financières de manière convaincante.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">05</div>
+              <div class="timeline-content">
+                <h4>Analyse générale du dossier visa</h4>
+                <p>Lecture globale pour identifier les points à renforcer.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">06</div>
+              <div class="timeline-content">
+                <h4>Dépôt des dossiers par l'étudiant</h4>
+                <p>Le dépôt final reste effectué par l'étudiant lui-même.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-num">07</div>
+              <div class="timeline-content">
+                <h4>Guide de stabilisation financière et recherche d'emploi</h4>
+                <p>Conseils pratiques pour mieux s'organiser à l'arrivée en France.</p>
+              </div>
+            </div>
+          </div>
+          <div class="mt-32">
+            <button class="btn btn-outline btn-lg" onclick="showPage('visa')">Préparer mon dossier visa</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AUTRES PARCOURS -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header" style="margin-bottom:48px">
+        <div class="section-label">D'autres voies</div>
+        <h2 class="section-title">D'autres parcours selon votre projet</h2>
+        <p class="section-subtitle">Parce que chaque étudiant a un parcours différent, PieAgency propose aussi un accompagnement ciblé sur d'autres procédures et voies d'accès.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:24px">
+        <div class="service-card" onclick="showPage('belgique')" style="cursor:pointer">
+          <div class="service-card-number">🇧🇪 Belgique</div>
+          <h3>Campus Belgique</h3>
+          <p>Un appui structuré pour préparer votre dossier et avancer avec cohérence vers les études en Belgique.</p>
+          <div class="service-card-cta mt-16"><span class="btn btn-outline btn-sm">Découvrir →</span></div>
+        </div>
+        <div class="service-card" onclick="showPage('paris-saclay')" style="cursor:pointer">
+          <div class="service-card-number">🎓 Paris-Saclay</div>
+          <h3>Paris-Saclay</h3>
+          <p>Une aide ciblée pour comprendre les attentes, valoriser le profil et mieux construire la candidature.</p>
+          <div class="service-card-cta mt-16"><span class="btn btn-outline btn-sm">Découvrir →</span></div>
+        </div>
+        <div class="service-card" onclick="showPage('parcoursup')" style="cursor:pointer">
+          <div class="service-card-number">📋 Parcoursup</div>
+          <h3>Parcoursup</h3>
+          <p>Un accompagnement utile pour faire les bons choix et mieux préparer les éléments demandés.</p>
+          <div class="service-card-cta mt-16"><span class="btn btn-outline btn-sm">Découvrir →</span></div>
+        </div>
+        <div class="service-card" onclick="showPage('ecoles')" style="cursor:pointer">
+          <div class="service-card-number">🏫 Écoles privées</div>
+          <h3>Écoles privées France</h3>
+          <p>Une orientation plus souple pour identifier des options adaptées au profil, au budget et au projet.</p>
+          <div class="service-card-cta mt-16"><span class="btn btn-outline btn-sm">Découvrir →</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MÉTHODE -->
+  <section class="section bg-gray">
+    <div class="container">
+      <div class="section-header" style="margin-bottom:48px">
+        <div class="section-label">Notre méthode</div>
+        <h2 class="section-title">Une méthode claire, étape par étape</h2>
+        <p class="section-subtitle">Nous ne faisons pas avancer les étudiants au hasard. Chaque accompagnement suit une logique simple : comprendre le profil, structurer le projet, préparer les documents, avancer sur la procédure et accompagner jusqu'aux étapes importantes.</p>
+      </div>
+      <div class="method-grid">
+        <div class="method-step">
+          <div class="method-num">1</div>
+          <h3>Diagnostic</h3>
+          <p>Analyse du profil, du parcours et du projet d'études de l'étudiant.</p>
+        </div>
+        <div class="method-step">
+          <div class="method-num">2</div>
+          <h3>Préparation du dossier</h3>
+          <p>Rédaction des documents, structuration du dossier selon la procédure.</p>
+        </div>
+        <div class="method-step">
+          <div class="method-num">3</div>
+          <h3>Soumission et orientation</h3>
+          <p>Accompagnement à la soumission, ajustements si nécessaire.</p>
+        </div>
+        <div class="method-step">
+          <div class="method-num">4</div>
+          <h3>Suivi et accompagnement final</h3>
+          <p>Préparation à l'entretien, suivi et soutien jusqu'aux étapes décisives.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ESPACE ÉTUDIANT -->
+  <section class="section">
+    <div class="container">
+      <div class="two-col" style="gap:64px;align-items:start">
+        <div>
+          <div class="section-label">En développement</div>
+          <h2 class="section-title">Un accompagnement mieux organisé grâce à un espace étudiant</h2>
+          <p style="margin-bottom:24px">PieAgency évolue vers une expérience encore plus structurée, avec un espace étudiant permettant de suivre le dossier, centraliser les documents, recevoir les consignes et mieux visualiser les étapes à venir.</p>
+          <ul style="list-style:none;display:flex;flex-direction:column;gap:12px;margin-bottom:32px">
+            <li style="display:flex;align-items:center;gap:10px;font-size:0.9rem;color:var(--gray-600)">
+              <span style="color:var(--green);font-weight:700">✓</span> Statut du dossier en temps réel
+            </li>
+            <li style="display:flex;align-items:center;gap:10px;font-size:0.9rem;color:var(--gray-600)">
+              <span style="color:var(--green);font-weight:700">✓</span> Checklist des documents à fournir
+            </li>
+            <li style="display:flex;align-items:center;gap:10px;font-size:0.9rem;color:var(--gray-600)">
+              <span style="color:var(--green);font-weight:700">✓</span> Étapes à venir clairement indiquées
+            </li>
+            <li style="display:flex;align-items:center;gap:10px;font-size:0.9rem;color:var(--gray-600)">
+              <span style="color:var(--green);font-weight:700">✓</span> Corrections et retours du conseiller
+            </li>
+            <li style="display:flex;align-items:center;gap:10px;font-size:0.9rem;color:var(--gray-600)">
+              <span style="color:var(--green);font-weight:700">✓</span> Suivi des rendez-vous importants
+            </li>
+            <li style="display:flex;align-items:center;gap:10px;font-size:0.9rem;color:var(--gray-600)">
+              <span style="color:var(--green);font-weight:700">✓</span> Historique des échanges
+            </li>
+          </ul>
+          <button class="btn btn-primary" onclick="showPage('contact')">Être informé à l'ouverture</button>
+        </div>
+        <div class="dashboard-preview">
+          <div class="dash-preview-header">
+            <div>
+              <div style="font-size:0.7rem;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px">Espace étudiant</div>
+              <div class="dash-preview-title">Mon dossier — Campus France 🇫🇷</div>
+            </div>
+            <div class="dash-preview-meta">Dernière mise à jour: aujourd'hui</div>
+          </div>
+          <div class="dash-preview-grid">
+            <div class="dash-pcard">
+              <div class="dash-pcard-label">Progression</div>
+              <div class="dash-pcard-val">57%</div>
+              <div class="dash-pcard-sub">4 étapes sur 7 validées</div>
+            </div>
+            <div class="dash-pcard">
+              <div class="dash-pcard-label">Prochain rendez-vous</div>
+              <div class="dash-pcard-val" style="font-size:1rem;padding-top:4px">Entretien<br><span style="color:var(--green)">Préparation →</span></div>
+            </div>
+          </div>
+          <div class="dash-checklist">
+            <div class="dash-check-label">Checklist des documents</div>
+            <div class="dash-check-item">
+              <div class="dash-check-box done">✓</div>
+              Relevés de notes officiels
+            </div>
+            <div class="dash-check-item">
+              <div class="dash-check-box done">✓</div>
+              Copie du baccalauréat
+            </div>
+            <div class="dash-check-item">
+              <div class="dash-check-box done">✓</div>
+              Lettre de motivation (rédigée)
+            </div>
+            <div class="dash-check-item">
+              <div class="dash-check-box alert">!</div>
+              CV — Correction en attente
+            </div>
+            <div class="dash-check-item">
+              <div class="dash-check-box todo"></div>
+              Justificatifs financiers
+            </div>
+            <div class="dash-check-item">
+              <div class="dash-check-box todo"></div>
+              Photo d'identité conforme
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMMUNAUTÉ -->
+  <section class="section bg-gray">
+    <div class="container">
+      <div class="section-header" style="margin-bottom:48px">
+        <div class="section-label">Communauté</div>
+        <h2 class="section-title">Rejoignez la communauté PieAgency</h2>
+        <p class="section-subtitle">Retrouvez des échanges, des conseils et des informations utiles à travers nos espaces communautaires.</p>
+      </div>
+      <div class="community-grid">
+        <div class="community-card">
+          <div class="community-icon wa">💬</div>
+          <h3>Communauté WhatsApp</h3>
+          <p>Rejoignez notre espace d'échange pour suivre les informations utiles et rester connecté à la communauté.</p>
+          <a href="https://chat.whatsapp.com/DWwuJQP3ym9JW4OZj11H1C" target="_blank" class="btn btn-green">Rejoindre</a>
+        </div>
+        <div class="community-card">
+          <div class="community-icon fb-group">👥</div>
+          <h3>Groupe Facebook</h3>
+          <p>Un espace d'échange pour mieux suivre les discussions, les conseils et les opportunités.</p>
+          <a href="https://web.facebook.com/groups/8418722288154510/" target="_blank" class="btn btn-primary">Accéder au groupe</a>
+        </div>
+        <div class="community-card">
+          <div class="community-icon fb-page">📢</div>
+          <h3>Page Facebook</h3>
+          <p>Retrouvez les informations, les publications et l'actualité de PieAgency.</p>
+          <a href="https://web.facebook.com/profile.php?id=61564375512991" target="_blank" class="btn btn-outline">Voir la page</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT SNIPPET -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header" style="margin-bottom:48px">
+        <div class="section-label">Contactez-nous</div>
+        <h2 class="section-title">Notre équipe est disponible</h2>
+        <p class="section-subtitle">Notre équipe reste disponible pour vous orienter et vous aider à choisir l'accompagnement adapté à votre situation.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:24px;margin-bottom:32px">
+        <div class="trust-item" style="text-align:left;padding:24px 28px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+            <span style="font-size:1.2rem">🇫🇷</span>
+            <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gray-400);font-weight:600">France</span>
+          </div>
+          <div style="font-weight:600;color:var(--navy);margin-bottom:2px">Ibrahim B.</div>
+          <div style="font-size:0.88rem;color:var(--gray-600)">(+33) 6 35 32 04 40</div>
+        </div>
+        <div class="trust-item" style="text-align:left;padding:24px 28px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+            <span style="font-size:1.2rem">🇹🇬</span>
+            <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gray-400);font-weight:600">Togo</span>
+          </div>
+          <div style="font-weight:600;color:var(--navy);margin-bottom:2px">Junior L.</div>
+          <div style="font-size:0.88rem;color:var(--gray-600)">+228 92 09 25 72</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+        <a href="https://wa.me/22892092572" target="_blank" class="btn btn-wa-togo">📱 WhatsApp Togo</a>
+        <a href="https://wa.me/33635320440" target="_blank" class="btn btn-wa-france">📱 WhatsApp France</a>
+        <a href="mailto:contact@pieagency.fr" class="btn btn-outline">✉️ Envoyer un email</a>
+        <button class="btn btn-primary" onclick="showPage('contact')">Formulaire de contact</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section bg-gray">
+    <div class="container" style="max-width:760px">
+      <div class="section-header" style="margin-bottom:48px">
+        <div class="section-label">Questions fréquentes</div>
+        <h2 class="section-title">Questions fréquentes</h2>
+      </div>
+      <div id="faq-home">
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFaq(this)">
+            Quels types d'accompagnement propose PieAgency ?
+            <div class="faq-icon">+</div>
+          </div>
+          <div class="faq-answer">PieAgency accompagne les étudiants sur les démarches Campus France, la procédure visa, Campus Belgique, Paris-Saclay, Parcoursup et les écoles privées en France.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFaq(this)">
+            Est-ce que l'accompagnement est personnalisé ?
+            <div class="faq-icon">+</div>
+          </div>
+          <div class="faq-answer">Oui. Chaque accompagnement tient compte du profil de l'étudiant, de son niveau, de son projet et de la procédure concernée.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFaq(this)">
+            Peut-on échanger directement sur WhatsApp ?
+            <div class="faq-icon">+</div>
+          </div>
+          <div class="faq-answer">Oui. PieAgency met à disposition un contact WhatsApp Togo et un contact WhatsApp France pour faciliter les échanges.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFaq(this)">
+            Aidez-vous pour la préparation à l'entretien Campus France ?
+            <div class="faq-icon">+</div>
+          </div>
+          <div class="faq-answer">Oui. La préparation à l'entretien Campus France fait partie de l'accompagnement proposé.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFaq(this)">
+            Aidez-vous aussi pour la procédure visa ?
+            <div class="faq-icon">+</div>
+          </div>
+          <div class="faq-answer">Oui. PieAgency accompagne les étudiants dans la préparation des éléments utiles au dossier visa, notamment les lettres, l'hébergement, les ressources et l'analyse générale du dossier.</div>
+        </div>
+      </div>
+      <div class="text-center mt-24">
+        <button class="btn btn-outline" onclick="showPage('faq')">Voir toutes les questions →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA FINAL -->
+  <section class="cta-section">
+    <div class="container">
+      <h2>Prêt à démarrer votre dossier ?</h2>
+      <p>Parlez avec un conseiller et avancez avec une méthode plus claire pour vos démarches d'études vers la France ou la Belgique.</p>
+      <div class="cta-btns">
+        <button class="btn btn-gold btn-lg" onclick="showPage('contact')">Commencer mon dossier</button>
+        <a href="https://wa.me/33635320440" target="_blank" class="btn btn-outline-white btn-lg">💬 Parler à un conseiller</a>
+      </div>
+    </div>
+  </section>
+
+</div><!-- end page-home -->
+
+<!-- ═══════════════════ PAGE: CAMPUS FRANCE ═══════════════════ -->
+<div id="page-campus-france" class="page">
+  <div class="page-hero">
+    <div class="container">
+      <div class="page-hero-inner">
+        <div class="breadcrumb">Accueil / <span>Campus France</span></div>
+        <h1>Accompagnement Campus France</h1>
+        <p>Une démarche structurée pour construire un dossier cohérent, choisir les bonnes formations et mieux se préparer aux étapes importantes.</p>
+      </div>
+    </div>
+  </div>
+  <section class="section">
+    <div class="container" style="max-width:800px">
+      <div class="section-label">Présentation</div>
+      <h2 class="section-title">Ce que nous faisons</h2>
+      <p style="margin-bottom:40px">PieAgency accompagne les étudiants sur l'ensemble de la démarche Campus France, depuis l'analyse du dossier jusqu'à la préparation à l'entretien.</p>
+      <h3 style="color:var(--navy);margin-bottom:24px">Les 7 étapes de l'accompagnement</h3>
+      <div class="timeline">
+        <div class="timeline-item"><div class="timeline-num">01</div><div class="timeline-content"><h4>Analyse du dossier complet</h4><p>Lecture détaillée des relevés, du parcours et du projet de l'étudiant.</p></div></div>
+        <div class="timeline-item"><div class="timeline-num">02</div><div class="timeline-content"><h4>Formulation du projet d'études et professionnel</h4><p>Définir un projet clair, cohérent et bien articulé pour la procédure.</p></div></div>
+        <div class="timeline-item"><div class="timeline-num">03</div><div class="timeline-content"><h4>Choix des formations et des universités</h4><p>Sélection adaptée au profil, au niveau et au projet de l'étudiant.</p></div></div>
+        <div class="timeline-item"><div class="timeline-num">04</div><div class="timeline-content"><h4>Rédaction des lettres de motivation</h4><p>Des lettres structurées, personnalisées et adaptées aux formations visées.</p></div></div>
+        <div class="timeline-item"><div class="timeline-num">05</div><div class="timeline-content"><h4>Correction du CV de l'étudiant</h4><p>Mise en forme professionnelle et cohérente avec les candidatures.</p></div></div>
+        <div class="timeline-item"><div class="timeline-num">06</div><div class="timeline-content"><h4>Soumission du dossier en ligne</h4><p>Accompagnement dans la démarche de soumission sur la plateforme Campus France.</p></div></div>
+        <div class="timeline-item"><div class="timeline-num">07</div><div class="timeline-content"><h4>Préparation à l'entretien Campus France</h4><p>Simulation d'entretien, conseils et préparation pour l'étape décisive.</p></div></div>
+      </div>
+    </div>
+  </section>
+  <section class="section bg-gray">
+    <div class="container" style="max-width:800px">
+      <h2 class="section-title">Pourquoi cet accompagnement</h2>
+      <p style="font-size:1.05rem;margin-bottom:32px">Un bon dossier ne repose pas seulement sur des documents. Il repose aussi sur une logique, une cohérence et une préparation sérieuse.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <a href="https://wa.me/22892092572" target="_blank" class="btn btn-green btn-lg">📱 Commencer sur WhatsApp</a>
+        <button class="btn btn-primary btn-lg" onclick="showPage('contact')">Demander un accompagnement</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════════ PAGE: VISA ═══════════════════ -->
+<div id="page-visa" class="page">
+  <div class="page-hero">
+    <div class="container">
+      <div class="page-hero-inner">
+        <div class="breadcrumb">Accueil / <span>Procédure Visa</span></div>
+        <h1>Procédure Visa</h1>
+        <p>Un accompagnement utile pour mieux préparer votre demande de visa avec méthode et clarté.</p>
+      </div>
+    </div>
+  </div>
+  <section class="section">
+    <div class="container" style="max-width:800px">
+      <div class="section-label">Présentation</div>
+      <h2 class="section-title">Mieux préparer votre dossier visa</h2>
+      <p style="margin-bottom:40px">PieAgency aide les étudiants à mieux structurer les éléments utiles à leur demande de visa, avec une attention particulière portée aux lettres, aux justificatifs et à la cohérence globale du dossier.</p>
+      <h3 style="color:var(--navy);margin-bottom:24px">Les 7 étapes de l'accompagnement</h3>
+      <div class="timeline">
+        <div class="timeline-item"><div class="timeline-num">01</div><div class="timeline-content"><h4>Rédaction de la lettre de motivation pour le visa</h4><p>Un document adapté aux exigences consulaires.</p></div></div>
+        <div class="timeline-item"><div class="timeline-num">02</div><div class="timeline-content"><h4>Rédaction de lettre explicative si nécessaire</h4><p>Pour clarifier certains éléments du dossier si besoin.</p></div></div>
+        <div class="timeline-item"><div class="timeline-num">03</div><div class="timeline-content"><h4>Guide pour justifier l'hébergement</h4><p>Aide à la constitution des justificatifs d'hébergement ou du contrat de bail.</p></div></div>
+        <div class="timeline-item"><div class="timeline-num">04</div><div class="timeline-content"><h4>Guide pour justifier les ressources suffisantes</h4><p>Structurer les preuves financières de manière convaincante.</p></div></div>
+        <div class="timeline-item"><div class="timeline-num">05</div><div class="timeline-content"><h4>Analyse générale du dossier visa</h4><p>Lecture globale pour identifier les points à renforcer.</p></div></div>
+        <div class="timeline-item"><div class="timeline-num">06</div><div class="timeline-content"><h4>Dépôt des dossiers par l'étudiant</h4><p>L'étudiant effectue lui-même le dépôt final du dossier.</p></div></div>
+        <div class="timeline-item"><div class="timeline-num">07</div><div class="timeline-content"><h4>Guide de stabilisation financière et recherche d'emploi</h4><p>Conseils pratiques pour mieux s'organiser à l'arrivée en France.</p></div></div>
+      </div>
+      <div class="alert-block mt-32">
+        <div class="alert-block-icon">ℹ️</div>
+        <div class="alert-block-text">
+          <h4>À noter</h4>
+          <p>Le dépôt final du dossier reste effectué par l'étudiant. L'accompagnement proposé vise à mieux préparer les éléments du dossier et non à se substituer aux démarches administratives officielles.</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:32px">
+        <button class="btn btn-primary btn-lg" onclick="showPage('contact')">Préparer mon dossier</button>
+        <a href="https://wa.me/22892092572" target="_blank" class="btn btn-green btn-lg">💬 Parler à un conseiller</a>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════════ PAGE: BELGIQUE ═══════════════════ -->
+<div id="page-belgique" class="page">
+  <div class="page-hero page-hero-gold">
+    <div class="container">
+      <div class="page-hero-inner">
+        <div class="breadcrumb">Accueil / <span>Campus Belgique</span></div>
+        <h1>Accompagnement Campus Belgique 🇧🇪</h1>
+        <p>Un appui structuré pour mieux préparer votre projet et avancer vers les études en Belgique.</p>
+      </div>
+    </div>
+  </div>
+  <section class="section">
+    <div class="container" style="max-width:800px">
+      <div class="info-blocks" style="grid-template-columns:1fr;gap:20px">
+        <div class="info-block">
+          <span class="info-block-accent"></span>
+          <h3>Pour qui ?</h3>
+          <p>Cet accompagnement s'adresse aux étudiants qui souhaitent construire un projet cohérent vers la Belgique, comprendre les démarches et préparer un dossier structuré.</p>
+        </div>
+        <div class="info-block">
+          <span class="info-block-accent"></span>
+          <h3>Ce que nous faisons</h3>
+          <p>Nous aidons à structurer le projet, mieux présenter le profil et mieux préparer les éléments utiles au dossier pour les démarches académiques en Belgique.</p>
+        </div>
+        <div class="info-block">
+          <span class="info-block-accent"></span>
+          <h3>Comment démarrer ?</h3>
+          <p>Un premier échange permet de comprendre la situation de l'étudiant et d'identifier l'accompagnement le plus adapté à son projet.</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:40px">
+        <a href="https://wa.me/22892092572" target="_blank" class="btn btn-wa-togo btn-lg">📱 Démarrer sur WhatsApp</a>
+        <button class="btn btn-primary btn-lg" onclick="showPage('contact')">Envoyer une demande</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════════ PAGE: PARIS-SACLAY ═══════════════════ -->
+<div id="page-paris-saclay" class="page">
+  <div class="page-hero">
+    <div class="container">
+      <div class="page-hero-inner">
+        <div class="breadcrumb">Accueil / <span>Paris-Saclay</span></div>
+        <h1>Accompagnement Paris-Saclay 🎓</h1>
+        <p>Un accompagnement ciblé pour les étudiants qui souhaitent mieux préparer leur candidature vers Paris-Saclay.</p>
+      </div>
+    </div>
+  </div>
+  <section class="section">
+    <div class="container" style="max-width:800px">
+      <div class="info-blocks" style="grid-template-columns:1fr;gap:20px">
+        <div class="info-block">
+          <span class="info-block-accent"></span>
+          <h3>Comprendre les attentes</h3>
+          <p>Chaque candidature demande une lecture attentive des exigences et du niveau attendu par la formation visée. C'est la première étape pour bien se positionner.</p>
+        </div>
+        <div class="info-block">
+          <span class="info-block-accent"></span>
+          <h3>Valoriser le profil</h3>
+          <p>L'objectif est d'aider l'étudiant à mieux présenter son parcours, son projet et la cohérence de sa demande de manière claire et convaincante.</p>
+        </div>
+        <div class="info-block">
+          <span class="info-block-accent"></span>
+          <h3>Construire une candidature cohérente</h3>
+          <p>PieAgency aide à mieux organiser le dossier et à avancer avec une logique plus claire, adaptée aux attentes spécifiques de Paris-Saclay.</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:40px">
+        <a href="https://wa.me/22892092572" target="_blank" class="btn btn-green btn-lg">📱 Démarrer sur WhatsApp</a>
+        <button class="btn btn-primary btn-lg" onclick="showPage('contact')">Demander un accompagnement</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════════ PAGE: PARCOURSUP ═══════════════════ -->
+<div id="page-parcoursup" class="page">
+  <div class="page-hero">
+    <div class="container">
+      <div class="page-hero-inner">
+        <div class="breadcrumb">Accueil / <span>Parcoursup</span></div>
+        <h1>Accompagnement Parcoursup 📋</h1>
+        <p>Une aide utile pour mieux choisir ses formations et mieux préparer son dossier.</p>
+      </div>
+    </div>
+  </div>
+  <section class="section">
+    <div class="container" style="max-width:800px">
+      <div class="info-blocks" style="grid-template-columns:1fr;gap:20px">
+        <div class="info-block">
+          <span class="info-block-accent"></span>
+          <h3>Orientation</h3>
+          <p>Le premier enjeu est de mieux comprendre les choix possibles selon le profil et le projet de l'étudiant, pour éviter les erreurs d'orientation.</p>
+        </div>
+        <div class="info-block">
+          <span class="info-block-accent"></span>
+          <h3>Choix des formations</h3>
+          <p>L'accompagnement vise à aider l'étudiant à faire des choix plus cohérents, en accord avec son niveau, ses ambitions et les réalités du marché.</p>
+        </div>
+        <div class="info-block">
+          <span class="info-block-accent"></span>
+          <h3>Aide au dossier</h3>
+          <p>PieAgency accompagne la préparation des éléments demandés dans le cadre de la procédure Parcoursup, notamment la lettre de motivation.</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:40px">
+        <a href="https://wa.me/22892092572" target="_blank" class="btn btn-wa-togo btn-lg">📱 Démarrer sur WhatsApp</a>
+        <button class="btn btn-primary btn-lg" onclick="showPage('contact')">Envoyer une demande</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════════ PAGE: ÉCOLES PRIVÉES ═══════════════════ -->
+<div id="page-ecoles" class="page">
+  <div class="page-hero page-hero-gold">
+    <div class="container">
+      <div class="page-hero-inner">
+        <div class="breadcrumb">Accueil / <span>Écoles privées France</span></div>
+        <h1>Accompagnement Écoles privées France 🏫</h1>
+        <p>Une option d'accompagnement pour identifier des écoles adaptées au profil et préparer une candidature cohérente.</p>
+      </div>
+    </div>
+  </div>
+  <section class="section">
+    <div class="container" style="max-width:800px">
+      <div class="info-blocks" style="grid-template-columns:1fr;gap:20px">
+        <div class="info-block">
+          <span class="info-block-accent"></span>
+          <h3>Pourquoi cette voie ?</h3>
+          <p>Les écoles privées peuvent représenter une option utile selon le projet, le parcours et les contraintes de l'étudiant. Cette voie offre parfois plus de souplesse et de réactivité.</p>
+        </div>
+        <div class="info-block">
+          <span class="info-block-accent"></span>
+          <h3>Ce que nous faisons</h3>
+          <p>PieAgency aide à identifier des options plus adaptées et à mieux préparer la candidature en tenant compte du profil, du budget et du projet professionnel.</p>
+        </div>
+        <div class="info-block">
+          <span class="info-block-accent"></span>
+          <h3>Comment avancer ?</h3>
+          <p>Un échange permet de comprendre le profil, les attentes et les possibilités à envisager pour construire une stratégie de candidature cohérente.</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:40px">
+        <a href="https://wa.me/22892092572" target="_blank" class="btn btn-green btn-lg">📱 Démarrer sur WhatsApp</a>
+        <button class="btn btn-primary btn-lg" onclick="showPage('contact')">Demander un accompagnement</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════════ PAGE: COMMUNAUTÉ ═══════════════════ -->
+<div id="page-communaute" class="page">
+  <div class="page-hero">
+    <div class="container">
+      <div class="page-hero-inner">
+        <div class="breadcrumb">Accueil / <span>Communauté</span></div>
+        <h1>La communauté PieAgency</h1>
+        <p>Des espaces pour échanger, suivre des informations utiles et rester connecté à l'univers PieAgency.</p>
+      </div>
+    </div>
+  </div>
+  <section class="section">
+    <div class="container">
+      <div class="community-grid">
+        <div class="community-card">
+          <div class="community-icon wa">💬</div>
+          <h3>Communauté WhatsApp</h3>
+          <p>Rejoignez notre espace d'échange principal pour suivre les informations utiles, les conseils et les actualités de PieAgency.</p>
+          <a href="https://chat.whatsapp.com/DWwuJQP3ym9JW4OZj11H1C" target="_blank" class="btn btn-green">Rejoindre la communauté</a>
+        </div>
+        <div class="community-card">
+          <div class="community-icon fb-group">👥</div>
+          <h3>Groupe Facebook</h3>
+          <p>Un espace d'échange pour mieux suivre les discussions, les conseils et les opportunités partagés par la communauté.</p>
+          <a href="https://web.facebook.com/groups/8418722288154510/" target="_blank" class="btn btn-primary">Accéder au groupe</a>
+        </div>
+        <div class="community-card">
+          <div class="community-icon fb-page">📢</div>
+          <h3>Page Facebook officielle</h3>
+          <p>Retrouvez les informations, les publications et toute l'actualité officielle de PieAgency sur notre page.</p>
+          <a href="https://web.facebook.com/profile.php?id=61564375512991" target="_blank" class="btn btn-outline">Voir la page</a>
+        </div>
+      </div>
+      <div class="cta-section" style="margin-top:64px;border-radius:20px">
+        <h2>Vous avez une question ?</h2>
+        <p>Notre équipe est disponible directement sur WhatsApp pour vous répondre.</p>
+        <div class="cta-btns">
+          <a href="https://wa.me/22892092572" target="_blank" class="btn btn-wa-togo btn-lg">📱 WhatsApp Togo</a>
+          <a href="https://wa.me/33635320440" target="_blank" class="btn btn-wa-france btn-lg">📱 WhatsApp France</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════════ PAGE: FAQ ═══════════════════ -->
+<div id="page-faq" class="page">
+  <div class="page-hero">
+    <div class="container">
+      <div class="page-hero-inner">
+        <div class="breadcrumb">Accueil / <span>FAQ</span></div>
+        <h1>Questions fréquentes</h1>
+        <p>Retrouvez les réponses aux questions les plus posées sur les accompagnements PieAgency.</p>
+      </div>
+    </div>
+  </div>
+  <section class="section">
+    <div class="container" style="max-width:760px">
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Quels types d'accompagnement propose PieAgency ?<div class="faq-icon">+</div></div>
+        <div class="faq-answer">PieAgency accompagne les étudiants sur les démarches Campus France, la procédure visa, Campus Belgique, Paris-Saclay, Parcoursup et les écoles privées en France.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Est-ce que l'accompagnement est personnalisé ?<div class="faq-icon">+</div></div>
+        <div class="faq-answer">Oui. Chaque accompagnement tient compte du profil de l'étudiant, de son niveau, de son projet et de la procédure concernée.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Peut-on échanger directement sur WhatsApp ?<div class="faq-icon">+</div></div>
+        <div class="faq-answer">Oui. PieAgency met à disposition un contact WhatsApp Togo et un contact WhatsApp France pour faciliter les échanges.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Aidez-vous pour la préparation à l'entretien Campus France ?<div class="faq-icon">+</div></div>
+        <div class="faq-answer">Oui. La préparation à l'entretien Campus France fait partie intégrante de l'accompagnement proposé, avec des simulations et des conseils adaptés.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Aidez-vous aussi pour la procédure visa ?<div class="faq-icon">+</div></div>
+        <div class="faq-answer">Oui. PieAgency accompagne les étudiants dans la préparation des éléments utiles au dossier visa, notamment les lettres, l'hébergement, les ressources et l'analyse générale du dossier.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">PieAgency est-il présent au Togo et en France ?<div class="faq-icon">+</div></div>
+        <div class="faq-answer">Oui. PieAgency dispose d'un point de contact au Togo (Junior L., +228 92 09 25 72) et d'un point de contact en France (Ibrahim B., +33 6 35 32 04 40) pour rester plus proche des étudiants.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Comment démarrer un accompagnement ?<div class="faq-icon">+</div></div>
+        <div class="faq-answer">Il suffit de contacter l'équipe sur WhatsApp ou via le formulaire de contact du site. Un premier échange permet d'analyser le profil et d'identifier l'accompagnement adapté.</div>
+      </div>
+      <div style="text-align:center;margin-top:40px">
+        <button class="btn btn-primary" onclick="showPage('contact')">Poser ma question directement</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════════ PAGE: À PROPOS ═══════════════════ -->
+<div id="page-about" class="page">
+  <div class="page-hero">
+    <div class="container">
+      <div class="page-hero-inner">
+        <div class="breadcrumb">Accueil / <span>À propos</span></div>
+        <h1>À propos de PieAgency</h1>
+        <p>PieAgency est une structure d'accompagnement étudiant qui aide les candidats à construire un dossier cohérent, à choisir les formations adaptées à leur profil et à avancer avec méthode dans leurs démarches académiques et administratives vers la France et la Belgique.</p>
+      </div>
+    </div>
+  </div>
+  <section class="section">
+    <div class="container" style="max-width:800px">
+      <p class="about-lead">Nous voulons rendre l'accompagnement étudiant plus clair, plus structuré et plus humain.</p>
+      <div class="info-blocks" style="grid-template-columns:1fr;gap:24px;margin-bottom:48px">
+        <div class="info-block">
+          <span class="info-block-accent"></span>
+          <h3>Notre vision</h3>
+          <p>Nous voulons rendre l'accompagnement étudiant plus clair, plus structuré et plus humain. Chaque étudiant mérite un appui sérieux, accessible et adapté à sa situation, quelle que soit son origine ou son niveau.</p>
+        </div>
+        <div class="info-block">
+          <span class="info-block-accent"></span>
+          <h3>Notre approche</h3>
+          <p>Chaque étudiant est accompagné avec une logique de progression, de cohérence et de clarté. Nous ne promettons pas l'impossible. Nous aidons à construire un dossier solide, à choisir les bonnes formations et à avancer avec méthode.</p>
+        </div>
+      </div>
+      <h2 class="section-title" style="margin-bottom:24px">Présence Togo / France</h2>
+      <p style="margin-bottom:32px">PieAgency dispose d'un point de contact au Togo et d'un point de contact en France pour rester plus proche des étudiants et mieux les orienter à chaque étape de leur parcours.</p>
+      <div class="presence-grid">
+        <div class="presence-card togo">
+          <div class="presence-card-flag">🇹🇬</div>
+          <h3>Contact Togo</h3>
+          <p>Suivi de proximité pour les étudiants encore au Togo, de la préparation du dossier jusqu'au départ.</p>
+          <div class="presence-card-contact">Junior L. — +228 92 09 25 72</div>
+          <div style="margin-top:16px">
+            <a href="https://wa.me/22892092572" target="_blank" class="btn btn-wa-togo btn-sm">📱 WhatsApp Togo</a>
+          </div>
+        </div>
+        <div class="presence-card france">
+          <div class="presence-card-flag">🇫🇷</div>
+          <h3>Contact France</h3>
+          <p>Accompagnement pour les étudiants déjà en France ou pour ceux qui ont besoin d'un suivi depuis la France.</p>
+          <div class="presence-card-contact">Ibrahim B. — (+33) 6 35 32 04 40</div>
+          <div style="margin-top:16px">
+            <a href="https://wa.me/33635320440" target="_blank" class="btn btn-wa-france btn-sm">📱 WhatsApp France</a>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:48px">
+        <button class="btn btn-primary btn-lg" onclick="showPage('contact')">Nous contacter</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════════ PAGE: CONTACT ═══════════════════ -->
+<div id="page-contact" class="page">
+  <div class="page-hero">
+    <div class="container">
+      <div class="page-hero-inner">
+        <div class="breadcrumb">Accueil / <span>Contact</span></div>
+        <h1>Contactez-nous</h1>
+        <p>Parlez avec notre équipe pour mieux comprendre l'accompagnement adapté à votre situation.</p>
+      </div>
+    </div>
+  </div>
+  <section class="section">
+    <div class="container">
+      <div class="contact-grid">
+        <div>
+          <div class="contact-info-card">
+            <h3>Nos coordonnées</h3>
+            <p>Notre équipe est disponible pour répondre à vos questions par email, téléphone ou WhatsApp.</p>
+            <div class="contact-item">
+              <div class="contact-item-icon">✉️</div>
+              <div class="contact-item-text">
+                <div class="contact-item-label">Email principal</div>
+                <div class="contact-item-value">contact@pieagency.fr</div>
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="contact-item-icon">✉️</div>
+              <div class="contact-item-text">
+                <div class="contact-item-label">Email secondaire</div>
+                <div class="contact-item-value">junior.pieagency@gmail.com</div>
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="contact-item-icon">🇫🇷</div>
+              <div class="contact-item-text">
+                <div class="contact-item-label">France — Ibrahim B.</div>
+                <div class="contact-item-value">(+33) 6 35 32 04 40</div>
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="contact-item-icon">🇹🇬</div>
+              <div class="contact-item-text">
+                <div class="contact-item-label">Togo — Junior L.</div>
+                <div class="contact-item-value">+228 92 09 25 72</div>
+              </div>
+            </div>
+            <div class="contact-wa-btns">
+              <a href="https://wa.me/22892092572" target="_blank" class="btn btn-wa-togo">📱 WA Togo</a>
+              <a href="https://wa.me/33635320440" target="_blank" class="btn btn-wa-france">📱 WA France</a>
+            </div>
+          </div>
+          <div class="community-card" style="margin-top:20px;text-align:left">
+            <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gray-400);font-weight:600;margin-bottom:12px">Rejoindre la communauté</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <a href="https://chat.whatsapp.com/DWwuJQP3ym9JW4OZj11H1C" target="_blank" class="btn btn-green btn-sm">💬 Communauté WhatsApp</a>
+              <a href="https://web.facebook.com/groups/8418722288154510/" target="_blank" class="btn btn-outline btn-sm">👥 Groupe Facebook</a>
+              <a href="https://web.facebook.com/profile.php?id=61564375512991" target="_blank" class="btn btn-outline btn-sm">📢 Page Facebook</a>
+            </div>
+          </div>
+        </div>
+        <div class="form-card">
+          <h3>Envoyer une demande</h3>
+          <p>Remplissez ce formulaire et notre équipe vous répondra rapidement.</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Nom complet</label>
+              <input type="text" class="form-input" placeholder="Votre nom complet">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Pays</label>
+              <input type="text" class="form-input" placeholder="Votre pays de résidence">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Niveau d'études</label>
+              <select class="form-input">
+                <option value="" disabled selected>Sélectionner...</option>
+                <option>Baccalauréat</option>
+                <option>Licence / Bachelor</option>
+                <option>Master</option>
+                <option>Doctorat</option>
+                <option>Autre</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Projet visé</label>
+              <select class="form-input">
+                <option value="" disabled selected>Sélectionner...</option>
+                <option>Campus France</option>
+                <option>Procédure Visa</option>
+                <option>Campus Belgique</option>
+                <option>Paris-Saclay</option>
+                <option>Parcoursup</option>
+                <option>Écoles privées France</option>
+                <option>Autre</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Message</label>
+            <textarea class="form-input" placeholder="Décrivez votre situation et votre projet en quelques lignes..."></textarea>
+          </div>
+          <button class="btn btn-primary btn-lg" style="width:100%" onclick="handleFormSubmit()">Envoyer ma demande →</button>
+          <p style="font-size:0.78rem;text-align:center;margin-top:12px">Ou contactez-nous directement sur <a href="https://wa.me/22892092572" target="_blank" style="color:var(--green);font-weight:600">WhatsApp</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════════ FOOTER ═══════════════════ -->
+<footer id="main-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-logo">Pie<span>Agency</span></div>
+        <p class="footer-desc">Accompagnement étudiant vers la France et la Belgique, avec une approche claire, humaine et structurée.</p>
+        <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap">
+          <a href="https://wa.me/22892092572" target="_blank" class="btn btn-wa-togo btn-sm">📱 WA Togo</a>
+          <a href="https://wa.me/33635320440" target="_blank" class="btn btn-wa-france btn-sm">📱 WA France</a>
+        </div>
+      </div>
+      <div>
+        <h4>Navigation</h4>
+        <span class="footer-link" onclick="showPage('home')">Accueil</span>
+        <span class="footer-link" onclick="showPage('campus-france')">Campus France</span>
+        <span class="footer-link" onclick="showPage('visa')">Procédure Visa</span>
+        <span class="footer-link" onclick="showPage('belgique')">Campus Belgique</span>
+        <span class="footer-link" onclick="showPage('paris-saclay')">Paris-Saclay</span>
+        <span class="footer-link" onclick="showPage('parcoursup')">Parcoursup</span>
+        <span class="footer-link" onclick="showPage('ecoles')">Écoles privées France</span>
+        <span class="footer-link" onclick="showPage('communaute')">Communauté</span>
+        <span class="footer-link" onclick="showPage('contact')">Contact</span>
+      </div>
+      <div>
+        <h4>Contacts</h4>
+        <a href="mailto:contact@pieagency.fr" class="footer-link">contact@pieagency.fr</a>
+        <a href="mailto:junior.pieagency@gmail.com" class="footer-link">junior.pieagency@gmail.com</a>
+        <a href="tel:+33635320440" class="footer-link">🇫🇷 Ibrahim B. — +33 6 35 32 04 40</a>
+        <a href="tel:+22892092572" class="footer-link">🇹🇬 Junior L. — +228 92 09 25 72</a>
+      </div>
+      <div>
+        <h4>Communauté</h4>
+        <a href="https://chat.whatsapp.com/DWwuJQP3ym9JW4OZj11H1C" target="_blank" class="footer-link">💬 Communauté WhatsApp</a>
+        <a href="https://web.facebook.com/groups/8418722288154510/" target="_blank" class="footer-link">👥 Groupe Facebook</a>
+        <a href="https://web.facebook.com/profile.php?id=61564375512991" target="_blank" class="footer-link">📢 Page Facebook</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="container">© PieAgency — Tous droits réservés</div>
+  </div>
+</footer>
+
+<!-- Floating WhatsApp Buttons -->
+<div class="wa-float">
+  <a href="https://wa.me/22892092572" target="_blank" class="wa-float-btn togo" title="WhatsApp Togo">
+    💬 <span>Togo</span>
+  </a>
+  <a href="https://wa.me/33635320440" target="_blank" class="wa-float-btn france" title="WhatsApp France">
+    💬 <span>France</span>
+  </a>
+</div>
+
+<!-- ═══════════════════ JAVASCRIPT ═══════════════════ -->
+<script>
+// ─ Page Router ─
+function showPage(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById('page-' + pageId);
+  if (target) {
+    target.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  // Footer visibility
+  const footer = document.getElementById('main-footer');
+  footer.style.display = 'block';
+  // Update nav active state
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+}
+
+// ─ Mobile Menu ─
+function toggleMenu() {
+  const menu = document.getElementById('mobileMenu');
+  menu.classList.toggle('open');
+}
+
+// ─ FAQ Accordion ─
+function toggleFaq(el) {
+  const item = el.parentElement;
+  const isOpen = item.classList.contains('open');
+  // Close all in same container
+  const container = item.parentElement;
+  container.querySelectorAll('.faq-item').forEach(f => f.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
+}
+
+// ─ Form Submit ─
+function handleFormSubmit() {
+  const btn = event.target;
+  btn.textContent = '✓ Demande envoyée !';
+  btn.style.background = 'var(--green)';
+  btn.disabled = true;
+  setTimeout(() => {
+    btn.textContent = 'Envoyer ma demande →';
+    btn.style.background = '';
+    btn.disabled = false;
+  }, 3000);
+}
+
+// ─ Header scroll effect ─
+window.addEventListener('scroll', () => {
+  const h = document.getElementById('header');
+  if (window.scrollY > 20) {
+    h.style.boxShadow = '0 2px 24px rgba(13,27,56,0.1)';
+  } else {
+    h.style.boxShadow = 'none';
+  }
+});
+
+// ─ Intersection Observer for animations ─
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.style.opacity = '1';
+      entry.target.style.transform = 'translateY(0)';
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.service-card, .trust-item, .method-step, .community-card').forEach(el => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(20px)';
+  el.style.transition = 'opacity 0.5s ease, transform 0.5s ease, box-shadow 0.3s ease, border-color 0.3s ease';
+  observer.observe(el);
+});
+</script>
+</body>
+</html>
