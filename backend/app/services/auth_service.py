@@ -44,6 +44,10 @@ def _normalize_optional_text(value: str | None) -> str | None:
     return value or None
 
 
+def _email_confirmation_redirect_url() -> str:
+    return f"{settings.frontend_origin.rstrip('/')}/connexion?mode=signin&confirmed=1"
+
+
 def _determine_role(email: str | None, existing_role: str | None = None) -> PlatformRole:
     normalized_email = (email or "").strip().lower()
     if normalized_email and normalized_email in settings.admin_email_list:
@@ -150,6 +154,7 @@ def sign_up_user(payload: AuthSignUpRequest) -> AuthSignUpResponse:
                 "email": payload.email,
                 "password": payload.password,
                 "options": {
+                    "email_redirect_to": _email_confirmation_redirect_url(),
                     "data": {
                         "full_name": payload.full_name,
                         "phone": payload.phone,

@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   getApiBaseUrl,
@@ -14,6 +14,52 @@ type AuthMode = "sign-in" | "sign-up";
 type ErrorPayload = {
   detail?: string;
 };
+
+function PasswordToggleIcon({ visible }: { visible: boolean }) {
+  return visible ? (
+    <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 24 24" width="18">
+      <path
+        d="M3 4.5 20 19.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M10.58 10.59A2 2 0 0 0 12 14a2 2 0 0 0 1.41-.58"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M9.88 5.08A10.94 10.94 0 0 1 12 4.9c5.05 0 9.27 3.11 10.5 7.1a11.57 11.57 0 0 1-4.17 5.76"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M6.61 6.62A11.3 11.3 0 0 0 1.5 12c1.23 3.99 5.45 7.1 10.5 7.1 1.49 0 2.91-.27 4.21-.75"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  ) : (
+    <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 24 24" width="18">
+      <path
+        d="M1.5 12c1.23-3.99 5.45-7.1 10.5-7.1s9.27 3.11 10.5 7.1c-1.23 3.99-5.45 7.1-10.5 7.1S2.73 15.99 1.5 12Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
 
 function getRedirectPath(session: AuthSession, nextPath: string) {
   if (session.user.role === "admin") {
@@ -32,14 +78,37 @@ export function AuthForm() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("Togo");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [infoMessage, setInfoMessage] = useState("");
 
   const nextPathParam = searchParams.get("next") ?? "/espace-etudiant";
   const nextPath = nextPathParam.startsWith("/") ? nextPathParam : "/espace-etudiant";
+  const confirmedParam = searchParams.get("confirmed");
+
+  useEffect(() => {
+    if (confirmedParam === "1") {
+      setMode("sign-in");
+      setInfoMessage(
+        "Email confirme. Vous pouvez maintenant vous connecter a votre espace.",
+      );
+    }
+  }, [confirmedParam]);
+
+  function switchMode(nextMode: AuthMode) {
+    setMode(nextMode);
+    setErrorMessage("");
+    setInfoMessage("");
+    setPassword("");
+    setConfirmPassword("");
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+  }
 
   async function readErrorMessage(response: Response) {
     try {
@@ -101,6 +170,7 @@ export function AuthForm() {
 
     setMode("sign-in");
     setPassword("");
+    setConfirmPassword("");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -111,6 +181,9 @@ export function AuthForm() {
 
     try {
       if (mode === "sign-up") {
+        if (password !== confirmPassword) {
+          throw new Error("Les deux mots de passe ne correspondent pas.");
+        }
         await handleSignUp();
         return;
       }
@@ -131,14 +204,14 @@ export function AuthForm() {
         <div className="auth-tabs" role="tablist" aria-label="Mode de connexion">
           <button
             className={`auth-tab ${mode === "sign-in" ? "active" : ""}`}
-            onClick={() => setMode("sign-in")}
+            onClick={() => switchMode("sign-in")}
             type="button"
           >
             Connexion
           </button>
           <button
             className={`auth-tab ${mode === "sign-up" ? "active" : ""}`}
-            onClick={() => setMode("sign-up")}
+            onClick={() => switchMode("sign-up")}
             type="button"
           >
             Creer un compte
@@ -153,7 +226,7 @@ export function AuthForm() {
           <p>
             {mode === "sign-in"
               ? "Connectez-vous pour acceder a votre espace etudiant ou admin."
-              : "Le compte est rattache a Supabase Auth et pourra ensuite suivre les dossiers, le chat et les notifications."}
+              : "Le compte est rattache a Supabase Auth. Un email de confirmation sera envoye avant la premiere connexion."}
           </p>
         </div>
 
@@ -185,16 +258,55 @@ export function AuthForm() {
 
           <div className="auth-field">
             <label htmlFor="password">Mot de passe</label>
-            <input
-              id="password"
-              minLength={8}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Au moins 8 caracteres"
-              required
-              type="password"
-              value={password}
-            />
+            <div className="auth-password-wrap">
+              <input
+                id="password"
+                minLength={8}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Au moins 8 caracteres"
+                required
+                type={showPassword ? "text" : "password"}
+                value={password}
+              />
+              <button
+                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                className="auth-password-toggle"
+                onClick={() => setShowPassword((current) => !current)}
+                type="button"
+              >
+                <PasswordToggleIcon visible={showPassword} />
+              </button>
+            </div>
           </div>
+
+          {mode === "sign-up" ? (
+            <div className="auth-field">
+              <label htmlFor="confirm-password">Confirmer le mot de passe</label>
+              <div className="auth-password-wrap">
+                <input
+                  id="confirm-password"
+                  minLength={8}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  placeholder="Retapez le mot de passe"
+                  required
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                />
+                <button
+                  aria-label={
+                    showConfirmPassword
+                      ? "Masquer la confirmation du mot de passe"
+                      : "Afficher la confirmation du mot de passe"
+                  }
+                  className="auth-password-toggle"
+                  onClick={() => setShowConfirmPassword((current) => !current)}
+                  type="button"
+                >
+                  <PasswordToggleIcon visible={showConfirmPassword} />
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {mode === "sign-up" ? (
             <div className="auth-grid">

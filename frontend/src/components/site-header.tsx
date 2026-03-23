@@ -13,6 +13,12 @@ export function SiteHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [sessionRole, setSessionRole] = useState<"student" | "admin" | null>(null);
+  const primaryNavigation = navigation.filter((item) =>
+    ["/", "/campus-france", "/visa", "/belgique", "/communaute"].includes(item.href),
+  );
+  const secondaryNavigation = navigation.filter(
+    (item) => !primaryNavigation.some((entry) => entry.href === item.href),
+  );
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 20);
@@ -72,7 +78,7 @@ export function SiteHeader() {
           </Link>
 
           <nav aria-label="Navigation principale">
-            {navigation.map((item) => (
+            {primaryNavigation.map((item) => (
               <Link
                 className={`nav-link ${isActive(item.href) ? "active" : ""}`}
                 href={item.href}
@@ -81,6 +87,29 @@ export function SiteHeader() {
                 {item.label}
               </Link>
             ))}
+            {secondaryNavigation.length ? (
+              <div className={`nav-more ${secondaryNavigation.some((item) => isActive(item.href)) ? "active" : ""}`}>
+                <button
+                  aria-expanded={secondaryNavigation.some((item) => isActive(item.href))}
+                  className="nav-link nav-more-trigger"
+                  type="button"
+                >
+                  More
+                  <span className="nav-more-arrow">+</span>
+                </button>
+                <div className="nav-more-menu">
+                  {secondaryNavigation.map((item) => (
+                    <Link
+                      className={`nav-more-link ${isActive(item.href) ? "active" : ""}`}
+                      href={item.href}
+                      key={item.href}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </nav>
 
           <div className="header-ctas">
