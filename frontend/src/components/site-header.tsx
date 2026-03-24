@@ -43,6 +43,13 @@ export function SiteHeader() {
     };
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = isMenuOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMenuOpen]);
+
   function isActive(href: string) {
     return href === "/" ? pathname === "/" : pathname === href;
   }
@@ -68,6 +75,18 @@ export function SiteHeader() {
     <>
       <header className={headerClassName}>
         <div className={`header-inner ${isAdminRoute ? "is-admin" : ""}`}>
+          <button
+            aria-expanded={isMenuOpen}
+            aria-label="Menu"
+            className={`hamburger ${isMenuOpen ? "open" : ""}`}
+            onClick={() => setIsMenuOpen((current) => !current)}
+            type="button"
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+
           <Link className="logo" href="/">
             <Image
               alt="PieAgency"
@@ -150,81 +169,96 @@ export function SiteHeader() {
               </>
             )}
           </div>
-
-          <button
-            aria-expanded={isMenuOpen}
-            aria-label="Menu"
-            className={`hamburger ${isMenuOpen ? "open" : ""}`}
-            onClick={() => setIsMenuOpen((current) => !current)}
-            type="button"
-          >
-            <span />
-            <span />
-            <span />
-          </button>
         </div>
       </header>
 
+      {isMenuOpen ? (
+        <button
+          aria-label="Fermer le menu"
+          className="mobile-menu-backdrop"
+          onClick={() => setIsMenuOpen(false)}
+          type="button"
+        />
+      ) : null}
+
       <div className={`mobile-menu ${isMenuOpen ? "open" : ""}`}>
-        {navigation.map((item) => (
-          <Link
-            className={`mobile-nav-link ${isActive(item.href) ? "active" : ""}`}
-            href={item.href}
-            key={item.href}
-            onClick={() => setIsMenuOpen(false)}
-          >
-            {item.label}
-          </Link>
-        ))}
-        <div className="mobile-ctas">
-          {isAdminRoute ? (
-            <ActionLink href="/" onClick={() => setIsMenuOpen(false)} variant="outline">
-              Voir le site
-            </ActionLink>
-          ) : (
-            <ActionLink
-              href={sessionRole ? accountHref : "/connexion"}
+        <div className="mobile-menu-panel">
+          <div className="mobile-menu-head">
+            <div>
+              <div className="mobile-menu-kicker">Navigation</div>
+              <div className="mobile-menu-title">PieAgency</div>
+            </div>
+            <button
+              aria-label="Fermer le menu"
+              className="mobile-menu-close"
               onClick={() => setIsMenuOpen(false)}
-              variant="outline"
+              type="button"
             >
-              {accountLabel}
-            </ActionLink>
-          )}
-          <ActionLink
-            href="/partenariat"
-            onClick={() => setIsMenuOpen(false)}
-            variant="gold"
-          >
-            Partenariat
-          </ActionLink>
-          {sessionRole ? (
-            <button className="btn btn-outline" onClick={handleLogout} type="button">
-              Deconnexion
+              X
             </button>
-          ) : null}
-          <ActionLink
-            href={company.contacts.togo.whatsappHref}
-            onClick={() => setIsMenuOpen(false)}
-            variant="waTogo"
-            external
-          >
-            WhatsApp Togo
-          </ActionLink>
-          <ActionLink
-            href={company.contacts.france.whatsappHref}
-            onClick={() => setIsMenuOpen(false)}
-            variant="waFrance"
-            external
-          >
-            WhatsApp France
-          </ActionLink>
-          <ActionLink
-            href="/contact"
-            onClick={() => setIsMenuOpen(false)}
-            variant="primary"
-          >
-            {isAdminRoute ? "Formulaire contact" : "Commencer mon dossier"}
-          </ActionLink>
+          </div>
+
+          {navigation.map((item) => (
+            <Link
+              className={`mobile-nav-link ${isActive(item.href) ? "active" : ""}`}
+              href={item.href}
+              key={item.href}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              {item.label}
+            </Link>
+          ))}
+
+          <div className="mobile-ctas">
+            {isAdminRoute ? (
+              <ActionLink href="/" onClick={() => setIsMenuOpen(false)} variant="outline">
+                Voir le site
+              </ActionLink>
+            ) : (
+              <ActionLink
+                href={sessionRole ? accountHref : "/connexion"}
+                onClick={() => setIsMenuOpen(false)}
+                variant="outline"
+              >
+                {accountLabel}
+              </ActionLink>
+            )}
+            <ActionLink
+              href="/partenariat"
+              onClick={() => setIsMenuOpen(false)}
+              variant="gold"
+            >
+              Partenariat
+            </ActionLink>
+            {sessionRole ? (
+              <button className="btn btn-outline" onClick={handleLogout} type="button">
+                Deconnexion
+              </button>
+            ) : null}
+            <ActionLink
+              href={company.contacts.togo.whatsappHref}
+              onClick={() => setIsMenuOpen(false)}
+              variant="waTogo"
+              external
+            >
+              WhatsApp Togo
+            </ActionLink>
+            <ActionLink
+              href={company.contacts.france.whatsappHref}
+              onClick={() => setIsMenuOpen(false)}
+              variant="waFrance"
+              external
+            >
+              WhatsApp France
+            </ActionLink>
+            <ActionLink
+              href="/contact"
+              onClick={() => setIsMenuOpen(false)}
+              variant="primary"
+            >
+              {isAdminRoute ? "Formulaire contact" : "Commencer mon dossier"}
+            </ActionLink>
+          </div>
         </div>
       </div>
     </>

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { company } from "@/content/site";
 import { onAuthSessionChange } from "@/lib/auth";
 import {
@@ -15,7 +15,13 @@ import {
   voteCommunityPoll,
 } from "@/lib/community";
 
-type MainTab = "feed" | "explorer" | "groupes" | "evenements" | "ressources";
+type MainTab =
+  | "feed"
+  | "explorer"
+  | "groupes"
+  | "evenements"
+  | "ressources"
+  | "messages";
 type ExplorerTab = "posts" | "membres" | "hashtags";
 type ComposeMode = "text" | "doc" | "poll" | "event" | "story";
 type TagKey = "campus" | "visa" | "vie" | "logement" | "temoignage";
@@ -486,6 +492,93 @@ const COMPOSE_HINTS: Record<ComposeMode, string> = {
   story: "Partagez votre story avec la communaute...",
 };
 
+const FOLLOWING_STORAGE_KEY = "piehub-following";
+const GROUP_STORAGE_KEY = "piehub-groups";
+const EVENT_STORAGE_KEY = "piehub-events";
+
+function inferTagFromText(text: string, fallback: TagKey = "vie") {
+  const normalized = text.trim().toLowerCase();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (
+    normalized.includes("visa") ||
+    normalized.includes("consulaire") ||
+    normalized.includes("hebergement")
+  ) {
+    return "visa";
+  }
+
+  if (
+    normalized.includes("logement") ||
+    normalized.includes("studio") ||
+    normalized.includes("crous") ||
+    normalized.includes("residence")
+  ) {
+    return "logement";
+  }
+
+  if (
+    normalized.includes("campus france") ||
+    normalized.includes("parcoursup") ||
+    normalized.includes("belgique") ||
+    normalized.includes("paris-saclay") ||
+    normalized.includes("ecole") ||
+    normalized.includes("universite") ||
+    normalized.includes("formation")
+  ) {
+    return "campus";
+  }
+
+  if (
+    normalized.includes("temoignage") ||
+    normalized.includes("experience") ||
+    normalized.includes("retour")
+  ) {
+    return "temoignage";
+  }
+
+  return fallback;
+}
+
+function readStoredArray(key: string, fallback: string[]) {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      return fallback;
+    }
+
+    const parsed = JSON.parse(raw) as string[];
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function readStoredBooleanMap(key: string, fallback: Record<string, boolean>) {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      return fallback;
+    }
+
+    const parsed = JSON.parse(raw) as Record<string, boolean>;
+    return parsed && typeof parsed === "object" ? { ...fallback, ...parsed } : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function findUser(userId: string) {
   return USERS.find((user) => user.id === userId) ?? USERS[0];
 }
@@ -511,26 +604,71 @@ function copyPosts(posts: SocialPost[]) {
 }
 
 function renderRichText(text: string) {
-  return text.split(/(#[\w-]+|@[\w-]+|\n)/g).filter(Boolean).map((chunk, index) => {
-    if (chunk === "\n") {
-      return <br key={`br-${index}`} />;
-    }
-    if (chunk.startsWith("#")) {
-      return (
-        <span className="social-post-hashtag" key={`tag-${index}`}>
-          {chunk}
-        </span>
+  const tokenPattern =
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s]+)|(@[\w-]+)|(#[\w-]+)|(\n)/g;
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+  let matchIndex = 0;
+
+  for (const match of text.matchAll(tokenPattern)) {
+    const [fullMatch, markdownLabel, markdownUrl, rawUrl, mention, hashtag, lineBreak] = match;
+    const start = match.index ?? 0;
+
+    if (start > lastIndex) {
+      nodes.push(
+        <span key={`text-${matchIndex}-${start}`}>{text.slice(lastIndex, start)}</span>,
       );
     }
-    if (chunk.startsWith("@")) {
-      return (
-        <span className="social-post-mention" key={`mention-${index}`}>
-          {chunk}
-        </span>
+
+    if (lineBreak) {
+      nodes.push(<br key={`br-${matchIndex}`} />);
+    } else if (markdownLabel && markdownUrl) {
+      nodes.push(
+        <a
+          className="social-post-link"
+          href={markdownUrl}
+          key={`md-${matchIndex}`}
+          rel="noreferrer"
+          target="_blank"
+        >
+          {markdownLabel}
+        </a>,
+      );
+    } else if (rawUrl) {
+      nodes.push(
+        <a
+          className="social-post-link"
+          href={rawUrl}
+          key={`url-${matchIndex}`}
+          rel="noreferrer"
+          target="_blank"
+        >
+          {rawUrl}
+        </a>,
+      );
+    } else if (hashtag) {
+      nodes.push(
+        <span className="social-post-hashtag" key={`tag-${matchIndex}`}>
+          {hashtag}
+        </span>,
+      );
+    } else if (mention) {
+      nodes.push(
+        <span className="social-post-mention" key={`mention-${matchIndex}`}>
+          {mention}
+        </span>,
       );
     }
-    return <span key={`text-${index}`}>{chunk}</span>;
-  });
+
+    lastIndex = start + fullMatch.length;
+    matchIndex += 1;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(<span key={`text-tail-${lastIndex}`}>{text.slice(lastIndex)}</span>);
+  }
+
+  return nodes;
 }
 
 function currentClock() {
@@ -563,6 +701,8 @@ function createConversationStarter(userId: string, users: UserProfile[] = USERS)
 export function CommunityNetwork() {
   const toastIdRef = useRef(1);
   const postIdRef = useRef(100);
+  const mainFeedRef = useRef<HTMLElement | null>(null);
+  const commentInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const [activeTab, setActiveTab] = useState<MainTab>("feed");
   const [explorerTab, setExplorerTab] = useState<ExplorerTab>("posts");
   const [communityUsers, setCommunityUsers] = useState<UserProfile[]>(USERS);
@@ -571,14 +711,22 @@ export function CommunityNetwork() {
   const [feedFromApi, setFeedFromApi] = useState(false);
   const [likedPostIds, setLikedPostIds] = useState<number[]>([]);
   const [savedPostIds, setSavedPostIds] = useState<number[]>([]);
-  const [followingIds, setFollowingIds] = useState<string[]>(["piehub", "ibrahim", "junior"]);
+  const [followingIds, setFollowingIds] = useState<string[]>(() =>
+    readStoredArray(FOLLOWING_STORAGE_KEY, ["piehub", "ibrahim", "junior"]),
+  );
   const [pollVotes, setPollVotes] = useState<Record<number, number>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
-  const [groupState, setGroupState] = useState<Record<string, boolean>>(
-    Object.fromEntries(GROUPS.map((group) => [group.name, group.joined])),
+  const [groupState, setGroupState] = useState<Record<string, boolean>>(() =>
+    readStoredBooleanMap(
+      GROUP_STORAGE_KEY,
+      Object.fromEntries(GROUPS.map((group) => [group.name, group.joined])),
+    ),
   );
-  const [eventState, setEventState] = useState<Record<string, boolean>>(
-    Object.fromEntries(EVENTS.map((event) => [event.name, event.joined])),
+  const [eventState, setEventState] = useState<Record<string, boolean>>(() =>
+    readStoredBooleanMap(
+      EVENT_STORAGE_KEY,
+      Object.fromEntries(EVENTS.map((event) => [event.name, event.joined])),
+    ),
   );
   const [messageOpen, setMessageOpen] = useState(false);
   const [messageTargetId, setMessageTargetId] = useState("piehub");
@@ -590,12 +738,14 @@ export function CommunityNetwork() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeMode, setComposeMode] = useState<ComposeMode>("text");
   const [composeText, setComposeText] = useState("");
-  const [composeTag, setComposeTag] = useState<TagKey>("temoignage");
+  const [composeTag, setComposeTag] = useState<TagKey>("campus");
   const [composeResourceName, setComposeResourceName] = useState("");
   const [composeResourceType, setComposeResourceType] = useState<"pdf" | "doc">("pdf");
   const [composeResourceSize, setComposeResourceSize] = useState("");
   const [composePollQuestion, setComposePollQuestion] = useState("");
   const [composePollOptions, setComposePollOptions] = useState(["", "", "", ""]);
+  const [hashtagFilter, setHashtagFilter] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loadedExtraCount, setLoadedExtraCount] = useState(0);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [aiReplyingPostIds, setAiReplyingPostIds] = useState<number[]>([]);
@@ -606,10 +756,75 @@ export function CommunityNetwork() {
   const likedSet = new Set(likedPostIds);
   const savedSet = new Set(savedPostIds);
   const followingSet = new Set(followingIds);
+  const joinedGroupCount = Object.values(groupState).filter(Boolean).length;
+  const joinedEventCount = Object.values(eventState).filter(Boolean).length;
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
 
   function findCommunityUser(userId: string) {
     return findUserInList(communityUsers, userId);
   }
+
+  const resourceLibrary = [
+    ...RESOURCES.map((resource) => ({
+      ...resource,
+      source: "catalog" as const,
+      tag: inferTagFromText(resource.name, resource.type === "DOC" ? "campus" : "visa"),
+      description: `${resource.name} ${resource.author} ${resource.type} ${resource.size}`,
+    })),
+    ...posts
+      .filter((post): post is ResourcePost => post.type === "resource")
+      .map((post) => ({
+        icon: post.resourceType === "pdf" ? "PDF" : "DOC",
+        name: post.resourceName,
+        type: post.resourceType.toUpperCase(),
+        size: post.resourceSize,
+        author: findCommunityUser(post.userId).name,
+        downloads: Math.max(post.likes + post.comments.length, 1),
+        source: "post" as const,
+        tag: post.tag,
+        description: `${post.resourceName} ${post.content} ${findCommunityUser(post.userId).name}`,
+      })),
+  ];
+
+  const explorerPosts = [...posts].reverse();
+  const filteredPosts = normalizedSearchTerm
+    ? explorerPosts.filter((post) => {
+        const author = findCommunityUser(post.userId);
+        const rawText =
+          post.type === "poll"
+            ? `${post.question} ${"content" in post ? post.content : ""}`
+            : post.content;
+        const tagMeta = TAG_META[inferTagFromText(
+          rawText,
+          post.tag,
+        )];
+        const searchableText =
+          post.type === "poll"
+            ? rawText
+            : post.type === "resource"
+              ? `${post.resourceName} ${post.content}`
+              : post.content;
+        return `${author.name} ${author.country} ${tagMeta.label} ${searchableText}`
+          .toLowerCase()
+          .includes(normalizedSearchTerm);
+      })
+    : explorerPosts.slice(0, 3);
+
+  const filteredUsers = normalizedSearchTerm
+    ? communityUsers.filter((user) =>
+        `${user.name} ${user.country} ${user.city} ${user.bio} ${user.tags.join(" ")}`
+          .toLowerCase()
+          .includes(normalizedSearchTerm),
+      )
+    : communityUsers.filter((user) => user.id !== currentProfileId);
+
+  const filteredResources = normalizedSearchTerm
+    ? resourceLibrary.filter((resource) =>
+        `${resource.name} ${resource.author} ${resource.description}`
+          .toLowerCase()
+          .includes(normalizedSearchTerm),
+      )
+    : resourceLibrary;
 
   async function hydrateCommunityFeed() {
     try {
@@ -688,6 +903,27 @@ export function CommunityNetwork() {
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(FOLLOWING_STORAGE_KEY, JSON.stringify(followingIds));
+  }, [followingIds]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(GROUP_STORAGE_KEY, JSON.stringify(groupState));
+  }, [groupState]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(EVENT_STORAGE_KEY, JSON.stringify(eventState));
+  }, [eventState]);
+
   function pushToast(text: string) {
     const id = toastIdRef.current;
     toastIdRef.current += 1;
@@ -695,6 +931,30 @@ export function CommunityNetwork() {
     window.setTimeout(() => {
       setToasts((current) => current.filter((toast) => toast.id !== id));
     }, 2200);
+  }
+
+  function focusMainContent() {
+    window.requestAnimationFrame(() => {
+      mainFeedRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function focusCommentInput(postId: number) {
+    const input = commentInputRefs.current[postId];
+    if (!input) {
+      return;
+    }
+
+    input.focus();
+    input.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function switchTab(nextTab: MainTab) {
+    if (nextTab !== "explorer") {
+      setHashtagFilter(null);
+    }
+    setActiveTab(nextTab);
+    focusMainContent();
   }
 
   function syncPostViewState(post: SocialPost) {
@@ -726,9 +986,56 @@ export function CommunityNetwork() {
     });
   }
 
+  function handleSearchSubmit(event?: React.FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    setExplorerTab("posts");
+    switchTab("explorer");
+  }
+
+  function downloadResource(resource: {
+    name: string;
+    type: string;
+    size: string;
+    author: string;
+    description: string;
+  }) {
+    const content = [
+      `PieHUB - ${resource.name}`,
+      "",
+      `Auteur: ${resource.author}`,
+      `Format: ${resource.type}`,
+      `Taille: ${resource.size}`,
+      "",
+      resource.description,
+      "",
+      "Pour obtenir la version complete ou un accompagnement, contactez PieAgency.",
+      `WhatsApp Togo: ${company.contacts.togo.whatsappHref}`,
+      `WhatsApp France: ${company.contacts.france.whatsappHref}`,
+    ].join("\n");
+
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${resource.name.replace(/[^\w.-]+/g, "_")}.txt`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
+    pushToast(`Ressource telechargee : ${resource.name}`);
+  }
+
   function openCompose(mode: ComposeMode) {
     setComposeMode(mode);
-    setComposeTag(mode === "doc" ? "visa" : mode === "poll" ? "vie" : "temoignage");
+    setComposeTag(
+      mode === "doc"
+        ? "visa"
+        : mode === "poll"
+          ? "vie"
+          : mode === "event"
+            ? "campus"
+            : "campus",
+    );
     setComposeOpen(true);
   }
 
@@ -736,12 +1043,24 @@ export function CommunityNetwork() {
     setComposeOpen(false);
     setComposeMode("text");
     setComposeText("");
-    setComposeTag("temoignage");
+    setComposeTag("campus");
     setComposeResourceName("");
     setComposeResourceType("pdf");
     setComposeResourceSize("");
     setComposePollQuestion("");
     setComposePollOptions(["", "", "", ""]);
+  }
+
+  function resolveComposeTag(rawText: string) {
+    if (composeMode === "doc") {
+      return "visa";
+    }
+
+    if (composeMode === "poll") {
+      return "vie";
+    }
+
+    return inferTagFromText(rawText, composeTag);
   }
 
   async function publishPost() {
@@ -772,8 +1091,11 @@ export function CommunityNetwork() {
       return;
     }
     try {
+      const resolvedTag = resolveComposeTag(
+        composeMode === "poll" ? inferredQuestion || trimmedText : trimmedText,
+      );
       const mutation = await createCommunityPost({
-        tag: composeTag,
+        tag: resolvedTag,
         content: composeMode === "poll" ? trimmedText || inferredQuestion : trimmedText,
         postType:
           composeMode === "doc" ? "resource" : composeMode === "poll" ? "poll" : "text",
@@ -795,7 +1117,7 @@ export function CommunityNetwork() {
       ]);
       syncPostViewState(mutation.post);
       closeCompose();
-      setActiveTab("feed");
+      switchTab("feed");
       pushToast("Publication partagee avec la communaute.");
     } catch (error) {
       if (error instanceof Error && error.message === "AUTH_REQUIRED") {
@@ -896,6 +1218,25 @@ export function CommunityNetwork() {
     setFollowingIds((current) =>
       current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId],
     );
+    setCommunityUsers((current) =>
+      current.map((entry) => {
+        if (entry.id === userId) {
+          return {
+            ...entry,
+            followers: Math.max(0, entry.followers + (isFollowing ? -1 : 1)),
+          };
+        }
+
+        if (entry.id === currentProfileId) {
+          return {
+            ...entry,
+            following: Math.max(0, entry.following + (isFollowing ? -1 : 1)),
+          };
+        }
+
+        return entry;
+      }),
+    );
     pushToast(
       isFollowing
         ? `Abonnement annule pour ${user.name}.`
@@ -915,12 +1256,20 @@ export function CommunityNetwork() {
     pushToast(nextState ? `✅ Inscrit a : ${name}` : `Inscription annulee : ${name}`);
   }
 
+  function openTrend(tag: string) {
+    setHashtagFilter(tag);
+    setExplorerTab("hashtags");
+    switchTab("explorer");
+  }
+
   function openMessagesWith(userId: string) {
+    setActiveTab("messages");
     setMessageTargetId(userId);
     setMessages(createConversationStarter(userId, communityUsers));
     setCommunityConversationId(null);
     setIsAssistantMessageLoading(false);
     setMessageOpen(true);
+    focusMainContent();
     if (userId === "piehub") {
       void loadPiehubThread();
     }
@@ -1097,7 +1446,11 @@ export function CommunityNetwork() {
           <button className={`social-post-action ${isLiked ? "is-liked" : ""}`} onClick={() => toggleLike(post.id)} type="button">
             ❤️ J&apos;aime
           </button>
-          <button className="social-post-action is-comment" type="button">
+          <button
+            className="social-post-action is-comment"
+            onClick={() => focusCommentInput(post.id)}
+            type="button"
+          >
             💬 Commenter
           </button>
           <button className="social-post-action is-share" onClick={() => sharePost(post.id)} type="button">
@@ -1158,6 +1511,9 @@ export function CommunityNetwork() {
             </span>
             <input
               className="social-comment-input"
+              ref={(node) => {
+                commentInputRefs.current[post.id] = node;
+              }}
               onChange={(event) =>
                 setCommentDrafts((current) => ({ ...current, [post.id]: event.target.value }))
               }
@@ -1182,6 +1538,18 @@ export function CommunityNetwork() {
   const selectedStoryUser =
     storyIndex !== null ? findCommunityUser(STORIES[storyIndex].userId) : currentUser;
   const selectedProfile = profileId ? findCommunityUser(profileId) : currentUser;
+  const hashtagPosts = hashtagFilter
+    ? posts.filter((post) => {
+        const tagMeta = TAG_META[post.tag];
+        const content =
+          post.type === "poll"
+            ? `${post.question} ${"content" in post ? post.content : ""}`
+            : post.content;
+        return `${tagMeta.label} ${content}`.toLowerCase().includes(
+          hashtagFilter.replace("#", "").toLowerCase(),
+        );
+      })
+    : posts;
 
   return (
     <div className="social-page-shell">
@@ -1198,10 +1566,19 @@ export function CommunityNetwork() {
           <span className="social-topbar-brand-text">PieHUB</span>
         </Link>
 
-        <div className="social-topbar-search">
+        <form className="social-topbar-search" onSubmit={handleSearchSubmit}>
           <span>⌕</span>
-          <span>Rechercher des etudiants, posts, ressources...</span>
-        </div>
+          <input
+            className="social-topbar-search-input"
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Rechercher des etudiants, posts, ressources..."
+            type="search"
+            value={searchTerm}
+          />
+          <button className="social-topbar-search-button" type="submit">
+            Chercher
+          </button>
+        </form>
 
         <div className="social-topbar-actions">
           <button className="social-icon-button" onClick={() => openMessagesWith("piehub")} type="button">
@@ -1214,6 +1591,44 @@ export function CommunityNetwork() {
             {currentUser.avatar}
           </button>
         </div>
+      </div>
+
+      <div className="social-mobile-tabs">
+        <button
+          className={`social-mobile-tab ${activeTab === "feed" ? "is-active" : ""}`}
+          onClick={() => switchTab("feed")}
+          type="button"
+        >
+          Fil
+        </button>
+        <button
+          className={`social-mobile-tab ${activeTab === "explorer" ? "is-active" : ""}`}
+          onClick={() => switchTab("explorer")}
+          type="button"
+        >
+          Explorer
+        </button>
+        <button
+          className={`social-mobile-tab ${activeTab === "groupes" ? "is-active" : ""}`}
+          onClick={() => switchTab("groupes")}
+          type="button"
+        >
+          Groupes
+        </button>
+        <button
+          className={`social-mobile-tab ${activeTab === "evenements" ? "is-active" : ""}`}
+          onClick={() => switchTab("evenements")}
+          type="button"
+        >
+          Evenements
+        </button>
+        <button
+          className={`social-mobile-tab ${activeTab === "messages" ? "is-active" : ""}`}
+          onClick={() => openMessagesWith("piehub")}
+          type="button"
+        >
+          Messages
+        </button>
       </div>
 
       <div className="social-app-shell">
@@ -1244,12 +1659,12 @@ export function CommunityNetwork() {
 
           <div className="social-nav-group">
             <div className="social-nav-label">Navigation</div>
-            <button className={`social-nav-item ${activeTab === "feed" ? "is-active" : ""}`} onClick={() => setActiveTab("feed")} type="button"><span className="social-nav-symbol">▦</span><span>Fil d&apos;actualite</span></button>
-            <button className={`social-nav-item ${activeTab === "explorer" ? "is-active" : ""}`} onClick={() => setActiveTab("explorer")} type="button"><span className="social-nav-symbol">⌕</span><span>Explorer</span></button>
-            <button className={`social-nav-item ${activeTab === "groupes" ? "is-active" : ""}`} onClick={() => setActiveTab("groupes")} type="button"><span className="social-nav-symbol">👥</span><span>Groupes</span><span className="social-nav-badge">4</span></button>
-            <button className={`social-nav-item ${activeTab === "evenements" ? "is-active" : ""}`} onClick={() => setActiveTab("evenements")} type="button"><span className="social-nav-symbol">🗓</span><span>Evenements</span></button>
-            <button className={`social-nav-item ${activeTab === "ressources" ? "is-active" : ""}`} onClick={() => setActiveTab("ressources")} type="button"><span className="social-nav-symbol">📚</span><span>Ressources</span></button>
-            <button className="social-nav-item" onClick={() => openMessagesWith("piehub")} type="button"><span className="social-nav-symbol">💬</span><span>Messages</span><span className="social-nav-badge">3</span></button>
+            <button className={`social-nav-item ${activeTab === "feed" ? "is-active" : ""}`} onClick={() => switchTab("feed")} type="button"><span className="social-nav-symbol">▦</span><span>Fil d&apos;actualite</span></button>
+            <button className={`social-nav-item ${activeTab === "explorer" ? "is-active" : ""}`} onClick={() => switchTab("explorer")} type="button"><span className="social-nav-symbol">⌕</span><span>Explorer</span></button>
+            <button className={`social-nav-item ${activeTab === "groupes" ? "is-active" : ""}`} onClick={() => switchTab("groupes")} type="button"><span className="social-nav-symbol">👥</span><span>Groupes</span><span className="social-nav-badge">{joinedGroupCount}</span></button>
+            <button className={`social-nav-item ${activeTab === "evenements" ? "is-active" : ""}`} onClick={() => switchTab("evenements")} type="button"><span className="social-nav-symbol">🗓</span><span>Evenements</span><span className="social-nav-badge">{joinedEventCount}</span></button>
+            <button className={`social-nav-item ${activeTab === "ressources" ? "is-active" : ""}`} onClick={() => switchTab("ressources")} type="button"><span className="social-nav-symbol">📚</span><span>Ressources</span></button>
+            <button className={`social-nav-item ${activeTab === "messages" ? "is-active" : ""}`} onClick={() => openMessagesWith("piehub")} type="button"><span className="social-nav-symbol">💬</span><span>Messages</span><span className="social-nav-badge">{messages.length}</span></button>
           </div>
 
           <div className="social-nav-group">
@@ -1259,7 +1674,7 @@ export function CommunityNetwork() {
           </div>
         </aside>
 
-        <main className="social-main-feed">
+        <main className="social-main-feed" ref={mainFeedRef}>
           {activeTab === "feed" ? (
             <>
               <div className="social-stories-row">
@@ -1319,17 +1734,38 @@ export function CommunityNetwork() {
           {activeTab === "explorer" ? (
             <section className="social-tab-section">
               <h2>Explorer PieHUB</h2>
+              <p>
+                {normalizedSearchTerm
+                  ? `Resultats pour "${searchTerm.trim()}".`
+                  : "Retrouvez les publications, membres et hashtags utiles a votre parcours."}
+              </p>
               <div className="social-tab-bar">
                 <button className={`social-tab-button ${explorerTab === "posts" ? "is-active" : ""}`} onClick={() => setExplorerTab("posts")} type="button">Publications</button>
                 <button className={`social-tab-button ${explorerTab === "membres" ? "is-active" : ""}`} onClick={() => setExplorerTab("membres")} type="button">Membres</button>
                 <button className={`social-tab-button ${explorerTab === "hashtags" ? "is-active" : ""}`} onClick={() => setExplorerTab("hashtags")} type="button">Hashtags</button>
               </div>
 
-              {explorerTab === "posts" ? <div>{[...posts].reverse().slice(0, 3).map((post) => renderPost(post))}</div> : null}
+              {explorerTab === "posts" ? (
+                <div>
+                  {filteredPosts.length ? (
+                    filteredPosts.slice(0, normalizedSearchTerm ? 6 : 3).map((post) => renderPost(post))
+                  ) : (
+                    <div className="social-list-card social-empty-state">
+                      <span className="social-list-copy">
+                        <strong>Aucune publication ne correspond.</strong>
+                        <small>Essayez un autre mot-cle ou publiez dans le fil.</small>
+                      </span>
+                      <button className="social-secondary-button" onClick={() => switchTab("feed")} type="button">
+                        Retour au fil
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : null}
 
               {explorerTab === "membres" ? (
                 <div className="social-member-grid">
-                  {communityUsers.filter((user) => user.id !== currentProfileId).map((user) => (
+                  {filteredUsers.filter((user) => user.id !== currentProfileId).map((user) => (
                     <button className="social-member-card" key={user.id} onClick={() => setProfileId(user.id)} type="button">
                       <span className="social-avatar social-avatar-xl" style={{ backgroundColor: user.color }}>
                         {user.avatar}
@@ -1346,8 +1782,23 @@ export function CommunityNetwork() {
 
               {explorerTab === "hashtags" ? (
                 <div className="social-stack">
+                  {hashtagFilter ? (
+                    <div className="social-list-card">
+                      <span className="social-list-copy">
+                        <strong>Filtre actif : {hashtagFilter}</strong>
+                        <small>{hashtagPosts.length} publication(s) trouvee(s)</small>
+                      </span>
+                      <button
+                        className="social-secondary-button"
+                        onClick={() => setHashtagFilter(null)}
+                        type="button"
+                      >
+                        Reinitialiser
+                      </button>
+                    </div>
+                  ) : null}
                   {TRENDING.map((trend) => (
-                    <button className="social-list-card" key={trend.tag} type="button">
+                    <button className="social-list-card" key={trend.tag} onClick={() => openTrend(trend.tag)} type="button">
                       <span className="social-list-icon social-hash-icon">#</span>
                       <span className="social-list-copy">
                         <strong>{trend.tag}</strong>
@@ -1356,6 +1807,9 @@ export function CommunityNetwork() {
                       <span className="social-list-arrow">›</span>
                     </button>
                   ))}
+                  {hashtagFilter ? (
+                    <div>{hashtagPosts.slice(0, 4).map((post) => renderPost(post))}</div>
+                  ) : null}
                 </div>
               ) : null}
             </section>
@@ -1411,10 +1865,19 @@ export function CommunityNetwork() {
           {activeTab === "ressources" ? (
             <section className="social-tab-section">
               <h2>Ressources partagees</h2>
-              <p>Documents, guides et modeles partages dans PieHUB.</p>
+              <p>
+                {normalizedSearchTerm
+                  ? `Bibliotheque filtree pour "${searchTerm.trim()}".`
+                  : "Documents, guides et modeles partages dans PieHUB."}
+              </p>
               <div className="social-resource-grid">
-                {RESOURCES.map((resource) => (
-                  <button className="social-resource-card" key={resource.name} onClick={() => pushToast(`Telechargement : ${resource.name}`)} type="button">
+                {filteredResources.map((resource) => (
+                  <button
+                    className="social-resource-card"
+                    key={`${resource.source}-${resource.name}`}
+                    onClick={() => downloadResource(resource)}
+                    type="button"
+                  >
                     <div className="social-resource-card-icon">{resource.icon}</div>
                     <div className="social-resource-card-name">{resource.name}</div>
                     <div className="social-resource-card-meta">
@@ -1427,16 +1890,52 @@ export function CommunityNetwork() {
               </div>
             </section>
           ) : null}
+
+          {activeTab === "messages" ? (
+            <section className="social-tab-section">
+              <h2>Messages PieHUB</h2>
+              <p>
+                Discutez avec Guide PieHUB ou ouvrez une conversation avec un conseiller
+                disponible.
+              </p>
+              <div className="social-stack">
+                {["piehub", "ibrahim", "junior"].map((userId) => {
+                  const user = findCommunityUser(userId);
+                  return (
+                    <div className="social-list-card" key={`thread-${user.id}`}>
+                      <span
+                        className="social-avatar social-avatar-sm social-avatar-with-status"
+                        style={{ backgroundColor: user.color }}
+                      >
+                        {user.avatar}
+                      </span>
+                      <span className="social-list-copy">
+                        <strong>{user.name}</strong>
+                        <small>{user.bio}</small>
+                      </span>
+                      <button
+                        className="social-message-button"
+                        onClick={() => openMessagesWith(user.id)}
+                        type="button"
+                      >
+                        Ouvrir
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
         </main>
 
         <aside className="social-sidebar-right">
           <div className="social-widget">
             <div className="social-widget-title">
               <strong>🔥 Tendances</strong>
-              <button onClick={() => setActiveTab("explorer")} type="button">Voir tout</button>
+              <button onClick={() => switchTab("explorer")} type="button">Voir tout</button>
             </div>
             {TRENDING.map((trend, index) => (
-              <button className="social-trending-item" key={trend.tag} type="button">
+              <button className="social-trending-item" key={trend.tag} onClick={() => openTrend(trend.tag)} type="button">
                 <span>{index + 1}</span>
                 <span>
                   <strong>{trend.tag}</strong>
@@ -1449,7 +1948,7 @@ export function CommunityNetwork() {
           <div className="social-widget">
             <div className="social-widget-title">
               <strong>👤 Suggestions</strong>
-              <button onClick={() => setActiveTab("explorer")} type="button">Voir plus</button>
+              <button onClick={() => switchTab("explorer")} type="button">Voir plus</button>
             </div>
             {communityUsers.filter((user) => !followingSet.has(user.id) && user.id !== currentProfileId).slice(0, 3).map((user) => (
               <div className="social-suggest-item" key={user.id}>
@@ -1604,6 +2103,18 @@ export function CommunityNetwork() {
                   <strong>{currentUser.name}</strong>
                   <div className="social-compose-audience">🌍 Public</div>
                 </div>
+              </div>
+              <div className="social-compose-tags">
+                {Object.entries(TAG_META).map(([key, meta]) => (
+                  <button
+                    className={`social-compose-tag ${composeTag === key ? "is-active" : ""}`}
+                    key={key}
+                    onClick={() => setComposeTag(key as TagKey)}
+                    type="button"
+                  >
+                    {meta.label}
+                  </button>
+                ))}
               </div>
               <textarea className="social-compose-textarea" onChange={(event) => setComposeText(event.target.value)} placeholder={COMPOSE_HINTS[composeMode]} value={composeText} />
               <div className="social-compose-tools">

@@ -159,7 +159,60 @@ type CommunityThreadApi = {
   source?: "cohere" | "fallback" | null;
 };
 
-function normalizeTag(tag: string): CommunityTag {
+function inferTagFromText(text: string, fallback: CommunityTag = "vie"): CommunityTag {
+  const normalized = text.trim().toLowerCase();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (
+    normalized.includes("visa") ||
+    normalized.includes("consulaire") ||
+    normalized.includes("hebergement") ||
+    normalized.includes("lettre explicative")
+  ) {
+    return "visa";
+  }
+
+  if (
+    normalized.includes("logement") ||
+    normalized.includes("studio") ||
+    normalized.includes("crous") ||
+    normalized.includes("residence")
+  ) {
+    return "logement";
+  }
+
+  if (
+    normalized.includes("campus france") ||
+    normalized.includes("parcoursup") ||
+    normalized.includes("belgique") ||
+    normalized.includes("paris-saclay") ||
+    normalized.includes("ecole") ||
+    normalized.includes("universite") ||
+    normalized.includes("formation")
+  ) {
+    return "campus";
+  }
+
+  if (
+    normalized.includes("temoignage") ||
+    normalized.includes("experience") ||
+    normalized.includes("retour") ||
+    normalized.includes("mon parcours")
+  ) {
+    return "temoignage";
+  }
+
+  return fallback;
+}
+
+function normalizeTag(
+  tag: string,
+  content: string,
+  postType: CommunityPostApi["post_type"],
+): CommunityTag {
   const normalized = (tag || "").trim().toLowerCase();
   if (normalized.includes("campus")) {
     return "campus";
@@ -173,7 +226,18 @@ function normalizeTag(tag: string): CommunityTag {
   if (normalized.includes("logement")) {
     return "logement";
   }
-  return "temoignage";
+  if (normalized.includes("temoignage")) {
+    const inferred = inferTagFromText(
+      content,
+      postType === "resource" ? "visa" : postType === "poll" ? "vie" : "temoignage",
+    );
+    return inferred === "temoignage" ? "temoignage" : inferred;
+  }
+
+  return inferTagFromText(
+    content,
+    postType === "resource" ? "visa" : postType === "poll" ? "vie" : "campus",
+  );
 }
 
 function mapComment(item: CommunityCommentApi): CommunityComment {
@@ -189,10 +253,11 @@ function mapComment(item: CommunityCommentApi): CommunityComment {
 }
 
 function mapBase(item: CommunityPostApi): CommunityPostBase {
+  const rawText = item.question || item.content || "";
   return {
     id: item.id,
     userId: item.user_id,
-    tag: normalizeTag(item.tag),
+    tag: normalizeTag(item.tag, rawText, item.post_type),
     time: item.time,
     likes: item.likes,
     comments: (item.comments || []).map(mapComment),

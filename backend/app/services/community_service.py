@@ -293,6 +293,60 @@ def _slugify_handle(value: str) -> str:
     return slug[:30] or "membre_piehub"
 
 
+def _infer_post_tag(text: str, fallback: str = "vie") -> str:
+    normalized = text.strip().lower()
+    if not normalized:
+        return fallback
+
+    if any(keyword in normalized for keyword in ("visa", "consulaire", "hebergement", "lettre explicative")):
+        return "visa"
+
+    if any(keyword in normalized for keyword in ("logement", "studio", "crous", "residence")):
+        return "logement"
+
+    if any(
+        keyword in normalized
+        for keyword in (
+            "campus france",
+            "parcoursup",
+            "belgique",
+            "paris-saclay",
+            "ecole",
+            "universite",
+            "formation",
+        )
+    ):
+        return "campus"
+
+    if any(keyword in normalized for keyword in ("temoignage", "experience", "retour", "mon parcours")):
+        return "temoignage"
+
+    return fallback
+
+
+def _normalize_post_tag(raw_tag: str | None, *, post_type: str, content: str, question: str | None = None) -> str:
+    normalized = (raw_tag or "").strip().lower()
+    if "campus" in normalized:
+        return "campus"
+    if "visa" in normalized:
+        return "visa"
+    if "vie" in normalized:
+        return "vie"
+    if "logement" in normalized:
+        return "logement"
+    if "temoignage" in normalized:
+        inferred = _infer_post_tag(
+            question or content,
+            "visa" if post_type == "resource" else "vie" if post_type == "poll" else "temoignage",
+        )
+        return inferred if inferred != "temoignage" else "temoignage"
+
+    return _infer_post_tag(
+        question or content,
+        "visa" if post_type == "resource" else "vie" if post_type == "poll" else "campus",
+    )
+
+
 def _build_profile_item(row: dict[str, Any]) -> CommunityProfileItem:
     return CommunityProfileItem(
         id=str(row.get("id", "")),
@@ -346,7 +400,12 @@ def _build_post_item(
         id=post_id,
         user_id=str(row.get("author_profile_id") or PIEHUB_PROFILE_ID),
         post_type=str(row.get("post_type") or "text"),
-        tag=str(row.get("tag") or "temoignage"),
+        tag=_normalize_post_tag(
+            row.get("tag"),
+            post_type=str(row.get("post_type") or "text"),
+            content=str(row.get("content") or ""),
+            question=row.get("poll_question"),
+        ),
         time=_format_datetime_label(row.get("created_at")),
         likes=int(row.get("likes_count") or 0),
         shares=int(row.get("shares_count") or 0),
@@ -763,7 +822,12 @@ def create_community_post(
         "author_profile_id": profile.id,
         "author_user_id": current_user.user_id,
         "post_type": payload.post_type,
-        "tag": payload.tag.strip().lower(),
+        "tag": _normalize_post_tag(
+            payload.tag,
+            post_type=payload.post_type,
+            content=payload.content.strip(),
+            question=payload.question,
+        ),
         "content": payload.content.strip(),
         "resource_name": payload.resource_name,
         "resource_type": payload.resource_type,

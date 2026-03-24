@@ -272,8 +272,10 @@ export function SiteChatbot() {
         onClick={() => setIsOpen((current) => !current)}
         type="button"
       >
-        <span className="chatbot-launcher-dot">N</span>
-        <span>Assistant IA</span>
+        <span aria-hidden="true" className="chatbot-launcher-dot">
+          💬
+        </span>
+        <span>Messagerie</span>
       </button>
     </div>
   );
