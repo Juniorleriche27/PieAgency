@@ -13,6 +13,7 @@ export function SiteHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [sessionRole, setSessionRole] = useState<"student" | "admin" | null>(null);
+  const isAdminRoute = pathname.startsWith("/admin");
   const primaryNavigation = navigation.filter((item) =>
     ["/", "/campus-france", "/visa", "/belgique", "/communaute"].includes(item.href),
   );
@@ -59,10 +60,14 @@ export function SiteHeader() {
     setIsMenuOpen(false);
   }
 
+  const headerClassName = [isScrolled ? "scrolled" : "", isAdminRoute ? "header-admin" : ""]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <>
-      <header className={isScrolled ? "scrolled" : ""}>
-        <div className="header-inner">
+      <header className={headerClassName}>
+        <div className={`header-inner ${isAdminRoute ? "is-admin" : ""}`}>
           <Link className="logo" href="/">
             <Image
               alt="PieAgency"
@@ -75,9 +80,10 @@ export function SiteHeader() {
             <span className="logo-wordmark">
               Pie<span className="logo-wordmark-accent">Agency</span>
             </span>
+            {isAdminRoute ? <span className="logo-context-chip">Admin</span> : null}
           </Link>
 
-          <nav aria-label="Navigation principale">
+          <nav aria-label="Navigation principale" className={isAdminRoute ? "header-nav-admin" : ""}>
             {primaryNavigation.map((item) => (
               <Link
                 className={`nav-link ${isActive(item.href) ? "active" : ""}`}
@@ -112,21 +118,37 @@ export function SiteHeader() {
             ) : null}
           </nav>
 
-          <div className="header-ctas">
-            <ActionLink href={sessionRole ? accountHref : "/connexion"} variant="outline" size="sm">
-              {accountLabel}
-            </ActionLink>
-            <ActionLink href="/partenariat" variant="gold" size="sm">
-              Partenariat
-            </ActionLink>
-            {sessionRole ? (
-              <button className="btn btn-outline btn-sm" onClick={handleLogout} type="button">
-                Deconnexion
-              </button>
-            ) : null}
-            <ActionLink href="/contact" variant="primary" size="sm">
-              Commencer mon dossier
-            </ActionLink>
+          <div className={`header-ctas ${isAdminRoute ? "is-admin" : ""}`}>
+            {isAdminRoute ? (
+              <>
+                <ActionLink href="/" variant="outline" size="sm" className="header-admin-link">
+                  Voir le site
+                </ActionLink>
+                <ActionLink href="/partenariat" variant="gold" size="sm">
+                  Partenariat
+                </ActionLink>
+                <button className="btn btn-outline btn-sm" onClick={handleLogout} type="button">
+                  Deconnexion
+                </button>
+              </>
+            ) : (
+              <>
+                <ActionLink href={sessionRole ? accountHref : "/connexion"} variant="outline" size="sm">
+                  {accountLabel}
+                </ActionLink>
+                <ActionLink href="/partenariat" variant="gold" size="sm">
+                  Partenariat
+                </ActionLink>
+                {sessionRole ? (
+                  <button className="btn btn-outline btn-sm" onClick={handleLogout} type="button">
+                    Deconnexion
+                  </button>
+                ) : null}
+                <ActionLink href="/contact" variant="primary" size="sm">
+                  Commencer mon dossier
+                </ActionLink>
+              </>
+            )}
           </div>
 
           <button
@@ -155,13 +177,19 @@ export function SiteHeader() {
           </Link>
         ))}
         <div className="mobile-ctas">
-          <ActionLink
-            href={sessionRole ? accountHref : "/connexion"}
-            onClick={() => setIsMenuOpen(false)}
-            variant="outline"
-          >
-            {accountLabel}
-          </ActionLink>
+          {isAdminRoute ? (
+            <ActionLink href="/" onClick={() => setIsMenuOpen(false)} variant="outline">
+              Voir le site
+            </ActionLink>
+          ) : (
+            <ActionLink
+              href={sessionRole ? accountHref : "/connexion"}
+              onClick={() => setIsMenuOpen(false)}
+              variant="outline"
+            >
+              {accountLabel}
+            </ActionLink>
+          )}
           <ActionLink
             href="/partenariat"
             onClick={() => setIsMenuOpen(false)}
@@ -195,7 +223,7 @@ export function SiteHeader() {
             onClick={() => setIsMenuOpen(false)}
             variant="primary"
           >
-            Commencer mon dossier
+            {isAdminRoute ? "Formulaire contact" : "Commencer mon dossier"}
           </ActionLink>
         </div>
       </div>
