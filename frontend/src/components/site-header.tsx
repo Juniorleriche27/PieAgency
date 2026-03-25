@@ -102,7 +102,10 @@ export function SiteHeader() {
             {isAdminRoute ? <span className="logo-context-chip">Admin</span> : null}
           </Link>
 
-          <nav aria-label="Navigation principale" className={isAdminRoute ? "header-nav-admin" : ""}>
+          <nav
+            aria-label="Navigation principale"
+            className={`site-header-nav ${isAdminRoute ? "header-nav-admin" : ""}`}
+          >
             {primaryNavigation.map((item) => (
               <Link
                 className={`nav-link ${isActive(item.href) ? "active" : ""}`}
@@ -119,7 +122,7 @@ export function SiteHeader() {
                   className="nav-link nav-more-trigger"
                   type="button"
                 >
-                  More
+                  Plus
                   <span className="nav-more-arrow">+</span>
                 </button>
                 <div className="nav-more-menu">
@@ -152,18 +155,34 @@ export function SiteHeader() {
               </>
             ) : (
               <>
-                <ActionLink href={sessionRole ? accountHref : "/connexion"} variant="outline" size="sm">
-                  {accountLabel}
-                </ActionLink>
+                {sessionRole ? (
+                  <div className="header-account">
+                    <button className="btn btn-outline btn-sm header-account-trigger" type="button">
+                      {accountLabel}
+                      <span className="header-account-arrow">+</span>
+                    </button>
+                    <div className="header-account-menu">
+                      <Link className="header-account-link" href={accountHref}>
+                        {sessionRole === "admin" ? "Acceder a l'admin" : "Ouvrir mon espace"}
+                      </Link>
+                      <button
+                        className="header-account-link header-account-action"
+                        onClick={handleLogout}
+                        type="button"
+                      >
+                        Deconnexion
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <ActionLink href="/connexion" variant="outline" size="sm">
+                    {accountLabel}
+                  </ActionLink>
+                )}
                 <ActionLink href="/partenariat" variant="gold" size="sm">
                   Partenariat
                 </ActionLink>
-                {sessionRole ? (
-                  <button className="btn btn-outline btn-sm" onClick={handleLogout} type="button">
-                    Deconnexion
-                  </button>
-                ) : null}
-                <ActionLink href="/contact" variant="primary" size="sm">
+                <ActionLink href="/contact" variant="primary" size="sm" className="header-primary-cta">
                   Commencer mon dossier
                 </ActionLink>
               </>

@@ -136,17 +136,17 @@ header.scrolled {
   max-width: 1160px;
   margin: 0 auto;
   padding: 0 24px;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   height: 68px;
-  gap: 18px;
+  gap: 22px;
 }
 
 .logo {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   font-family: var(--font-serif), serif;
   font-size: 1.5rem;
   font-weight: 700;
@@ -168,12 +168,12 @@ header.scrolled {
   display: inline-flex;
   align-items: baseline;
   gap: 0;
-  color: var(--brand-red);
+  color: var(--navy);
 }
 
 .logo-wordmark-accent,
 .footer-wordmark-accent {
-  color: var(--navy);
+  color: var(--gold);
 }
 
 .logo-context-chip {
@@ -197,7 +197,11 @@ nav {
   gap: 4px;
   flex: 1 1 auto;
   flex-wrap: nowrap;
-  justify-content: center;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.site-header-nav {
   min-width: 0;
 }
 
@@ -299,8 +303,13 @@ nav {
 .header-ctas {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 10px;
   flex-shrink: 0;
+}
+
+.header-ctas .btn-sm {
+  padding: 9px 14px;
 }
 
 .header-admin {
@@ -308,7 +317,7 @@ nav {
 }
 
 .header-inner.is-admin {
-  gap: 24px;
+  gap: 18px;
 }
 
 .header-nav-admin {
@@ -321,6 +330,79 @@ nav {
 
 .header-admin-link {
   min-width: 118px;
+}
+
+.header-account {
+  position: relative;
+}
+
+.header-account-trigger {
+  gap: 8px;
+}
+
+.header-account-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(13, 27, 56, 0.08);
+  color: var(--navy);
+  font-size: 0.8rem;
+  line-height: 1;
+  transition: var(--transition);
+}
+
+.header-account-menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  min-width: 220px;
+  padding: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(13, 27, 56, 0.08);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 20px 48px rgba(13, 27, 56, 0.14);
+  backdrop-filter: blur(16px);
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: var(--transition);
+  z-index: 1200;
+}
+
+.header-account:hover .header-account-menu,
+.header-account:focus-within .header-account-menu {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.header-account:hover .header-account-arrow,
+.header-account:focus-within .header-account-arrow {
+  transform: rotate(45deg);
+}
+
+.header-account-link {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 12px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--gray-800);
+  transition: var(--transition);
+}
+
+.header-account-link:hover {
+  color: var(--navy);
+  background: var(--gray-50);
+}
+
+.header-account-action {
+  text-align: left;
 }
 
 .hamburger {
@@ -1290,7 +1372,7 @@ nav {
 
 .form-step-progress {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   gap: 10px;
 }
 
@@ -1386,6 +1468,9 @@ nav {
 }
 
 .form-radio-card {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
   padding: 14px 16px;
   border-radius: 16px;
   border: 1.5px solid var(--gray-200);
@@ -1410,8 +1495,17 @@ nav {
 
 .form-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
+}
+
+.form-inline-note {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px dashed var(--gray-200);
+  background: var(--gray-50);
+  color: var(--gray-600);
+  font-size: 0.88rem;
 }
 
 .form-summary-item {
@@ -2994,6 +3088,27 @@ footer {
   }
 }
 
+@media (max-width: 1360px) {
+  .header-inner {
+    gap: 14px;
+  }
+
+  .logo {
+    gap: 10px;
+    font-size: 1.38rem;
+  }
+
+  .nav-link {
+    font-size: 0.8rem;
+    padding: 6px 8px;
+  }
+
+  .header-ctas .btn-sm {
+    padding: 9px 12px;
+    font-size: 0.78rem;
+  }
+}
+
 @media (max-width: 1180px) {
   nav {
     gap: 0;
@@ -3013,6 +3128,7 @@ footer {
   }
 
   .header-inner {
+    display: flex;
     justify-content: flex-start;
     gap: 14px;
   }

@@ -66,10 +66,25 @@ class ContactRequestCreate(BaseModel):
     phone_country_code: str = Field(min_length=2, max_length=8)
     phone: str = Field(min_length=6, max_length=32)
     country: str = Field(min_length=2, max_length=80)
+    has_baccalaureate: bool
+    baccalaureate_year: int | None = Field(default=None, ge=1950, le=2100)
+    high_school_year_count: int | None = Field(default=None, ge=1, le=10)
+    repeated_high_school_class: bool | None = None
+    baccalaureate_average: str | None = Field(default=None, max_length=40)
+    baccalaureate_track: str | None = Field(default=None, max_length=160)
+    has_licence: bool
+    licence_year: int | None = Field(default=None, ge=1950, le=2100)
+    repeated_licence_class: bool | None = None
+    licence_year_count: int | None = Field(default=None, ge=1, le=12)
+    licence_average: str | None = Field(default=None, max_length=40)
+    licence_field: str | None = Field(default=None, max_length=200)
+    has_master: bool
     study_level: StudyLevel
     target_project: TargetProject
     immigration_attempt_count: int = Field(ge=0, le=20)
     school_type: SchoolType
+    current_activity: str = Field(min_length=4, max_length=500)
+    france_motivation: str = Field(min_length=20, max_length=4000)
     funding_source: str = Field(min_length=2, max_length=160)
     assistance_preference: AssistancePreference
     consultation_date: date
@@ -85,14 +100,23 @@ class ContactRequestCreate(BaseModel):
         "phone_country_code",
         "phone",
         "country",
+        "baccalaureate_average",
+        "baccalaureate_track",
+        "licence_average",
+        "licence_field",
+        "current_activity",
+        "france_motivation",
         "funding_source",
         "referrer_name",
         "message",
         mode="before",
     )
     @classmethod
-    def strip_required_strings(cls, value: str) -> str:
-        return value.strip()
+    def strip_required_strings(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
 
     @model_validator(mode="after")
     def validate_payload(self) -> "ContactRequestCreate":
@@ -100,11 +124,77 @@ class ContactRequestCreate(BaseModel):
             raise ValueError("L'indicatif du numero doit commencer par +.")
         if not self.consent_resources:
             raise ValueError("Le consentement pour recevoir les ressources est requis.")
+        if self.has_baccalaureate:
+            if self.baccalaureate_year is None:
+                raise ValueError("L'annee du bac est requise.")
+            if self.high_school_year_count is None:
+                raise ValueError("Le nombre d'annees au lycee est requis.")
+            if self.repeated_high_school_class is None:
+                raise ValueError("Le redoublement au lycee doit etre precise.")
+            if not self.baccalaureate_average:
+                raise ValueError("La moyenne du bac est requise.")
+            if not self.baccalaureate_track:
+                raise ValueError("La filiere du bac est requise.")
+        if self.has_licence:
+            if self.licence_year is None:
+                raise ValueError("L'annee de licence est requise.")
+            if self.repeated_licence_class is None:
+                raise ValueError("Le redoublement en licence doit etre precise.")
+            if self.licence_year_count is None:
+                raise ValueError("Le nombre d'annees en licence est requis.")
+            if not self.licence_average:
+                raise ValueError("La moyenne de licence est requise.")
+            if not self.licence_field:
+                raise ValueError("La filiere de licence est requise.")
         return self
 
     @property
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}".strip()
+
+    @property
+    def formatted_message(self) -> str:
+        bac_status = "Oui" if self.has_baccalaureate else "Non"
+        licence_status = "Oui" if self.has_licence else "Non"
+        master_status = "Oui" if self.has_master else "Non"
+        high_school_repeat = (
+            "Oui" if self.repeated_high_school_class else "Non"
+            if self.repeated_high_school_class is not None
+            else "Non precise"
+        )
+        licence_repeat = (
+            "Oui" if self.repeated_licence_class else "Non"
+            if self.repeated_licence_class is not None
+            else "Non precise"
+        )
+
+        lines = [
+            "Profil academique",
+            f"- Bac obtenu: {bac_status}",
+            f"- Annee du bac: {self.baccalaureate_year or 'Non renseignee'}",
+            f"- Annees au lycee: {self.high_school_year_count or 'Non renseigne'}",
+            f"- Redoublement au lycee: {high_school_repeat}",
+            f"- Moyenne du bac: {self.baccalaureate_average or 'Non renseignee'}",
+            f"- Filiere du bac: {self.baccalaureate_track or 'Non renseignee'}",
+            f"- Licence obtenue: {licence_status}",
+            f"- Annee de licence: {self.licence_year or 'Non renseignee'}",
+            f"- Redoublement en licence: {licence_repeat}",
+            f"- Annees en licence: {self.licence_year_count or 'Non renseigne'}",
+            f"- Moyenne de licence: {self.licence_average or 'Non renseignee'}",
+            f"- Filiere de licence: {self.licence_field or 'Non renseignee'}",
+            f"- Master obtenu: {master_status}",
+            "",
+            "Situation actuelle",
+            self.current_activity,
+            "",
+            "Pourquoi la France",
+            self.france_motivation,
+            "",
+            "Blocages ou precisions complementaires",
+            self.message,
+        ]
+
+        return "\n".join(lines)
 
 
 class ContactRequestResponse(BaseModel):

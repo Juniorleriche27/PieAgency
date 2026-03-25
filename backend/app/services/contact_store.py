@@ -40,7 +40,7 @@ def store_contact_request(payload: ContactRequestCreate) -> str:
                 "referrer_name": payload.referrer_name,
                 "can_invest": payload.can_invest,
                 "consent_resources": payload.consent_resources,
-                "message": payload.message,
+                "message": payload.formatted_message,
             },
         )
         .execute()
