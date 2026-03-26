@@ -25,9 +25,17 @@ CREATE INDEX IF NOT EXISTS idx_rag_chunks_embedding
 -- 4. RLS: allow anon reads, service-role writes
 ALTER TABLE public.rag_chunks ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "rag_chunks_read_anon"
-  ON public.rag_chunks FOR SELECT
-  USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'rag_chunks'
+      AND policyname = 'rag_chunks_read_anon'
+  ) THEN
+    EXECUTE 'CREATE POLICY rag_chunks_read_anon ON public.rag_chunks FOR SELECT USING (true)';
+  END IF;
+END $$;
 
 -- 5. Similarity-search helper function
 CREATE OR REPLACE FUNCTION public.match_rag_chunks(
