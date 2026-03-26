@@ -97,7 +97,7 @@ export const navigation = [
   { label: "Accueil", href: "/" },
   { label: "Campus France", href: "/campus-france" },
   { label: "Visa", href: "/visa" },
-  { label: "Belgique", href: "/belgique" },
+  { label: "Campus Belgique", href: "/belgique" },
   { label: "Paris-Saclay", href: "/paris-saclay" },
   { label: "Parcoursup", href: "/parcoursup" },
   { label: "Écoles privées", href: "/ecoles" },

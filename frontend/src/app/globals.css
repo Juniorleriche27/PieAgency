@@ -4868,10 +4868,6 @@ footer {
 }
 
 @media (max-width: 640px) {
-  .social-page-shell {
-    padding-top: 68px;
-  }
-
   .social-app-shell,
   .social-topbar {
     padding-left: 12px;
@@ -5481,15 +5477,15 @@ footer {
   justify-content: center;
 }
 
-/* ── 4. Topbar PieHUB — sticky sous le header ── */
+/* ── 4. Topbar PieHUB — sticky en haut (pas de header principal sur /communaute) ── */
 .social-topbar {
-  top: 68px;
+  top: 0;
   z-index: 200;
 }
 
 .social-sidebar-left,
 .social-sidebar-right {
-  top: calc(68px + 74px + 16px);
+  top: 98px;
 }
 
 /* ── 5. Container padding progressif a 768px ── */
@@ -5752,7 +5748,7 @@ footer {
   .social-notif-panel {
     right: 8px;
     left: 8px;
-    top: calc(68px + 62px + 8px);
+    top: calc(62px + 8px);
     width: auto;
     max-height: 65vh;
   }
@@ -5835,7 +5831,7 @@ footer {
 @media (max-width: 640px) {
   .social-toast-stack {
     bottom: auto;
-    top: calc(68px + 62px + 8px);
+    top: calc(62px + 8px);
     left: 50%;
     transform: translateX(-50%);
     width: calc(100vw - 32px);
