@@ -5390,3 +5390,575 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE UX — AMELIORATIONS COMPLETES
+   Taille de texte · Zones tactiles · Layouts · PieHUB mobile
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 1. Safe Area — encoche iPhone / barre Android ── */
+@supports (padding: max(0px)) {
+  .wa-float {
+    bottom: max(20px, calc(20px + env(safe-area-inset-bottom, 0)));
+    right: max(20px, calc(20px + env(safe-area-inset-right, 0)));
+  }
+  .social-page-shell {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+}
+
+/* ── 2. Tailles de texte minimum — lisibilite ── */
+.logo-context-chip { font-size: 0.72rem; }
+.social-topbar-badge { font-size: 0.69rem; letter-spacing: 0.06em; }
+.social-post-meta { font-size: 0.76rem; }
+.social-post-tag { font-size: 0.68rem; }
+.social-story-label { font-size: 0.72rem; }
+.social-resource-meta { font-size: 0.75rem; }
+.social-list-copy small,
+.social-event-copy small,
+.social-suggest-copy small { font-size: 0.75rem; }
+.social-event-date span { font-size: 0.67rem; }
+.social-poll-meta { font-size: 0.75rem; }
+.social-comment-head span { font-size: 0.72rem; }
+.social-comment-actions button { font-size: 0.75rem; }
+.social-resource-name { font-size: 0.86rem; }
+
+/* ── 3. Zones tactiles — boutons plus larges ── */
+.social-join-button,
+.social-follow-button,
+.social-event-button {
+  padding: 9px 16px;
+  min-height: 40px;
+  font-size: 0.82rem;
+}
+
+.social-primary-pill,
+.social-secondary-pill {
+  min-height: 40px;
+  padding: 9px 22px;
+}
+
+.social-secondary-button { min-height: 40px; }
+
+.social-create-action {
+  padding: 10px 8px;
+  min-height: 44px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.social-mobile-tab {
+  padding: 10px 16px;
+  min-height: 38px;
+  font-size: 0.84rem;
+}
+
+.social-post-action {
+  padding: 12px 4px;
+  min-height: 48px;
+}
+
+.social-send-button {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.social-comment-input,
+.social-message-input { height: 42px; }
+
+.form-step-chip {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── 4. Topbar PieHUB — sticky sous le header ── */
+.social-topbar {
+  top: 68px;
+  z-index: 200;
+}
+
+.social-sidebar-left,
+.social-sidebar-right {
+  top: calc(68px + 74px + 16px);
+}
+
+/* ── 5. Container padding progressif a 768px ── */
+@media (max-width: 768px) {
+  .container { padding: 0 18px; }
+  .section { padding: 72px 0; }
+  .section-sm { padding: 48px 0; }
+  .service-card,
+  .trust-item,
+  .community-card { padding: 24px 20px; }
+}
+
+/* ── 6. Header mobile ── */
+@media (max-width: 640px) {
+  .header-inner {
+    padding: 0 16px;
+    gap: 10px;
+  }
+  .logo {
+    gap: 8px;
+    font-size: 1.25rem;
+  }
+  .brand-image {
+    width: 34px;
+    height: 34px;
+  }
+  .logo-context-chip { display: none; }
+  .hamburger {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+  }
+}
+
+/* ── 7. Menu mobile — améliorations ── */
+@media (max-width: 640px) {
+  .mobile-menu-panel {
+    padding: 20px 16px 40px;
+  }
+  .mobile-nav-link {
+    font-size: 1rem;
+    padding: 14px 16px;
+    border-radius: 10px;
+  }
+  .mobile-ctas { gap: 10px; }
+  .mobile-ctas .btn {
+    justify-content: center;
+    min-height: 48px;
+  }
+}
+
+/* ── 8. PieHUB topbar compact sur mobile ── */
+@media (max-width: 860px) {
+  /* Cacher sidebar gauche — navigation via tabs mobiles */
+  .social-sidebar-left { display: none; }
+
+  /* Topbar compact */
+  .social-topbar {
+    padding: 10px 16px;
+    gap: 10px;
+  }
+  .social-topbar-brand-text { display: none; }
+  .social-topbar-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+  .social-topbar-actions {
+    margin-left: 0;
+    gap: 6px;
+  }
+  .social-topbar-search {
+    height: 40px;
+    font-size: 0.86rem;
+  }
+  .social-app-shell {
+    padding: 16px 16px 100px;
+    gap: 16px;
+  }
+  .social-mobile-tabs {
+    position: relative;
+    padding: 10px 16px 0;
+    gap: 8px;
+  }
+}
+
+/* ── 9. Post cards — layout mobile ── */
+@media (max-width: 640px) {
+  .social-app-shell,
+  .social-topbar {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .social-mobile-tabs { padding: 8px 12px 0; }
+  .social-app-shell {
+    padding-top: 12px;
+    padding-bottom: 100px;
+  }
+  .social-post-card {
+    border-radius: 12px;
+    margin-bottom: 12px;
+  }
+  .social-post-header {
+    padding: 12px 14px 8px;
+    gap: 8px;
+  }
+  .social-post-body {
+    padding: 0 14px 10px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+  .social-post-actions { grid-template-columns: repeat(4, 1fr); }
+  .social-post-action {
+    padding: 11px 4px;
+    font-size: 0.76rem;
+  }
+  /* Post reactions — garder horizontal */
+  .social-post-reactions {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    align-items: center !important;
+    gap: 6px;
+    padding: 8px 14px 6px;
+    font-size: 0.75rem;
+  }
+  .social-post-reaction-meta { margin-left: auto; }
+
+  /* Create card */
+  .social-create-card {
+    padding: 14px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+  }
+  .social-create-input {
+    height: 44px;
+    font-size: 0.88rem;
+  }
+  .social-create-actions {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+
+  /* Stories */
+  .social-stories { gap: 10px; }
+  .social-story-ring {
+    width: 56px;
+    height: 56px;
+  }
+  .social-story-label {
+    max-width: 56px;
+    font-size: 0.7rem;
+  }
+}
+
+/* ── 10. Groupes & Evenements — cards mobiles ── */
+@media (max-width: 640px) {
+  .social-list-card,
+  .social-event-card {
+    flex-direction: row !important;
+    align-items: center !important;
+    padding: 12px 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .social-list-copy,
+  .social-event-copy {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+  .social-list-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
+  }
+  .social-join-button,
+  .social-event-button,
+  .social-follow-button { flex-shrink: 0; }
+  .social-event-date {
+    min-width: 44px;
+    padding: 6px 8px;
+  }
+  .social-event-date strong { font-size: 1rem; }
+
+  /* Group detail */
+  .social-group-detail-header {
+    padding: 16px;
+    gap: 12px;
+  }
+  .social-group-detail-icon { font-size: 2rem; }
+
+  /* Event detail */
+  .social-event-detail {
+    padding: 16px;
+    gap: 14px;
+  }
+  .social-event-detail-meta {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .social-event-detail-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .social-event-detail-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+  .social-event-confirm-note { font-size: 0.84rem; }
+
+  /* Profile modal stats */
+  .social-profile-modal-stats {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-around;
+    gap: 0;
+  }
+  .social-profile-modal-actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px;
+  }
+  .social-profile-modal-actions button { justify-content: center; }
+}
+
+/* ── 11. Modales — bottom sheet sur mobile ── */
+@media (max-width: 640px) {
+  .social-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .social-story-modal,
+  .social-profile-modal,
+  .social-compose-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 20px 20px 0 0;
+    max-height: 92vh;
+    overflow-y: auto;
+  }
+  .social-ad-modal {
+    max-width: 100% !important;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 92vh;
+    overflow-y: auto;
+  }
+  .social-compose-header { padding: 14px 16px 10px; }
+  .social-compose-body { padding: 12px 14px; }
+  .social-compose-footer { padding: 10px 14px 14px; }
+  .social-compose-input,
+  .social-compose-select { font-size: 0.92rem; }
+  .social-compose-mode-bar { gap: 4px; }
+  .social-compose-mode-btn {
+    padding: 8px 12px;
+    font-size: 0.78rem;
+  }
+}
+
+/* ── 12. Panneau notifications — mobile ── */
+@media (max-width: 640px) {
+  .social-notif-panel {
+    right: 8px;
+    left: 8px;
+    top: calc(68px + 62px + 8px);
+    width: auto;
+    max-height: 65vh;
+  }
+}
+
+/* ── 13. Ressources — mobile ── */
+@media (max-width: 640px) {
+  .social-resource-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .social-resource-card { padding: 14px; }
+  .social-resource-card-name { font-size: 0.86rem; }
+  .social-resource-box {
+    width: calc(100% - 28px);
+    margin: 0 14px 10px;
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .social-resource-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+  }
+  .social-tab-bar { gap: 0; }
+  .social-tab-button {
+    padding: 10px 8px;
+    font-size: 0.8rem;
+    min-height: 44px;
+  }
+}
+
+/* ── 14. Section actions mobile ── */
+@media (max-width: 640px) {
+  .social-section-actions { margin-bottom: 12px; }
+  .social-section-actions .social-primary-pill { width: 100%; }
+  .social-tab-section h2 { font-size: 1.2rem; }
+  .social-tab-section p {
+    font-size: 0.88rem;
+    margin-bottom: 14px;
+  }
+}
+
+/* ── 15. Publicites — mobile ── */
+@media (max-width: 640px) {
+  .social-ad-card { border-radius: 12px; }
+  .social-ad-image { height: 160px; }
+  .social-ad-title { font-size: 0.9rem; }
+  .social-ad-desc { font-size: 0.82rem; }
+  .social-pending-note {
+    font-size: 0.82rem;
+    padding: 10px 12px;
+  }
+  .social-ai-rewrite-btn {
+    font-size: 0.78rem;
+    padding: 7px 12px;
+    min-height: 36px;
+  }
+}
+
+/* ── 16. Commentaires — mobile ── */
+@media (max-width: 640px) {
+  .social-comments { padding: 10px 12px; }
+  .social-comment {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .social-comment-text {
+    font-size: 0.84rem;
+    padding: 7px 10px;
+  }
+  .social-comment-form { gap: 6px; }
+  .social-comment-input {
+    height: 44px;
+    font-size: 0.88rem;
+  }
+}
+
+/* ── 17. Toast — position mobile ── */
+@media (max-width: 640px) {
+  .social-toast-stack {
+    bottom: auto;
+    top: calc(68px + 62px + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100vw - 32px);
+    max-width: 380px;
+  }
+  .social-toast {
+    font-size: 0.84rem;
+    padding: 10px 16px;
+    text-align: center;
+  }
+}
+
+/* ── 18. Page home — ameliorations mobiles ── */
+@media (max-width: 640px) {
+  h1 { font-size: 2rem; line-height: 1.2; }
+  h2 { font-size: 1.55rem; }
+  .hero {
+    min-height: auto;
+    padding: 80px 0 60px;
+  }
+  .hero-inner { gap: 32px; }
+  .hero-badge {
+    font-size: 0.75rem;
+    padding: 8px 16px;
+  }
+  .hero-ctas { gap: 10px; }
+  .hero-ctas .btn {
+    min-height: 50px;
+    font-size: 0.95rem;
+  }
+  .hero-trust {
+    padding: 16px 18px;
+    gap: 12px;
+  }
+  .hero-trust-item { font-size: 0.82rem; }
+  .service-card { padding: 22px 18px; }
+  .method-step { padding: 24px 18px; }
+  .faq-answer { max-height: none !important; }
+  .cta-inner { padding: 36px 20px; }
+}
+
+/* ── 19. Footer mobile ── */
+@media (max-width: 640px) {
+  .footer-grid { gap: 28px; }
+  footer { padding: 48px 0 32px; }
+}
+
+/* ── 20. Formulaire tunnel — mobile ── */
+@media (max-width: 640px) {
+  .form-funnel-card {
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+  .form-step-chip {
+    font-size: 0.82rem;
+    padding: 10px 14px;
+    border-radius: 12px;
+  }
+  .form-radio-card {
+    padding: 14px 12px;
+    font-size: 0.88rem;
+  }
+  .form-label {
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+  .form-input,
+  .form-select,
+  .form-textarea {
+    height: 48px;
+    font-size: 0.92rem;
+    padding: 0 14px;
+    border-radius: 10px;
+  }
+  .form-textarea {
+    height: auto;
+    min-height: 100px;
+    padding: 12px 14px;
+  }
+  .form-step-footer { gap: 10px; }
+  .form-step-footer .btn {
+    min-height: 50px;
+    font-size: 0.95rem;
+  }
+  .form-summary {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .form-inline-note {
+    font-size: 0.82rem;
+    padding: 10px 12px;
+  }
+}
+
+/* ── 21. Message panel — mobile ── */
+@media (max-width: 640px) {
+  .social-message-panel {
+    right: 8px;
+    left: 8px;
+    bottom: 16px;
+    width: auto;
+    border-radius: 16px;
+    max-height: 70vh;
+  }
+  .social-message-header {
+    padding: 12px 14px;
+    border-radius: 16px 16px 0 0;
+  }
+  .social-message-body { padding: 10px 12px; }
+  .social-message-input {
+    height: 44px;
+    font-size: 0.9rem;
+  }
+  .social-message-bubble { font-size: 0.86rem; }
+}
+
+/* ── 22. Back button mobile ── */
+@media (max-width: 640px) {
+  .social-back-button {
+    font-size: 0.88rem;
+    padding: 8px 0;
+    margin-bottom: 12px;
+  }
+  .social-group-post-count {
+    font-size: 0.75rem;
+    margin-bottom: 10px;
+  }
+}

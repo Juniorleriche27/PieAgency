@@ -1844,49 +1844,16 @@ export function CommunityNetwork() {
         </div>
       </div>
 
-      <div className="social-mobile-tabs">
-        <button
-          className={`social-mobile-tab ${activeTab === "feed" ? "is-active" : ""}`}
-          onClick={() => switchTab("feed")}
-          type="button"
-        >
-          Fil
-        </button>
-        <button
-          className={`social-mobile-tab ${activeTab === "explorer" ? "is-active" : ""}`}
-          onClick={() => switchTab("explorer")}
-          type="button"
-        >
-          Explorer
-        </button>
-        <button
-          className={`social-mobile-tab ${activeTab === "groupes" ? "is-active" : ""}`}
-          onClick={() => switchTab("groupes")}
-          type="button"
-        >
-          Groupes
-        </button>
-        <button
-          className={`social-mobile-tab ${activeTab === "evenements" ? "is-active" : ""}`}
-          onClick={() => switchTab("evenements")}
-          type="button"
-        >
-          Evenements
-        </button>
-        <button
-          className={`social-mobile-tab ${activeTab === "messages" ? "is-active" : ""}`}
-          onClick={() => openMessagesWith("piehub")}
-          type="button"
-        >
-          Messages
-        </button>
-        <button
-          className={`social-mobile-tab ${activeTab === "publicite" ? "is-active" : ""}`}
-          onClick={() => switchTab("publicite")}
-          type="button"
-        >
-          Pub
-        </button>
+      <div className="social-mobile-tabs-wrapper">
+        <div className="social-mobile-tabs">
+          <button className={`social-mobile-tab ${activeTab === "feed" ? "is-active" : ""}`} onClick={() => switchTab("feed")} type="button">Fil</button>
+          <button className={`social-mobile-tab ${activeTab === "groupes" ? "is-active" : ""}`} onClick={() => switchTab("groupes")} type="button">👥 Groupes</button>
+          <button className={`social-mobile-tab ${activeTab === "evenements" ? "is-active" : ""}`} onClick={() => switchTab("evenements")} type="button">🗓 Evenements</button>
+          <button className={`social-mobile-tab ${activeTab === "ressources" ? "is-active" : ""}`} onClick={() => switchTab("ressources")} type="button">📚 Ressources</button>
+          <button className={`social-mobile-tab ${activeTab === "publicite" ? "is-active" : ""}`} onClick={() => switchTab("publicite")} type="button">📢 Pub</button>
+          <button className={`social-mobile-tab ${activeTab === "explorer" ? "is-active" : ""}`} onClick={() => switchTab("explorer")} type="button">⌕ Explorer</button>
+          <button className={`social-mobile-tab ${activeTab === "messages" ? "is-active" : ""}`} onClick={() => openMessagesWith("piehub")} type="button">💬 Messages</button>
+        </div>
       </div>
 
       <div className="social-app-shell">
