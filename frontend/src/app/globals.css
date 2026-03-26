@@ -46,6 +46,13 @@ body {
   overflow-x: clip;
 }
 
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
 main {
   min-height: calc(100vh - 68px);
 }
@@ -715,6 +722,7 @@ nav {
 .hero-visual {
   position: relative;
   z-index: 1;
+  min-width: 0;
 }
 
 .hero-badge {
@@ -799,6 +807,7 @@ nav {
   gap: 8px;
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.75);
+  overflow-wrap: anywhere;
 }
 
 .dashboard-card {
@@ -1022,6 +1031,7 @@ nav {
   border-radius: var(--radius);
   border: 1px solid var(--gray-100);
   box-shadow: var(--shadow);
+  min-width: 0;
 }
 
 .trust-item,
@@ -1278,6 +1288,7 @@ nav {
   border-radius: var(--radius);
   padding: 40px;
   color: var(--white);
+  min-width: 0;
 }
 
 .contact-info-card h3 {
@@ -1326,6 +1337,7 @@ nav {
 .contact-item-value {
   color: var(--white);
   font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 .contact-wa-btns,
@@ -1750,6 +1762,7 @@ footer {
   color: rgba(255, 255, 255, 0.5);
   padding: 4px 0;
   transition: var(--transition);
+  overflow-wrap: anywhere;
 }
 
 .footer-link:hover {
@@ -1872,6 +1885,7 @@ footer {
   font-size: 0.78rem;
   color: rgba(255, 255, 255, 0.4);
   margin-bottom: 20px;
+  overflow-wrap: anywhere;
 }
 
 .page-hero .breadcrumb span {
@@ -2262,6 +2276,7 @@ footer {
 .assistant-spotlight-panel {
   position: relative;
   z-index: 1;
+  min-width: 0;
 }
 
 .assistant-kicker,
@@ -2341,6 +2356,7 @@ footer {
 
 .chatbot-panel {
   width: min(390px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
   border-radius: 24px;
   overflow: hidden;
   background: #f9fafc;
@@ -2394,6 +2410,7 @@ footer {
   font-size: 0.92rem;
   line-height: 1.55;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .chatbot-message.assistant {
@@ -2552,6 +2569,7 @@ footer {
   border: 1px solid var(--gray-100);
   border-radius: 24px;
   box-shadow: var(--shadow);
+  min-width: 0;
 }
 
 .portal-banner {
@@ -2592,6 +2610,7 @@ footer {
 .portal-table-row p,
 .portal-doc p {
   font-size: 0.9rem;
+  overflow-wrap: anywhere;
 }
 
 .portal-banner-meta {
@@ -2683,6 +2702,7 @@ footer {
 .portal-progress-meta {
   font-size: 0.84rem;
   color: var(--gray-600);
+  overflow-wrap: anywhere;
 }
 
 .portal-progress {
@@ -2850,6 +2870,15 @@ footer {
   align-items: center;
 }
 
+.portal-table-row > div,
+.portal-list-item > div,
+.portal-task > div,
+.portal-case > div,
+.portal-note > div,
+.portal-step-body {
+  min-width: 0;
+}
+
 .portal-table-head {
   padding: 0 8px 10px;
   font-size: 0.74rem;
@@ -2912,6 +2941,7 @@ footer {
   gap: 6px;
   font-size: 0.82rem;
   color: var(--gray-600);
+  min-width: 0;
 }
 
 .portal-inline-action {
@@ -3279,6 +3309,14 @@ footer {
     padding: 64px 0;
   }
 
+  .btn {
+    max-width: 100%;
+    min-width: 0;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.35;
+  }
+
   h1 {
     font-size: 1.9rem;
   }
@@ -3292,6 +3330,23 @@ footer {
   .cta-btns,
   .contact-actions {
     flex-direction: column;
+  }
+
+  .hero-badge,
+  .assistant-actions,
+  .footer-actions,
+  .portal-actions {
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+  }
+
+  .hero-badge span {
+    white-space: normal;
+    line-height: 1.4;
   }
 
   .trust-grid,
@@ -3326,6 +3381,10 @@ footer {
     padding-inline: 16px;
   }
 
+  .portal-access-card {
+    padding: 24px 18px;
+  }
+
   .form-card {
     padding: 24px 18px;
   }
@@ -3340,6 +3399,19 @@ footer {
   }
 
   .form-step-footer-actions .btn {
+    width: 100%;
+  }
+
+  .footer-actions,
+  .assistant-actions,
+  .portal-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .footer-actions .btn,
+  .assistant-actions .btn,
+  .portal-actions .btn {
     width: 100%;
   }
 
@@ -3566,6 +3638,7 @@ footer {
   grid-template-columns: 294px minmax(0, 1fr) 318px;
   gap: 24px;
   align-items: start;
+  overflow-x: clip;
 }
 
 .social-sidebar-left,
@@ -4325,6 +4398,7 @@ footer {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .social-list-card:hover,
@@ -4456,6 +4530,7 @@ footer {
   color: #8896a8;
   font-size: 0.68rem;
   margin: 6px 0 4px;
+  gap: 8px;
 }
 
 .social-member-card {
@@ -4542,6 +4617,7 @@ footer {
   bottom: 136px;
   z-index: 60;
   width: 320px;
+  max-width: calc(100vw - 16px);
   display: flex;
   flex-direction: column;
   background: #fff;
@@ -4599,6 +4675,7 @@ footer {
   border-radius: 12px;
   font-size: 0.82rem;
   line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .social-message-bubble.is-them {
@@ -5257,6 +5334,7 @@ footer {
   top: 72px;
   z-index: 70;
   width: 340px;
+  max-width: calc(100vw - 16px);
   max-height: 480px;
   overflow-y: auto;
   background: #fff;
@@ -6080,5 +6158,31 @@ footer {
   .social-group-post-count {
     font-size: 0.75rem;
     margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .social-list-card,
+  .social-event-card,
+  .social-empty-state {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .social-join-button,
+  .social-follow-button,
+  .social-event-button,
+  .social-message-button {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .social-resource-card-meta {
+    flex-wrap: wrap;
+  }
+
+  .social-compose-doc-meta {
+    flex-direction: column;
   }
 }
