@@ -51,17 +51,30 @@ def _format_datetime_label(raw_value: str | None) -> str:
     except ValueError:
         return raw_value
 
-    value = value.astimezone(timezone.utc)
+    # Si datetime naive (pas de timezone), on suppose UTC
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    else:
+        value = value.astimezone(timezone.utc)
+
     now = datetime.now(timezone.utc)
     delta = now - value
+    total_seconds = int(delta.total_seconds())
 
-    if delta.days >= 1:
-        return value.strftime("%d/%m/%Y %H:%M")
-    if delta.seconds >= 3600:
-        return f"Il y a {delta.seconds // 3600} h"
-    if delta.seconds >= 60:
-        return f"Il y a {delta.seconds // 60} min"
-    return "A l'instant"
+    if total_seconds < 0:
+        return "A l'instant"
+    if total_seconds < 60:
+        return "A l'instant"
+    if total_seconds < 3600:
+        minutes = total_seconds // 60
+        return f"Il y a {minutes} min"
+    if total_seconds < 86400:
+        hours = total_seconds // 3600
+        return f"Il y a {hours} h"
+    if total_seconds < 86400 * 7:
+        days = total_seconds // 86400
+        return f"Il y a {days} j"
+    return value.strftime("%d/%m/%Y")
 
 
 def _get_client(access_token: str | None = None):

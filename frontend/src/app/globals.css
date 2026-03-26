@@ -40,7 +40,9 @@ body {
   background: var(--white);
   color: var(--text);
   line-height: 1.65;
-  overflow-x: hidden;
+  /* overflow-x: clip ne cree pas de BFC, donc ne casse pas position:sticky
+     contrairement a overflow-x: hidden */
+  overflow-x: clip;
 }
 
 main {

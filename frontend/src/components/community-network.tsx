@@ -101,6 +101,7 @@ type StoryItem = {
   userId: string;
   content: string;
   add?: boolean;
+  createdAt?: number; // timestamp ms — stories expirent apres 24H
 };
 
 type GroupItem = {
@@ -365,24 +366,9 @@ const EXTRA_POSTS: SocialPost[] = [
   },
 ];
 
+// Pas de statuts par defaut — seul le bouton "Ajouter" est toujours present
 const STORIES: StoryItem[] = [
-  { userId: "moi", content: "Ajouter une story", add: true },
-  {
-    userId: "ibrahim",
-    content: "⚠️ Rappel : fermeture de la procedure Campus France le 30 mars pour certains pays.",
-  },
-  {
-    userId: "amara",
-    content: "📸 Ma nouvelle ville : Lyon, vue depuis Fourviere. Courage a tous ceux qui se preparent.",
-  },
-  {
-    userId: "kofi",
-    content: "🎓 Rendu de mon premier devoir de Master aujourd'hui. Le niveau est exigeant mais passionnant.",
-  },
-  {
-    userId: "fatou",
-    content: "Lettre de motivation terminee. Relue 10 fois et corrigee avec PieAgency.",
-  },
+  { userId: "moi", content: "Ajouter un statut", add: true },
 ];
 
 const TRENDING = [
@@ -739,6 +725,18 @@ export function CommunityNetwork() {
     readStoredArray(FOLLOWING_STORAGE_KEY, ["piehub", "ibrahim", "junior"]),
   );
   const [pollVotes, setPollVotes] = useState<Record<number, number>>({});
+  const [localStories, setLocalStories] = useState<StoryItem[]>(() => {
+    // Charger les statuts depuis localStorage et filtrer ceux > 24H
+    try {
+      const stored = localStorage.getItem("piehub-stories");
+      if (!stored) return [];
+      const parsed: StoryItem[] = JSON.parse(stored);
+      const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+      return parsed.filter((s) => (s.createdAt ?? 0) > cutoff);
+    } catch {
+      return [];
+    }
+  });
   const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
   const [groupState, setGroupState] = useState<Record<string, boolean>>(() =>
     readStoredBooleanMap(
@@ -1302,6 +1300,28 @@ export function CommunityNetwork() {
 
   async function publishPost() {
     const trimmedText = composeText.trim();
+
+    // Mode story/statut — gere separement, pas de publication API
+    if (composeMode === "story") {
+      if (trimmedText.length < 4) {
+        pushToast("Ecrivez quelque chose pour votre statut.");
+        return;
+      }
+      const newStory: StoryItem = {
+        userId: currentProfileId,
+        content: trimmedText,
+        createdAt: Date.now(),
+      };
+      setLocalStories((prev) => {
+        const updated = [newStory, ...prev.filter((s) => s.userId !== currentProfileId)];
+        try { localStorage.setItem("piehub-stories", JSON.stringify(updated)); } catch { /* noop */ }
+        return updated;
+      });
+      closeCompose();
+      pushToast("Statut publie. Il disparaitra apres 24h.");
+      return;
+    }
+
     const inferredPollLines =
       composeMode === "poll"
         ? trimmedText
@@ -1783,8 +1803,11 @@ export function CommunityNetwork() {
     );
   }
 
+  const activeLocalStories = localStories.filter((s) => (s.createdAt ?? 0) > Date.now() - 24 * 60 * 60 * 1000);
   const selectedStoryUser =
-    storyIndex !== null ? findCommunityUser(STORIES[storyIndex].userId) : currentUser;
+    storyIndex !== null && activeLocalStories[storyIndex]
+      ? findCommunityUser(activeLocalStories[storyIndex].userId)
+      : currentUser;
   const selectedProfile = profileId ? findCommunityUser(profileId) : currentUser;
   const hashtagPosts = hashtagFilter
     ? posts.filter((post) => {
@@ -1903,32 +1926,38 @@ export function CommunityNetwork() {
         <main className="social-main-feed" ref={mainFeedRef}>
           {activeTab === "feed" ? (
             <>
-              <div className="social-stories-row">
-                {STORIES.map((story, index) => {
-                  const user = findCommunityUser(story.userId);
-                  if (story.add) {
-                    return (
-                      <button className="social-story-item" key={`${story.userId}-add`} onClick={() => openCompose("story")} type="button">
-                        <span className="social-story-ring is-seen"><span className="social-story-inner social-story-add">+</span></span>
-                        <span className="social-story-label">Ma story</span>
-                      </button>
-                    );
-                  }
-
-                  return (
-                    <button className="social-story-item" key={`${story.userId}-${index}`} onClick={() => setStoryIndex(index)} type="button">
-                      <span className="social-story-ring">
-                        <span className="social-story-inner">
-                          <span className="social-avatar social-avatar-story" style={{ backgroundColor: user.color }}>
-                            {user.avatar}
-                          </span>
-                        </span>
+              {(() => {
+                const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+                const activeStories = localStories.filter((s) => (s.createdAt ?? 0) > cutoff);
+                const myStory = activeStories.find((s) => s.userId === currentProfileId);
+                return (
+                  <div className="social-stories-row">
+                    {/* Bouton ajouter statut */}
+                    <button className="social-story-item" onClick={() => openCompose("story")} type="button">
+                      <span className={`social-story-ring ${myStory ? "is-active" : "is-seen"}`}>
+                        <span className="social-story-inner social-story-add">+</span>
                       </span>
-                      <span className="social-story-label">{user.name.split(" ")[0]}</span>
+                      <span className="social-story-label">{myStory ? "Mon statut" : "Statut"}</span>
                     </button>
-                  );
-                })}
-              </div>
+                    {/* Statuts actifs des membres */}
+                    {activeStories.map((story, index) => {
+                      const user = findCommunityUser(story.userId);
+                      return (
+                        <button className="social-story-item" key={`story-${story.userId}-${story.createdAt ?? index}`} onClick={() => setStoryIndex(index)} type="button">
+                          <span className="social-story-ring">
+                            <span className="social-story-inner">
+                              <span className="social-avatar social-avatar-story" style={{ backgroundColor: user.color }}>
+                                {user.avatar}
+                              </span>
+                            </span>
+                          </span>
+                          <span className="social-story-label">{user.name.split(" ")[0]}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
 
               <div className="social-create-card">
                 <div className="social-create-top">
@@ -2602,7 +2631,7 @@ export function CommunityNetwork() {
         </div>
       ) : null}
 
-      {storyIndex !== null ? (
+      {storyIndex !== null && activeLocalStories[storyIndex] ? (
         <div className="social-modal-overlay" onClick={() => setStoryIndex(null)} role="presentation">
           <div className="social-story-modal" onClick={(event) => event.stopPropagation()} role="presentation">
             <div className="social-story-modal-head">
@@ -2614,7 +2643,7 @@ export function CommunityNetwork() {
                 {selectedStoryUser.avatar}
               </span>
               <div className="social-story-country">{selectedStoryUser.country}</div>
-              <div className="social-story-box">{STORIES[storyIndex].content}</div>
+              <div className="social-story-box">{storyIndex !== null && activeLocalStories[storyIndex] ? activeLocalStories[storyIndex].content : ""}</div>
             </div>
           </div>
         </div>
@@ -2660,7 +2689,7 @@ export function CommunityNetwork() {
         <div className="social-modal-overlay" onClick={closeCompose} role="presentation">
           <div className="social-compose-modal" onClick={(event) => event.stopPropagation()} role="presentation">
             <div className="social-compose-head">
-              <strong>Creer une publication</strong>
+              <strong>{composeMode === "story" ? "Publier un statut" : "Creer une publication"}</strong>
               <button onClick={closeCompose} type="button">✕</button>
             </div>
             <div className="social-compose-body">
@@ -2673,7 +2702,7 @@ export function CommunityNetwork() {
               </div>
               <div className="social-compose-mode-bar">
                 {(["text", "doc", "poll", "event", "story"] as ComposeMode[]).map((mode) => {
-                  const labels: Record<ComposeMode, string> = { text: "Texte", doc: "Document", poll: "Sondage", event: "Evenement", story: "Story" };
+                  const labels: Record<ComposeMode, string> = { text: "Texte", doc: "Document", poll: "Sondage", event: "Evenement", story: "Statut" };
                   return (
                     <button
                       className={`social-compose-mode-tab ${composeMode === mode ? "is-active" : ""}`}
