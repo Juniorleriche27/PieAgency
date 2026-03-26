@@ -1089,3 +1089,171 @@ set
   is_published = excluded.is_published,
   audience = excluded.audience,
   updated_at = timezone('utc', now());
+
+-- COMMUNITY GROUPS (user-created)
+create table if not exists public.community_groups (
+  id bigserial primary key,
+  name text not null,
+  description text not null default '',
+  icon text not null default '👥',
+  category text not null default 'general',
+  created_by_profile_id text references public.community_profiles(id) on delete set null,
+  created_by_user_id uuid references auth.users(id) on delete set null,
+  member_count integer not null default 1 check (member_count >= 0),
+  is_official boolean not null default false,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.community_group_members (
+  id uuid primary key default gen_random_uuid(),
+  group_id bigint not null references public.community_groups(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  profile_id text references public.community_profiles(id) on delete set null,
+  role text not null default 'member',
+  joined_at timestamptz not null default timezone('utc', now()),
+  unique (group_id, user_id)
+);
+
+-- COMMUNITY EVENTS CALENDAR (user-created)
+create table if not exists public.community_events_calendar (
+  id bigserial primary key,
+  name text not null,
+  description text not null default '',
+  event_date date not null,
+  event_time text not null default '',
+  location_type text not null default 'online',
+  location_detail text not null default '',
+  created_by_profile_id text references public.community_profiles(id) on delete set null,
+  created_by_user_id uuid references auth.users(id) on delete set null,
+  attendee_count integer not null default 0 check (attendee_count >= 0),
+  is_official boolean not null default false,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.community_event_attendees (
+  id uuid primary key default gen_random_uuid(),
+  event_id bigint not null references public.community_events_calendar(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  profile_id text references public.community_profiles(id) on delete set null,
+  registered_at timestamptz not null default timezone('utc', now()),
+  unique (event_id, user_id)
+);
+
+-- NOTIFICATIONS
+create table if not exists public.community_notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  type text not null,
+  title text not null,
+  body text not null,
+  is_read boolean not null default false,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+-- Indexes
+create index if not exists community_groups_created_at_idx on public.community_groups (created_at desc);
+create index if not exists community_group_members_user_id_idx on public.community_group_members (user_id);
+create index if not exists community_events_calendar_date_idx on public.community_events_calendar (event_date asc);
+create index if not exists community_event_attendees_user_id_idx on public.community_event_attendees (user_id);
+create index if not exists community_notifications_user_id_idx on public.community_notifications (user_id, is_read, created_at desc);
+
+-- RLS
+alter table public.community_groups enable row level security;
+alter table public.community_group_members enable row level security;
+alter table public.community_events_calendar enable row level security;
+alter table public.community_event_attendees enable row level security;
+alter table public.community_notifications enable row level security;
+
+drop policy if exists "community_groups_select" on public.community_groups;
+create policy "community_groups_select" on public.community_groups for select to anon, authenticated using (true);
+
+drop policy if exists "community_groups_insert" on public.community_groups;
+create policy "community_groups_insert" on public.community_groups for insert to authenticated with check (auth.uid() = created_by_user_id);
+
+drop policy if exists "community_groups_update" on public.community_groups;
+create policy "community_groups_update" on public.community_groups for update to authenticated using (auth.uid() = created_by_user_id or public.is_admin());
+
+drop policy if exists "community_group_members_select" on public.community_group_members;
+create policy "community_group_members_select" on public.community_group_members for select to anon, authenticated using (true);
+
+drop policy if exists "community_group_members_own" on public.community_group_members;
+create policy "community_group_members_own" on public.community_group_members for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "community_events_calendar_select" on public.community_events_calendar;
+create policy "community_events_calendar_select" on public.community_events_calendar for select to anon, authenticated using (true);
+
+drop policy if exists "community_events_calendar_insert" on public.community_events_calendar;
+create policy "community_events_calendar_insert" on public.community_events_calendar for insert to authenticated with check (auth.uid() = created_by_user_id);
+
+drop policy if exists "community_events_calendar_update" on public.community_events_calendar;
+create policy "community_events_calendar_update" on public.community_events_calendar for update to authenticated using (auth.uid() = created_by_user_id or public.is_admin());
+
+drop policy if exists "community_event_attendees_select" on public.community_event_attendees;
+create policy "community_event_attendees_select" on public.community_event_attendees for select to anon, authenticated using (true);
+
+drop policy if exists "community_event_attendees_own" on public.community_event_attendees;
+create policy "community_event_attendees_own" on public.community_event_attendees for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "community_notifications_own" on public.community_notifications;
+create policy "community_notifications_own" on public.community_notifications for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ── Resource moderation status ──────────────────────────────────────────────
+alter table if exists public.community_posts
+  add column if not exists moderation_status text not null default 'approved';
+
+-- Les ressources soumises par des non-admins sont "pending"
+-- Les posts normaux restent "approved" par défaut
+
+create index if not exists community_posts_moderation_idx
+  on public.community_posts (moderation_status, post_type, created_at desc);
+
+-- ── Community Ads ─────────────────────────────────────────────────────────────
+create table if not exists public.community_ads (
+  id bigserial primary key,
+  created_by_profile_id text references public.community_profiles(id) on delete set null,
+  created_by_user_id uuid references auth.users(id) on delete set null,
+  title text not null,
+  body text not null default '',
+  image_url text,
+  cta_label text not null default 'En savoir plus',
+  cta_url text not null default '',
+  category text not null default 'general',
+  moderation_status text not null default 'pending',
+  admin_note text,
+  reviewed_by text,
+  reviewed_at timestamptz,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists community_ads_status_idx
+  on public.community_ads (moderation_status, created_at desc);
+create index if not exists community_ads_user_idx
+  on public.community_ads (created_by_user_id);
+
+alter table public.community_ads enable row level security;
+
+drop policy if exists "community_ads_select" on public.community_ads;
+create policy "community_ads_select"
+on public.community_ads for select
+to anon, authenticated
+using (
+  moderation_status = 'approved'
+  or auth.uid() = created_by_user_id
+  or public.is_admin()
+);
+
+drop policy if exists "community_ads_insert" on public.community_ads;
+create policy "community_ads_insert"
+on public.community_ads for insert
+to authenticated
+with check (auth.uid() = created_by_user_id);
+
+drop policy if exists "community_ads_update" on public.community_ads;
+create policy "community_ads_update"
+on public.community_ads for update
+to authenticated
+using (auth.uid() = created_by_user_id or public.is_admin())
+with check (auth.uid() = created_by_user_id or public.is_admin());

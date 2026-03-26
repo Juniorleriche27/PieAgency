@@ -10,9 +10,24 @@ import {
   createCommunityPost,
   fetchCommunityAssistantThread,
   fetchCommunityBootstrap,
+  fetchCommunityEventsCalendar,
+  fetchCommunityGroups,
+  fetchCommunityNotifications,
+  markCommunityNotificationRead,
+  createCommunityGroup,
+  createCommunityEvent,
+  toggleCommunityGroupMembership,
+  toggleCommunityEventAttendance,
   sendCommunityAssistantMessage,
   toggleCommunityReaction,
   voteCommunityPoll,
+  fetchCommunityAds,
+  createCommunityAd,
+  rewriteWithAI,
+  type CommunityGroupItem as ApiGroupItem,
+  type CommunityEventCalendarItem as ApiEventItem,
+  type CommunityNotificationItem,
+  type CommunityAdItem,
 } from "@/lib/community";
 
 type MainTab =
@@ -21,7 +36,8 @@ type MainTab =
   | "groupes"
   | "evenements"
   | "ressources"
-  | "messages";
+  | "messages"
+  | "publicite";
 type ExplorerTab = "posts" | "membres" | "hashtags";
 type ComposeMode = "text" | "doc" | "poll" | "event" | "story";
 type TagKey = "campus" | "visa" | "vie" | "logement" | "temoignage";
@@ -496,6 +512,13 @@ const FOLLOWING_STORAGE_KEY = "piehub-following";
 const GROUP_STORAGE_KEY = "piehub-groups";
 const EVENT_STORAGE_KEY = "piehub-events";
 
+const GROUP_TAG_MAP: Record<string, TagKey> = {
+  "Campus France — Entraide": "campus",
+  "Visa Etudiant — Conseils": "visa",
+  "Etudes en Belgique": "campus",
+  "Logement Etudiant France": "logement",
+};
+
 function inferTagFromText(text: string, fallback: TagKey = "vie") {
   const normalized = text.trim().toLowerCase();
 
@@ -745,11 +768,41 @@ export function CommunityNetwork() {
   const [composePollQuestion, setComposePollQuestion] = useState("");
   const [composePollOptions, setComposePollOptions] = useState(["", "", "", ""]);
   const [hashtagFilter, setHashtagFilter] = useState<string | null>(null);
+  const [selectedGroupName, setSelectedGroupName] = useState<string | null>(null);
+  const [selectedEventName, setSelectedEventName] = useState<string | null>(null);
+  const [resourceFilter, setResourceFilter] = useState<"tous" | "PDF" | "DOC">("tous");
   const [searchTerm, setSearchTerm] = useState("");
   const [loadedExtraCount, setLoadedExtraCount] = useState(0);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [aiReplyingPostIds, setAiReplyingPostIds] = useState<number[]>([]);
   const [isAssistantMessageLoading, setIsAssistantMessageLoading] = useState(false);
+  const [apiGroups, setApiGroups] = useState<ApiGroupItem[]>([]);
+  const [apiEvents, setApiEvents] = useState<ApiEventItem[]>([]);
+  const [notifications, setNotifications] = useState<CommunityNotificationItem[]>([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [notifPanelOpen, setNotifPanelOpen] = useState(false);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [createEventOpen, setCreateEventOpen] = useState(false);
+  const [groupForm, setGroupForm] = useState({ name: "", description: "", icon: "👥", category: "campus" });
+  const [eventForm, setEventForm] = useState({ name: "", description: "", event_date: "", event_time: "", location_type: "online", location_detail: "" });
+  const [groupFormError, setGroupFormError] = useState("");
+  const [eventFormError, setEventFormError] = useState("");
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [isCreatingEvent, setIsCreatingEvent] = useState(false);
+  const [ads, setAds] = useState<CommunityAdItem[]>([]);
+  const [createAdOpen, setCreateAdOpen] = useState(false);
+  const [adStep, setAdStep] = useState(0);
+  const [adForm, setAdForm] = useState({
+    title: "",
+    body: "",
+    image_url: "",
+    cta_label: "En savoir plus",
+    cta_url: "",
+    category: "general",
+  });
+  const [adFormError, setAdFormError] = useState("");
+  const [isCreatingAd, setIsCreatingAd] = useState(false);
+  const [isRewriting, setIsRewriting] = useState<string | null>(null);
 
   const currentUser = findUserInList(communityUsers, currentProfileId);
   const messageTarget = findUserInList(communityUsers, messageTargetId);
@@ -862,6 +915,21 @@ export function CommunityNetwork() {
         0,
       );
       postIdRef.current = Math.max(highestPostId + 1, 100);
+      // Load groups, events, notifications in parallel
+      const [groups, events] = await Promise.all([
+        fetchCommunityGroups().catch(() => []),
+        fetchCommunityEventsCalendar().catch(() => []),
+      ]);
+      setApiGroups(groups);
+      setApiEvents(events);
+      fetchCommunityAds().then((data) => setAds(data.ads)).catch(() => {});
+      // Load notifications if user is logged in
+      if (payload.currentProfileId) {
+        fetchCommunityNotifications().then((data) => {
+          setNotifications(data.notifications);
+          setUnreadNotifCount(data.unreadCount);
+        }).catch(() => {});
+      }
     } catch {
       setCommunityUsers(USERS);
       setPosts(copyPosts(INITIAL_POSTS));
@@ -953,8 +1021,149 @@ export function CommunityNetwork() {
     if (nextTab !== "explorer") {
       setHashtagFilter(null);
     }
+    if (nextTab !== "groupes") {
+      setSelectedGroupName(null);
+    }
+    if (nextTab !== "evenements") {
+      setSelectedEventName(null);
+    }
     setActiveTab(nextTab);
     focusMainContent();
+  }
+
+  async function submitCreateGroup() {
+    if (groupForm.name.trim().length < 3) {
+      setGroupFormError("Le nom doit contenir au moins 3 caractères.");
+      return;
+    }
+    if (groupForm.description.trim().length < 4) {
+      setGroupFormError("Ajoutez une description.");
+      return;
+    }
+    setIsCreatingGroup(true);
+    setGroupFormError("");
+    try {
+      const result = await createCommunityGroup(groupForm);
+      setApiGroups((current) => [result.group, ...current]);
+      setCreateGroupOpen(false);
+      setGroupForm({ name: "", description: "", icon: "👥", category: "campus" });
+      pushToast(`✅ Groupe "${result.group.name}" créé avec succès.`);
+    } catch {
+      setGroupFormError("Erreur lors de la création. Connectez-vous d'abord.");
+    } finally {
+      setIsCreatingGroup(false);
+    }
+  }
+
+  async function submitCreateEvent() {
+    if (eventForm.name.trim().length < 4) {
+      setEventFormError("Le nom doit contenir au moins 4 caractères.");
+      return;
+    }
+    if (eventForm.description.trim().length < 4) {
+      setEventFormError("Ajoutez une description.");
+      return;
+    }
+    if (!eventForm.event_date) {
+      setEventFormError("Choisissez une date.");
+      return;
+    }
+    setIsCreatingEvent(true);
+    setEventFormError("");
+    try {
+      const result = await createCommunityEvent(eventForm);
+      setApiEvents((current) => [result.event, ...current]);
+      setCreateEventOpen(false);
+      setEventForm({ name: "", description: "", event_date: "", event_time: "", location_type: "online", location_detail: "" });
+      pushToast(`✅ Événement "${result.event.name}" créé.`);
+    } catch {
+      setEventFormError("Erreur lors de la création. Connectez-vous d'abord.");
+    } finally {
+      setIsCreatingEvent(false);
+    }
+  }
+
+  async function handleApiGroupMembership(groupId: number, groupName: string) {
+    try {
+      const result = await toggleCommunityGroupMembership(groupId);
+      setApiGroups((current) =>
+        current.map((g) => (g.id === groupId ? result.group : g)),
+      );
+      pushToast(result.isMember ? `✅ Rejoint : ${groupName}` : `Groupe quitté : ${groupName}`);
+    } catch {
+      pushToast("Connectez-vous pour rejoindre un groupe.");
+    }
+  }
+
+  async function handleApiEventAttendance(eventId: number, eventName: string) {
+    try {
+      const result = await toggleCommunityEventAttendance(eventId);
+      setApiEvents((current) =>
+        current.map((e) => (e.id === eventId ? result.event : e)),
+      );
+      pushToast(result.isAttending ? `✅ Inscrit : ${eventName}` : `Inscription annulée : ${eventName}`);
+    } catch {
+      pushToast("Connectez-vous pour vous inscrire à un événement.");
+    }
+  }
+
+  async function handleAIRewrite(field: "body" | "composeText" | "adBody", context = "publication") {
+    const textMap: Record<string, string> = {
+      adBody: adForm.body,
+      composeText: composeText,
+      body: composeText,
+    };
+    const text = textMap[field] || "";
+    if (text.trim().length < 8) {
+      pushToast("Écrivez d'abord un texte avant de le reformuler.");
+      return;
+    }
+    setIsRewriting(field);
+    try {
+      const rewritten = await rewriteWithAI(text, context);
+      if (field === "adBody") {
+        setAdForm((f) => ({ ...f, body: rewritten }));
+      } else {
+        setComposeText(rewritten);
+      }
+      pushToast("✅ Texte reformulé par l'IA.");
+    } catch {
+      pushToast("L'IA n'est pas disponible pour le moment.");
+    } finally {
+      setIsRewriting(null);
+    }
+  }
+
+  async function submitCreateAd() {
+    if (adForm.title.trim().length < 4) { setAdFormError("Titre trop court."); return; }
+    if (adForm.body.trim().length < 8) { setAdFormError("Description trop courte."); return; }
+    setIsCreatingAd(true);
+    setAdFormError("");
+    try {
+      const ad = await createCommunityAd({
+        ...adForm,
+        image_url: adForm.image_url || null,
+      });
+      setAds((current) => [ad, ...current]);
+      setCreateAdOpen(false);
+      setAdStep(0);
+      setAdForm({ title: "", body: "", image_url: "", cta_label: "En savoir plus", cta_url: "", category: "general" });
+      pushToast("✅ Publicité soumise — en attente de validation par l'équipe PieAgency.");
+    } catch {
+      setAdFormError("Erreur lors de la soumission. Connectez-vous d'abord.");
+    } finally {
+      setIsCreatingAd(false);
+    }
+  }
+
+  async function handleMarkNotifRead(notifId: string) {
+    try {
+      const data = await markCommunityNotificationRead(notifId);
+      setNotifications(data.notifications);
+      setUnreadNotifCount(data.unreadCount);
+    } catch {
+      // ignore
+    }
   }
 
   function syncPostViewState(post: SocialPost) {
@@ -1584,8 +1793,11 @@ export function CommunityNetwork() {
           <button className="social-icon-button" onClick={() => openMessagesWith("piehub")} type="button">
             💬
           </button>
-          <button className="social-icon-button" onClick={() => pushToast("Centre de notifications")} type="button">
+          <button className="social-icon-button social-notif-button" onClick={() => setNotifPanelOpen(!notifPanelOpen)} type="button">
             🔔
+            {unreadNotifCount > 0 ? (
+              <span className="social-notif-badge">{unreadNotifCount > 9 ? "9+" : unreadNotifCount}</span>
+            ) : null}
           </button>
           <button className="social-profile-trigger" onClick={() => setProfileId(currentProfileId)} type="button">
             {currentUser.avatar}
@@ -1629,6 +1841,13 @@ export function CommunityNetwork() {
         >
           Messages
         </button>
+        <button
+          className={`social-mobile-tab ${activeTab === "publicite" ? "is-active" : ""}`}
+          onClick={() => switchTab("publicite")}
+          type="button"
+        >
+          Pub
+        </button>
       </div>
 
       <div className="social-app-shell">
@@ -1665,6 +1884,7 @@ export function CommunityNetwork() {
             <button className={`social-nav-item ${activeTab === "evenements" ? "is-active" : ""}`} onClick={() => switchTab("evenements")} type="button"><span className="social-nav-symbol">🗓</span><span>Evenements</span><span className="social-nav-badge">{joinedEventCount}</span></button>
             <button className={`social-nav-item ${activeTab === "ressources" ? "is-active" : ""}`} onClick={() => switchTab("ressources")} type="button"><span className="social-nav-symbol">📚</span><span>Ressources</span></button>
             <button className={`social-nav-item ${activeTab === "messages" ? "is-active" : ""}`} onClick={() => openMessagesWith("piehub")} type="button"><span className="social-nav-symbol">💬</span><span>Messages</span><span className="social-nav-badge">{messages.length}</span></button>
+            <button className={`social-nav-item ${activeTab === "publicite" ? "is-active" : ""}`} onClick={() => switchTab("publicite")} type="button"><span className="social-nav-symbol">📢</span><span>Publicités</span></button>
           </div>
 
           <div className="social-nav-group">
@@ -1817,48 +2037,205 @@ export function CommunityNetwork() {
 
           {activeTab === "groupes" ? (
             <section className="social-tab-section">
-              <h2>Groupes</h2>
-              <p>Rejoignez des espaces thematiques et echangez avec d&apos;autres etudiants.</p>
-              <div className="social-stack">
-                {GROUPS.map((group) => (
-                  <div className="social-list-card" key={group.name}>
-                    <span className="social-list-icon" style={{ background: group.color }}>
-                      {group.icon}
-                    </span>
-                    <span className="social-list-copy">
-                      <strong>{group.name}</strong>
-                      <small>{group.members.toLocaleString()} membres · {group.desc}</small>
-                    </span>
-                    <button className={`social-join-button ${groupState[group.name] ? "is-joined" : ""}`} onClick={() => toggleGroup(group.name)} type="button">
-                      {groupState[group.name] ? "✓ Rejoint" : "Rejoindre"}
+              {selectedGroupName ? (
+                <>
+                  <button className="social-back-button" onClick={() => setSelectedGroupName(null)} type="button">
+                    ← Retour aux groupes
+                  </button>
+                  {(() => {
+                    const group = GROUPS.find((g) => g.name === selectedGroupName);
+                    if (!group) return null;
+                    const tag = GROUP_TAG_MAP[group.name];
+                    const groupPosts = posts.filter((post) => post.tag === tag);
+                    return (
+                      <>
+                        <div className="social-group-detail-header" style={{ background: group.color }}>
+                          <span className="social-group-detail-icon">{group.icon}</span>
+                          <div className="social-group-detail-info">
+                            <h2>{group.name}</h2>
+                            <p>{group.desc}</p>
+                            <small>{group.members.toLocaleString()} membres</small>
+                          </div>
+                          <button
+                            className={`social-join-button ${groupState[group.name] ? "is-joined" : ""}`}
+                            onClick={() => toggleGroup(group.name)}
+                            type="button"
+                          >
+                            {groupState[group.name] ? "✓ Rejoint" : "Rejoindre"}
+                          </button>
+                        </div>
+                        <div className="social-group-post-count">
+                          {groupPosts.length} publication{groupPosts.length !== 1 ? "s" : ""} dans ce groupe
+                        </div>
+                        {groupPosts.length > 0 ? (
+                          groupPosts.map((post) => renderPost(post))
+                        ) : (
+                          <div className="social-list-card social-empty-state">
+                            <span className="social-list-copy">
+                              <strong>Aucune publication pour le moment.</strong>
+                              <small>Soyez le premier a partager dans ce groupe.</small>
+                            </span>
+                            <button className="social-secondary-button" onClick={() => openCompose("text")} type="button">
+                              Publier
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </>
+              ) : (
+                <>
+                  <h2>Groupes</h2>
+                  <p>Rejoignez des espaces thematiques et echangez avec d&apos;autres etudiants.</p>
+                  <div className="social-section-actions">
+                    <button className="social-primary-pill" onClick={() => setCreateGroupOpen(true)} type="button">
+                      + Créer un groupe
                     </button>
                   </div>
-                ))}
-              </div>
+                  <div className="social-stack">
+                    {GROUPS.map((group) => (
+                      <div className="social-list-card" key={`static-${group.name}`}>
+                        <span className="social-list-icon" style={{ background: group.color }}>
+                          {group.icon}
+                        </span>
+                        <span className="social-list-copy">
+                          <button className="social-group-name-button" onClick={() => setSelectedGroupName(group.name)} type="button">
+                            <strong>{group.name}</strong>
+                          </button>
+                          <small>{group.members.toLocaleString()} membres · {group.desc}</small>
+                        </span>
+                        <button
+                          className={`social-join-button ${groupState[group.name] ? "is-joined" : ""}`}
+                          onClick={() => toggleGroup(group.name)}
+                          type="button"
+                        >
+                          {groupState[group.name] ? "✓ Rejoint" : "Rejoindre"}
+                        </button>
+                      </div>
+                    ))}
+                    {apiGroups.map((group) => (
+                      <div className="social-list-card" key={`api-${group.id}`}>
+                        <span className="social-list-icon">{group.icon}</span>
+                        <span className="social-list-copy">
+                          <strong>{group.name}</strong>
+                          <small>{group.memberCount.toLocaleString()} membres · {group.description}</small>
+                        </span>
+                        <button className={`social-join-button ${group.isMember ? "is-joined" : ""}`} onClick={() => void handleApiGroupMembership(group.id, group.name)} type="button">
+                          {group.isMember ? "✓ Rejoint" : "Rejoindre"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </section>
           ) : null}
 
           {activeTab === "evenements" ? (
             <section className="social-tab-section">
-              <h2>Evenements</h2>
-              <p>Webinaires, sessions de preparation et rencontres a ne pas manquer.</p>
-              <div className="social-stack">
-                {EVENTS.map((event) => (
-                  <div className="social-event-card" key={event.name}>
-                    <div className="social-event-date">
-                      <strong>{event.day}</strong>
-                      <span>{event.month}</span>
-                    </div>
-                    <div className="social-event-copy">
-                      <strong>{event.name}</strong>
-                      <small>{event.time} · {event.attendees} participants · {event.desc}</small>
-                    </div>
-                    <button className={`social-event-button ${eventState[event.name] ? "is-joined" : ""}`} onClick={() => toggleEvent(event.name)} type="button">
-                      {eventState[event.name] ? "✓ Inscrit" : "S&apos;inscrire"}
+              {selectedEventName ? (
+                <>
+                  <button className="social-back-button" onClick={() => setSelectedEventName(null)} type="button">
+                    ← Retour aux evenements
+                  </button>
+                  {(() => {
+                    const event = EVENTS.find((e) => e.name === selectedEventName);
+                    if (!event) return null;
+                    const isInscrit = eventState[event.name];
+                    return (
+                      <div className="social-event-detail">
+                        <div className="social-event-detail-date">
+                          <strong>{event.day}</strong>
+                          <span>{event.month}</span>
+                        </div>
+                        <div className="social-event-detail-body">
+                          <h2>{event.name}</h2>
+                          <p>{event.desc}</p>
+                          <div className="social-event-detail-meta">
+                            <span>🕐 {event.time}</span>
+                            <span>👥 {event.attendees + (isInscrit ? 1 : 0)} participants</span>
+                            <span>📍 En ligne — Lien envoye apres inscription</span>
+                          </div>
+                          <div className="social-event-detail-actions">
+                            <button
+                              className={`social-event-button ${isInscrit ? "is-joined" : ""}`}
+                              onClick={() => toggleEvent(event.name)}
+                              type="button"
+                            >
+                              {isInscrit ? "✓ Inscrit — Annuler" : "S'inscrire a cet evenement"}
+                            </button>
+                            <button
+                              className="social-secondary-button"
+                              onClick={() => openMessagesWith("piehub")}
+                              type="button"
+                            >
+                              💬 Poser une question
+                            </button>
+                          </div>
+                          {isInscrit ? (
+                            <div className="social-event-confirm-note">
+                              ✅ Inscription confirmee. Vous recevrez le lien de connexion sur WhatsApp avant l&apos;evenement.
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              ) : (
+                <>
+                  <h2>Evenements</h2>
+                  <p>Webinaires, sessions de preparation et rencontres a ne pas manquer.</p>
+                  <div className="social-section-actions">
+                    <button className="social-primary-pill" onClick={() => setCreateEventOpen(true)} type="button">
+                      + Créer un événement
                     </button>
                   </div>
-                ))}
-              </div>
+                  <div className="social-stack">
+                    {EVENTS.map((event) => (
+                      <div className="social-event-card" key={`static-${event.name}`}>
+                        <div className="social-event-date">
+                          <strong>{event.day}</strong>
+                          <span>{event.month}</span>
+                        </div>
+                        <div className="social-event-copy">
+                          <button className="social-group-name-button" onClick={() => setSelectedEventName(event.name)} type="button">
+                            <strong>{event.name}</strong>
+                          </button>
+                          <small>{event.time} · {event.attendees} participants · {event.desc}</small>
+                        </div>
+                        <button
+                          className={`social-event-button ${eventState[event.name] ? "is-joined" : ""}`}
+                          onClick={() => toggleEvent(event.name)}
+                          type="button"
+                        >
+                          {eventState[event.name] ? "✓ Inscrit" : "S'inscrire"}
+                        </button>
+                      </div>
+                    ))}
+                    {apiEvents.map((event) => (
+                      <div className="social-event-card" key={`api-${event.id}`}>
+                        <div className="social-event-date">
+                          <strong>{event.eventDate.slice(8, 10) || "—"}</strong>
+                          <span>{event.eventDate.slice(5, 7) || ""}</span>
+                        </div>
+                        <div className="social-event-copy">
+                          <strong>{event.name}</strong>
+                          <small>{event.eventTime} · {event.attendeeCount} participants · {event.description}</small>
+                        </div>
+                        <button
+                          className={`social-event-button ${event.isAttending ? "is-joined" : ""}`}
+                          onClick={() => void handleApiEventAttendance(event.id, event.name)}
+                          type="button"
+                        >
+                          {event.isAttending ? "✓ Inscrit" : "S'inscrire"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </section>
           ) : null}
 
@@ -1870,24 +2247,57 @@ export function CommunityNetwork() {
                   ? `Bibliotheque filtree pour "${searchTerm.trim()}".`
                   : "Documents, guides et modeles partages dans PieHUB."}
               </p>
-              <div className="social-resource-grid">
-                {filteredResources.map((resource) => (
+              <div className="social-tab-bar">
+                {(["tous", "PDF", "DOC"] as const).map((filter) => (
                   <button
-                    className="social-resource-card"
-                    key={`${resource.source}-${resource.name}`}
-                    onClick={() => downloadResource(resource)}
+                    className={`social-tab-button ${resourceFilter === filter ? "is-active" : ""}`}
+                    key={filter}
+                    onClick={() => setResourceFilter(filter)}
                     type="button"
                   >
-                    <div className="social-resource-card-icon">{resource.icon}</div>
-                    <div className="social-resource-card-name">{resource.name}</div>
-                    <div className="social-resource-card-meta">
-                      <span>{resource.type} · {resource.size}</span>
-                      <span>⬇ {resource.downloads}</span>
-                    </div>
-                    <small>Par {resource.author}</small>
+                    {filter === "tous" ? "Tous" : filter}
                   </button>
                 ))}
+                <button
+                  className="social-tab-button"
+                  onClick={() => openCompose("doc")}
+                  type="button"
+                >
+                  + Partager
+                </button>
               </div>
+              <div className="social-resource-grid">
+                {filteredResources
+                  .filter((resource) => resourceFilter === "tous" || resource.type === resourceFilter)
+                  .sort((a, b) => b.downloads - a.downloads)
+                  .map((resource) => (
+                    <button
+                      className="social-resource-card"
+                      key={`${resource.source}-${resource.name}`}
+                      onClick={() => downloadResource(resource)}
+                      type="button"
+                    >
+                      <div className="social-resource-card-icon">{resource.icon}</div>
+                      <div className="social-resource-card-name">{resource.name}</div>
+                      <div className="social-resource-card-meta">
+                        <span>{resource.type} · {resource.size}</span>
+                        <span>⬇ {resource.downloads}</span>
+                      </div>
+                      <small>Par {resource.author}</small>
+                    </button>
+                  ))}
+              </div>
+              {filteredResources.filter((resource) => resourceFilter === "tous" || resource.type === resourceFilter).length === 0 ? (
+                <div className="social-list-card social-empty-state">
+                  <span className="social-list-copy">
+                    <strong>Aucune ressource {resourceFilter} pour le moment.</strong>
+                    <small>Partagez la premiere ressource de ce type.</small>
+                  </span>
+                  <button className="social-secondary-button" onClick={() => openCompose("doc")} type="button">
+                    Partager un document
+                  </button>
+                </div>
+              ) : null}
             </section>
           ) : null}
 
@@ -1924,6 +2334,56 @@ export function CommunityNetwork() {
                   );
                 })}
               </div>
+            </section>
+          ) : null}
+
+          {activeTab === "publicite" ? (
+            <section className="social-tab-section">
+              <h2>Espace Publicités</h2>
+              <p>Découvrez les offres de la communauté. Chaque publicité est validée par l&apos;équipe PieAgency.</p>
+              <div className="social-section-actions">
+                <button className="social-primary-pill" onClick={() => setCreateAdOpen(true)} type="button">
+                  + Créer une publicité
+                </button>
+              </div>
+              {ads.filter((ad) => ad.moderationStatus === "approved").length === 0 ? (
+                <div className="social-list-card social-empty-state">
+                  <span className="social-list-copy">
+                    <strong>Aucune publicité approuvée pour le moment.</strong>
+                    <small>Soumettez la première publicité — elle sera visible après validation.</small>
+                  </span>
+                </div>
+              ) : (
+                <div className="social-ads-grid">
+                  {ads.filter((ad) => ad.moderationStatus === "approved").map((ad) => (
+                    <div className="social-ad-card" key={ad.id}>
+                      {ad.imageUrl ? (
+                        <img alt={ad.title} className="social-ad-image" src={ad.imageUrl} />
+                      ) : null}
+                      <div className="social-ad-body">
+                        <div className="social-ad-category">{ad.category}</div>
+                        <h3 className="social-ad-title">{ad.title}</h3>
+                        <p className="social-ad-desc">{ad.body}</p>
+                        {ad.ctaUrl ? (
+                          <a
+                            className="social-ad-cta"
+                            href={ad.ctaUrl}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            {ad.ctaLabel}
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {ads.filter((ad) => ad.isOwn && ad.moderationStatus === "pending").length > 0 ? (
+                <div className="social-pending-note">
+                  ⏳ Vous avez {ads.filter((ad) => ad.isOwn && ad.moderationStatus === "pending").length} publicité(s) en attente de validation.
+                </div>
+              ) : null}
             </section>
           ) : null}
         </main>
@@ -2104,6 +2564,21 @@ export function CommunityNetwork() {
                   <div className="social-compose-audience">🌍 Public</div>
                 </div>
               </div>
+              <div className="social-compose-mode-bar">
+                {(["text", "doc", "poll", "event", "story"] as ComposeMode[]).map((mode) => {
+                  const labels: Record<ComposeMode, string> = { text: "Texte", doc: "Document", poll: "Sondage", event: "Evenement", story: "Story" };
+                  return (
+                    <button
+                      className={`social-compose-mode-tab ${composeMode === mode ? "is-active" : ""}`}
+                      key={mode}
+                      onClick={() => setComposeMode(mode)}
+                      type="button"
+                    >
+                      {labels[mode]}
+                    </button>
+                  );
+                })}
+              </div>
               <div className="social-compose-tags">
                 {Object.entries(TAG_META).map(([key, meta]) => (
                   <button
@@ -2116,17 +2591,386 @@ export function CommunityNetwork() {
                   </button>
                 ))}
               </div>
-              <textarea className="social-compose-textarea" onChange={(event) => setComposeText(event.target.value)} placeholder={COMPOSE_HINTS[composeMode]} value={composeText} />
-              <div className="social-compose-tools">
-                <button onClick={() => setComposeMode("doc")} type="button">Document</button>
-                <button onClick={() => setComposeMode("poll")} type="button">Sondage</button>
-                <button onClick={() => setComposeMode("event")} type="button">Evenement</button>
-                <button onClick={() => setComposeMode("story")} type="button">Story</button>
-              </div>
+
+              {composeMode === "poll" ? (
+                <div className="social-compose-poll-fields">
+                  <input
+                    className="social-compose-input"
+                    onChange={(event) => setComposePollQuestion(event.target.value)}
+                    placeholder="Votre question de sondage..."
+                    type="text"
+                    value={composePollQuestion}
+                  />
+                  <div className="social-compose-poll-options">
+                    {composePollOptions.map((option, index) => (
+                      <input
+                        className="social-compose-input"
+                        key={`poll-option-${index}`}
+                        onChange={(event) => {
+                          const next = [...composePollOptions];
+                          next[index] = event.target.value;
+                          setComposePollOptions(next);
+                        }}
+                        placeholder={`Option ${index + 1}...`}
+                        type="text"
+                        value={option}
+                      />
+                    ))}
+                  </div>
+                  <textarea className="social-compose-textarea" onChange={(event) => setComposeText(event.target.value)} placeholder="Contexte ou explication du sondage (optionnel)" value={composeText} />
+                </div>
+              ) : composeMode === "doc" ? (
+                <div className="social-compose-doc-fields">
+                  <input
+                    className="social-compose-input"
+                    onChange={(event) => setComposeResourceName(event.target.value)}
+                    placeholder="Nom du document ou de la ressource..."
+                    type="text"
+                    value={composeResourceName}
+                  />
+                  <div className="social-compose-doc-meta">
+                    <select
+                      className="social-compose-select"
+                      onChange={(event) => setComposeResourceType(event.target.value as "pdf" | "doc")}
+                      value={composeResourceType}
+                    >
+                      <option value="pdf">PDF</option>
+                      <option value="doc">DOC</option>
+                    </select>
+                    <input
+                      className="social-compose-input"
+                      onChange={(event) => setComposeResourceSize(event.target.value)}
+                      placeholder="Taille (ex: 245 Ko)"
+                      type="text"
+                      value={composeResourceSize}
+                    />
+                  </div>
+                  <textarea className="social-compose-textarea" onChange={(event) => setComposeText(event.target.value)} placeholder="Decrivez rapidement le contenu de ce document..." value={composeText} />
+                  <button
+                    className="social-ai-rewrite-btn"
+                    disabled={isRewriting === "composeText"}
+                    onClick={() => void handleAIRewrite("composeText", "publication")}
+                    type="button"
+                  >
+                    {isRewriting === "composeText" ? "⏳ Reformulation..." : "✨ Reformuler avec l'IA"}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <textarea className="social-compose-textarea" onChange={(event) => setComposeText(event.target.value)} placeholder={COMPOSE_HINTS[composeMode]} value={composeText} />
+                  <button
+                    className="social-ai-rewrite-btn"
+                    disabled={isRewriting === "composeText"}
+                    onClick={() => void handleAIRewrite("composeText", "publication")}
+                    type="button"
+                  >
+                    {isRewriting === "composeText" ? "⏳ Reformulation..." : "✨ Reformuler avec l'IA"}
+                  </button>
+                </>
+              )}
             </div>
             <div className="social-compose-footer">
               <span>{composeText.trim().length} caracteres</span>
               <button className="social-primary-pill" onClick={publishPost} type="button">Publier</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {createGroupOpen ? (
+        <div className="social-modal-overlay" onClick={() => setCreateGroupOpen(false)} role="presentation">
+          <div className="social-compose-modal" onClick={(event) => event.stopPropagation()} role="presentation">
+            <div className="social-compose-head">
+              <strong>Créer un groupe</strong>
+              <button onClick={() => setCreateGroupOpen(false)} type="button">✕</button>
+            </div>
+            <div className="social-compose-body">
+              <div className="social-compose-doc-fields">
+                <label className="social-field-label">Emoji / icône du groupe</label>
+                <input
+                  className="social-compose-input"
+                  maxLength={4}
+                  onChange={(e) => setGroupForm((f) => ({ ...f, icon: e.target.value }))}
+                  placeholder="👥"
+                  type="text"
+                  value={groupForm.icon}
+                />
+                <label className="social-field-label">Nom du groupe *</label>
+                <input
+                  className="social-compose-input"
+                  onChange={(e) => setGroupForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="Campus France — Mon pays"
+                  type="text"
+                  value={groupForm.name}
+                />
+                <label className="social-field-label">Description *</label>
+                <textarea
+                  className="social-compose-textarea"
+                  onChange={(e) => setGroupForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="Décrivez l'objectif de ce groupe..."
+                  value={groupForm.description}
+                />
+                <label className="social-field-label">Catégorie</label>
+                <select
+                  className="social-compose-select"
+                  onChange={(e) => setGroupForm((f) => ({ ...f, category: e.target.value }))}
+                  value={groupForm.category}
+                >
+                  <option value="campus">Campus France</option>
+                  <option value="visa">Visa Étudiant</option>
+                  <option value="logement">Logement</option>
+                  <option value="vie">Vie étudiante</option>
+                  <option value="temoignage">Témoignages</option>
+                  <option value="general">Général</option>
+                </select>
+                {groupFormError ? <div className="social-form-error">{groupFormError}</div> : null}
+              </div>
+            </div>
+            <div className="social-compose-footer">
+              <span />
+              <button className="social-primary-pill" disabled={isCreatingGroup} onClick={() => void submitCreateGroup()} type="button">
+                {isCreatingGroup ? "Création..." : "Créer le groupe"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {createEventOpen ? (
+        <div className="social-modal-overlay" onClick={() => setCreateEventOpen(false)} role="presentation">
+          <div className="social-compose-modal" onClick={(event) => event.stopPropagation()} role="presentation">
+            <div className="social-compose-head">
+              <strong>Créer un événement</strong>
+              <button onClick={() => setCreateEventOpen(false)} type="button">✕</button>
+            </div>
+            <div className="social-compose-body">
+              <div className="social-compose-doc-fields">
+                <label className="social-field-label">Nom de l&apos;événement *</label>
+                <input
+                  className="social-compose-input"
+                  onChange={(e) => setEventForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="Webinaire : Réussir son entretien Campus France"
+                  type="text"
+                  value={eventForm.name}
+                />
+                <label className="social-field-label">Description *</label>
+                <textarea
+                  className="social-compose-textarea"
+                  onChange={(e) => setEventForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="Décrivez le programme, l'objectif, les intervenants..."
+                  value={eventForm.description}
+                />
+                <div className="social-compose-doc-meta">
+                  <div style={{ flex: 1 }}>
+                    <label className="social-field-label">Date *</label>
+                    <input
+                      className="social-compose-input"
+                      onChange={(e) => setEventForm((f) => ({ ...f, event_date: e.target.value }))}
+                      type="date"
+                      value={eventForm.event_date}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label className="social-field-label">Heure</label>
+                    <input
+                      className="social-compose-input"
+                      onChange={(e) => setEventForm((f) => ({ ...f, event_time: e.target.value }))}
+                      placeholder="18h00 GMT+1"
+                      type="text"
+                      value={eventForm.event_time}
+                    />
+                  </div>
+                </div>
+                <label className="social-field-label">Type</label>
+                <select
+                  className="social-compose-select"
+                  onChange={(e) => setEventForm((f) => ({ ...f, location_type: e.target.value }))}
+                  value={eventForm.location_type}
+                >
+                  <option value="online">En ligne</option>
+                  <option value="physical">Présentiel</option>
+                </select>
+                {eventForm.location_type === "physical" ? (
+                  <>
+                    <label className="social-field-label">Lieu</label>
+                    <input
+                      className="social-compose-input"
+                      onChange={(e) => setEventForm((f) => ({ ...f, location_detail: e.target.value }))}
+                      placeholder="Adresse ou ville..."
+                      type="text"
+                      value={eventForm.location_detail}
+                    />
+                  </>
+                ) : null}
+                {eventFormError ? <div className="social-form-error">{eventFormError}</div> : null}
+              </div>
+            </div>
+            <div className="social-compose-footer">
+              <span />
+              <button className="social-primary-pill" disabled={isCreatingEvent} onClick={() => void submitCreateEvent()} type="button">
+                {isCreatingEvent ? "Création..." : "Créer l'événement"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {notifPanelOpen ? (
+        <div className="social-notif-panel">
+          <div className="social-notif-panel-head">
+            <strong>Notifications</strong>
+            <button onClick={() => setNotifPanelOpen(false)} type="button">✕</button>
+          </div>
+          {notifications.length === 0 ? (
+            <div className="social-notif-empty">Aucune notification pour le moment.</div>
+          ) : (
+            notifications.map((notif) => (
+              <div
+                className={`social-notif-item ${notif.isRead ? "is-read" : ""}`}
+                key={notif.id}
+                onClick={() => void handleMarkNotifRead(notif.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter") void handleMarkNotifRead(notif.id); }}
+              >
+                <div className="social-notif-title">{notif.title}</div>
+                <div className="social-notif-body">{notif.body}</div>
+                <div className="social-notif-time">{notif.createdAt}</div>
+              </div>
+            ))
+          )}
+        </div>
+      ) : null}
+
+      {createAdOpen ? (
+        <div className="social-modal-overlay" onClick={() => { setCreateAdOpen(false); setAdStep(0); }} role="presentation">
+          <div className="social-compose-modal social-ad-modal" onClick={(event) => event.stopPropagation()} role="presentation">
+            <div className="social-compose-head">
+              <strong>Créer une publicité — Étape {adStep + 1} / 3</strong>
+              <button onClick={() => { setCreateAdOpen(false); setAdStep(0); }} type="button">✕</button>
+            </div>
+
+            <div className="social-ad-steps">
+              {[0, 1, 2].map((step) => (
+                <div className={`social-ad-step-dot ${step <= adStep ? "is-done" : ""}`} key={step} />
+              ))}
+            </div>
+
+            <div className="social-compose-body">
+              {adStep === 0 ? (
+                <div className="social-compose-doc-fields">
+                  <p className="social-ad-step-hint">Commencez par l&apos;essentiel : le titre et la catégorie de votre annonce.</p>
+                  <label className="social-field-label">Titre de la publicité *</label>
+                  <input
+                    className="social-compose-input"
+                    onChange={(e) => setAdForm((f) => ({ ...f, title: e.target.value }))}
+                    placeholder="Votre service, offre ou annonce en une phrase..."
+                    type="text"
+                    value={adForm.title}
+                  />
+                  <label className="social-field-label">Catégorie</label>
+                  <select
+                    className="social-compose-select"
+                    onChange={(e) => setAdForm((f) => ({ ...f, category: e.target.value }))}
+                    value={adForm.category}
+                  >
+                    <option value="general">Général</option>
+                    <option value="service">Service</option>
+                    <option value="logement">Logement</option>
+                    <option value="emploi">Emploi / Stage</option>
+                    <option value="formation">Formation</option>
+                    <option value="produit">Produit</option>
+                  </select>
+                </div>
+              ) : adStep === 1 ? (
+                <div className="social-compose-doc-fields">
+                  <p className="social-ad-step-hint">Décrivez votre offre. Vous pouvez demander à l&apos;IA de reformuler votre texte.</p>
+                  <label className="social-field-label">Description *</label>
+                  <textarea
+                    className="social-compose-textarea"
+                    onChange={(e) => setAdForm((f) => ({ ...f, body: e.target.value }))}
+                    placeholder="Décrivez votre offre, vos avantages, votre contact..."
+                    value={adForm.body}
+                  />
+                  <button
+                    className="social-ai-rewrite-btn"
+                    disabled={isRewriting === "adBody"}
+                    onClick={() => void handleAIRewrite("adBody", "publicite")}
+                    type="button"
+                  >
+                    {isRewriting === "adBody" ? "⏳ Reformulation..." : "✨ Reformuler avec l'IA"}
+                  </button>
+                  <label className="social-field-label">Image (URL facultative)</label>
+                  <input
+                    className="social-compose-input"
+                    onChange={(e) => setAdForm((f) => ({ ...f, image_url: e.target.value }))}
+                    placeholder="https://... (lien vers une image)"
+                    type="url"
+                    value={adForm.image_url}
+                  />
+                </div>
+              ) : (
+                <div className="social-compose-doc-fields">
+                  <p className="social-ad-step-hint">Ajoutez un lien et un bouton d&apos;appel à l&apos;action pour diriger les lecteurs.</p>
+                  <label className="social-field-label">Texte du bouton</label>
+                  <input
+                    className="social-compose-input"
+                    onChange={(e) => setAdForm((f) => ({ ...f, cta_label: e.target.value }))}
+                    placeholder="En savoir plus, Contacter, Commander..."
+                    type="text"
+                    value={adForm.cta_label}
+                  />
+                  <label className="social-field-label">Lien du bouton</label>
+                  <input
+                    className="social-compose-input"
+                    onChange={(e) => setAdForm((f) => ({ ...f, cta_url: e.target.value }))}
+                    placeholder="https://wa.me/... ou https://votre-site.com"
+                    type="url"
+                    value={adForm.cta_url}
+                  />
+                  <div className="social-ad-preview">
+                    <div className="social-ad-preview-label">Aperçu :</div>
+                    {adForm.image_url ? <img alt="preview" className="social-ad-image" src={adForm.image_url} /> : null}
+                    <div className="social-ad-category">{adForm.category}</div>
+                    <div className="social-ad-title">{adForm.title || "Titre de la publicité"}</div>
+                    <div className="social-ad-desc">{adForm.body || "Description..."}</div>
+                    {adForm.cta_label ? <div className="social-ad-cta-preview">{adForm.cta_label}</div> : null}
+                  </div>
+                  {adFormError ? <div className="social-form-error">{adFormError}</div> : null}
+                </div>
+              )}
+            </div>
+
+            <div className="social-compose-footer">
+              {adStep > 0 ? (
+                <button className="btn btn-outline" onClick={() => setAdStep((s) => s - 1)} type="button">
+                  Retour
+                </button>
+              ) : <span />}
+              {adStep < 2 ? (
+                <button
+                  className="social-primary-pill"
+                  onClick={() => {
+                    if (adStep === 0 && adForm.title.trim().length < 4) {
+                      setAdFormError("Ajoutez un titre d'au moins 4 caractères.");
+                      return;
+                    }
+                    if (adStep === 1 && adForm.body.trim().length < 8) {
+                      setAdFormError("La description est trop courte.");
+                      return;
+                    }
+                    setAdFormError("");
+                    setAdStep((s) => s + 1);
+                  }}
+                  type="button"
+                >
+                  Continuer →
+                </button>
+              ) : (
+                <button className="social-primary-pill" disabled={isCreatingAd} onClick={() => void submitCreateAd()} type="button">
+                  {isCreatingAd ? "Envoi..." : "Soumettre la publicité"}
+                </button>
+              )}
             </div>
           </div>
         </div>

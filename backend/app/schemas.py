@@ -423,6 +423,11 @@ class CommunityBootstrapResponse(BaseModel):
     current_profile_id: str | None = None
     profiles: list[CommunityProfileItem] = Field(default_factory=list)
     posts: list[CommunityPostItem] = Field(default_factory=list)
+    groups: list["CommunityGroupItem"] = Field(default_factory=list)
+    events_calendar: list["CommunityEventCalendarItem"] = Field(default_factory=list)
+    notifications: list["CommunityNotificationItem"] = Field(default_factory=list)
+    unread_notifications: int = 0
+    ads: list["CommunityAdItem"] = Field(default_factory=list)
 
 
 class CommunityPostCreateRequest(BaseModel):
@@ -677,3 +682,137 @@ class AdminDashboardResponse(BaseModel):
     managed_pages: list[AdminPageItem]
     community_posts: list[AdminCommunityPostItem] = Field(default_factory=list)
     community_comments: list[AdminCommunityCommentItem] = Field(default_factory=list)
+
+
+class CommunityGroupItem(BaseModel):
+    id: int
+    name: str
+    description: str = ""
+    icon: str = "👥"
+    category: str = "general"
+    member_count: int = 0
+    is_official: bool = False
+    is_member: bool = False
+    created_by_profile_id: str | None = None
+    created_at: str = ""
+
+
+class CommunityGroupCreateRequest(BaseModel):
+    name: str = Field(min_length=3, max_length=80)
+    description: str = Field(min_length=4, max_length=400)
+    icon: str = Field(default="👥", min_length=1, max_length=8)
+    category: str = Field(default="general", min_length=2, max_length=40)
+
+    @field_validator("name", "description", "icon", "category", mode="before")
+    @classmethod
+    def strip_group_strings(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+
+class CommunityGroupMembershipResponse(BaseModel):
+    group: CommunityGroupItem
+    is_member: bool
+
+
+class CommunityEventCalendarItem(BaseModel):
+    id: int
+    name: str
+    description: str = ""
+    event_date: str
+    event_time: str = ""
+    location_type: str = "online"
+    location_detail: str = ""
+    attendee_count: int = 0
+    is_official: bool = False
+    is_attending: bool = False
+    created_by_profile_id: str | None = None
+    created_at: str = ""
+
+
+class CommunityEventCreateRequest(BaseModel):
+    name: str = Field(min_length=4, max_length=160)
+    description: str = Field(min_length=4, max_length=1000)
+    event_date: str = Field(min_length=10, max_length=10)
+    event_time: str = Field(default="", max_length=20)
+    location_type: str = Field(default="online", max_length=20)
+    location_detail: str = Field(default="", max_length=200)
+
+    @field_validator("name", "description", "event_date", "event_time", "location_detail", mode="before")
+    @classmethod
+    def strip_event_strings(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+
+class CommunityEventAttendanceResponse(BaseModel):
+    event: CommunityEventCalendarItem
+    is_attending: bool
+
+
+class CommunityNotificationItem(BaseModel):
+    id: str
+    type: str
+    title: str
+    body: str
+    is_read: bool = False
+    created_at: str = ""
+
+
+class CommunityNotificationsResponse(BaseModel):
+    notifications: list[CommunityNotificationItem] = Field(default_factory=list)
+    unread_count: int = 0
+
+
+class CommunityAdItem(BaseModel):
+    id: int
+    title: str
+    body: str = ""
+    image_url: str | None = None
+    cta_label: str = "En savoir plus"
+    cta_url: str = ""
+    category: str = "general"
+    moderation_status: str = "pending"
+    created_by_profile_id: str | None = None
+    created_at: str = ""
+    is_own: bool = False
+
+
+class CommunityAdCreateRequest(BaseModel):
+    title: str = Field(min_length=4, max_length=120)
+    body: str = Field(min_length=8, max_length=1200)
+    image_url: str | None = Field(default=None, max_length=500)
+    cta_label: str = Field(default="En savoir plus", max_length=60)
+    cta_url: str = Field(default="", max_length=300)
+    category: str = Field(default="general", max_length=40)
+
+    @field_validator("title", "body", "cta_label", "cta_url", "category", mode="before")
+    @classmethod
+    def strip_ad_strings(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+
+class CommunityAdsResponse(BaseModel):
+    ads: list[CommunityAdItem] = Field(default_factory=list)
+    pending_count: int = 0
+
+
+class CommunityAIRewriteRequest(BaseModel):
+    text: str = Field(min_length=4, max_length=2000)
+    context: str = Field(default="publication", max_length=60)
+
+    @field_validator("text", "context", mode="before")
+    @classmethod
+    def strip_rewrite_strings(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+
+class CommunityAIRewriteResponse(BaseModel):
+    rewritten: str
+    source: Literal["cohere", "fallback"]

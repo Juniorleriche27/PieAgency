@@ -3,14 +3,27 @@ from typing import Any
 
 from ..schemas import (
     AuthUserProfile,
+    CommunityAdCreateRequest,
+    CommunityAdItem,
+    CommunityAdsResponse,
     CommunityAIReplyRequest,
+    CommunityAIRewriteRequest,
+    CommunityAIRewriteResponse,
     CommunityAssistantMessageRequest,
     CommunityAssistantThreadMessageItem,
     CommunityAssistantThreadResponse,
     CommunityBootstrapResponse,
     CommunityCommentCreateRequest,
     CommunityCommentItem,
+    CommunityEventAttendanceResponse,
+    CommunityEventCalendarItem,
+    CommunityEventCreateRequest,
+    CommunityGroupCreateRequest,
+    CommunityGroupItem,
+    CommunityGroupMembershipResponse,
     CommunityMutationResponse,
+    CommunityNotificationItem,
+    CommunityNotificationsResponse,
     CommunityPollVoteRequest,
     CommunityPollOptionItem,
     CommunityPostCreateRequest,
@@ -547,6 +560,8 @@ def _load_post_rows(client, limit: int = 20, post_ids: list[int] | None = None) 
     query = client.table("community_posts").select("*")
     if post_ids:
         query = query.in_("id", post_ids)
+    else:
+        query = query.neq("moderation_status", "pending")
     response = query.order("created_at", desc=True).limit(limit).execute()
     return list(response.data or [])
 
@@ -802,10 +817,21 @@ def get_community_bootstrap(
     elif current_profile is not None and all(item.id != current_profile.id for item in profiles):
         profiles = [current_profile, *profiles]
 
+    groups = _load_groups(client, viewer_user_id=current_user.user_id if current_user else None)
+    events_calendar = _load_events_calendar(client, viewer_user_id=current_user.user_id if current_user else None)
+    notif_items, unread_count = _load_notifications(client, current_user.user_id) if current_user else ([], 0)
+    ads_response = get_community_ads(current_user, access_token)
+    approved_ads = [ad for ad in ads_response.ads if ad.moderation_status == "approved"]
+
     return CommunityBootstrapResponse(
         current_profile_id=current_profile_id,
         profiles=profiles,
         posts=posts,
+        groups=groups,
+        events_calendar=events_calendar,
+        notifications=notif_items,
+        unread_notifications=unread_count,
+        ads=approved_ads,
     )
 
 
@@ -838,6 +864,7 @@ def create_community_post(
             if payload.post_type == "poll"
             else []
         ),
+        "moderation_status": "pending" if payload.post_type == "resource" else "approved",
     }
     response = client.table("community_posts").insert(insert_payload).execute()
     rows = response.data or []
@@ -1031,6 +1058,314 @@ def vote_community_poll(
     return CommunityMutationResponse(post=updated_post)
 
 
+def _build_group_item(row: dict[str, Any], *, member_group_ids: set[int] | None = None) -> CommunityGroupItem:
+    group_id = int(row.get("id") or 0)
+    return CommunityGroupItem(
+        id=group_id,
+        name=str(row.get("name") or ""),
+        description=str(row.get("description") or ""),
+        icon=str(row.get("icon") or "👥"),
+        category=str(row.get("category") or "general"),
+        member_count=int(row.get("member_count") or 0),
+        is_official=bool(row.get("is_official", False)),
+        is_member=group_id in (member_group_ids or set()),
+        created_by_profile_id=str(row.get("created_by_profile_id") or "") or None,
+        created_at=_format_datetime_label(row.get("created_at")),
+    )
+
+
+def _build_event_calendar_item(row: dict[str, Any], *, attending_event_ids: set[int] | None = None) -> CommunityEventCalendarItem:
+    event_id = int(row.get("id") or 0)
+    raw_date = row.get("event_date") or ""
+    return CommunityEventCalendarItem(
+        id=event_id,
+        name=str(row.get("name") or ""),
+        description=str(row.get("description") or ""),
+        event_date=str(raw_date)[:10] if raw_date else "",
+        event_time=str(row.get("event_time") or ""),
+        location_type=str(row.get("location_type") or "online"),
+        location_detail=str(row.get("location_detail") or ""),
+        attendee_count=int(row.get("attendee_count") or 0),
+        is_official=bool(row.get("is_official", False)),
+        is_attending=event_id in (attending_event_ids or set()),
+        created_by_profile_id=str(row.get("created_by_profile_id") or "") or None,
+        created_at=_format_datetime_label(row.get("created_at")),
+    )
+
+
+def _load_groups(client, viewer_user_id: str | None = None) -> list[CommunityGroupItem]:
+    try:
+        response = (
+            client.table("community_groups")
+            .select("*")
+            .order("is_official", desc=True)
+            .order("member_count", desc=True)
+            .limit(30)
+            .execute()
+        )
+        rows = response.data or []
+        member_group_ids: set[int] = set()
+        if viewer_user_id and rows:
+            group_ids = [int(r["id"]) for r in rows if r.get("id") is not None]
+            mem_resp = (
+                client.table("community_group_members")
+                .select("group_id")
+                .eq("user_id", viewer_user_id)
+                .in_("group_id", group_ids)
+                .execute()
+            )
+            member_group_ids = {int(m["group_id"]) for m in (mem_resp.data or []) if m.get("group_id") is not None}
+        return [_build_group_item(r, member_group_ids=member_group_ids) for r in rows]
+    except Exception:
+        return []
+
+
+def _load_events_calendar(client, viewer_user_id: str | None = None) -> list[CommunityEventCalendarItem]:
+    try:
+        response = (
+            client.table("community_events_calendar")
+            .select("*")
+            .order("event_date", desc=False)
+            .limit(20)
+            .execute()
+        )
+        rows = response.data or []
+        attending_event_ids: set[int] = set()
+        if viewer_user_id and rows:
+            event_ids = [int(r["id"]) for r in rows if r.get("id") is not None]
+            att_resp = (
+                client.table("community_event_attendees")
+                .select("event_id")
+                .eq("user_id", viewer_user_id)
+                .in_("event_id", event_ids)
+                .execute()
+            )
+            attending_event_ids = {int(a["event_id"]) for a in (att_resp.data or []) if a.get("event_id") is not None}
+        return [_build_event_calendar_item(r, attending_event_ids=attending_event_ids) for r in rows]
+    except Exception:
+        return []
+
+
+def _load_notifications(client, viewer_user_id: str) -> tuple[list[CommunityNotificationItem], int]:
+    try:
+        response = (
+            client.table("community_notifications")
+            .select("*")
+            .eq("user_id", viewer_user_id)
+            .order("created_at", desc=True)
+            .limit(20)
+            .execute()
+        )
+        rows = response.data or []
+        items = [
+            CommunityNotificationItem(
+                id=str(r.get("id") or ""),
+                type=str(r.get("type") or "info"),
+                title=str(r.get("title") or ""),
+                body=str(r.get("body") or ""),
+                is_read=bool(r.get("is_read", False)),
+                created_at=_format_datetime_label(r.get("created_at")),
+            )
+            for r in rows
+        ]
+        unread = sum(1 for item in items if not item.is_read)
+        return items, unread
+    except Exception:
+        return [], 0
+
+
+def get_community_groups(
+    current_user: AuthUserProfile | None,
+    access_token: str | None,
+) -> list[CommunityGroupItem]:
+    client = _get_client(access_token)
+    viewer_id = current_user.user_id if current_user else None
+    return _load_groups(client, viewer_id)
+
+
+def create_community_group(
+    payload: CommunityGroupCreateRequest,
+    current_user: AuthUserProfile,
+    access_token: str,
+) -> CommunityGroupMembershipResponse:
+    client = _get_client(access_token)
+    profile_id = f"user:{current_user.user_id}"
+    row = {
+        "name": payload.name,
+        "description": payload.description or "",
+        "icon": payload.icon or "👥",
+        "category": payload.category or "general",
+        "created_by_profile_id": profile_id,
+        "created_by_user_id": current_user.user_id,
+        "member_count": 1,
+        "is_official": False,
+    }
+    try:
+        resp = client.table("community_groups").insert(row).execute()
+        group_row = (resp.data or [{}])[0]
+        group_id = int(group_row.get("id") or 0)
+        # Auto-join as admin
+        client.table("community_group_members").insert({
+            "group_id": group_id,
+            "user_id": current_user.user_id,
+            "profile_id": profile_id,
+            "role": "admin",
+        }).execute()
+        group_item = _build_group_item(group_row, member_group_ids={group_id})
+        return CommunityGroupMembershipResponse(group=group_item, is_member=True)
+    except Exception as exc:
+        raise CommunityDataUnavailableError("Impossible de creer le groupe.") from exc
+
+
+def toggle_community_group_membership(
+    group_id: int,
+    current_user: AuthUserProfile,
+    access_token: str,
+) -> CommunityGroupMembershipResponse:
+    client = _get_client(access_token)
+    user_id = current_user.user_id
+    profile_id = f"user:{user_id}"
+    existing = (
+        client.table("community_group_members")
+        .select("id")
+        .eq("group_id", group_id)
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    is_member = bool(existing.data)
+    if is_member:
+        client.table("community_group_members").delete().eq("group_id", group_id).eq("user_id", user_id).execute()
+        try:
+            client.rpc("decrement_group_member_count", {"p_group_id": group_id}).execute()
+        except Exception:
+            pass
+        new_is_member = False
+    else:
+        client.table("community_group_members").insert({
+            "group_id": group_id,
+            "user_id": user_id,
+            "profile_id": profile_id,
+            "role": "member",
+        }).execute()
+        try:
+            client.rpc("increment_group_member_count", {"p_group_id": group_id}).execute()
+        except Exception:
+            pass
+        new_is_member = True
+    group_resp = client.table("community_groups").select("*").eq("id", group_id).limit(1).execute()
+    group_row = (group_resp.data or [{}])[0]
+    group_item = _build_group_item(group_row, member_group_ids={group_id} if new_is_member else set())
+    return CommunityGroupMembershipResponse(group=group_item, is_member=new_is_member)
+
+
+def get_community_events_calendar(
+    current_user: AuthUserProfile | None,
+    access_token: str | None,
+) -> list[CommunityEventCalendarItem]:
+    client = _get_client(access_token)
+    viewer_id = current_user.user_id if current_user else None
+    return _load_events_calendar(client, viewer_id)
+
+
+def create_community_event(
+    payload: CommunityEventCreateRequest,
+    current_user: AuthUserProfile,
+    access_token: str,
+) -> CommunityEventAttendanceResponse:
+    client = _get_client(access_token)
+    profile_id = f"user:{current_user.user_id}"
+    row = {
+        "name": payload.name,
+        "description": payload.description or "",
+        "event_date": payload.event_date,
+        "event_time": payload.event_time or "",
+        "location_type": payload.location_type or "online",
+        "location_detail": payload.location_detail or "",
+        "created_by_profile_id": profile_id,
+        "created_by_user_id": current_user.user_id,
+        "attendee_count": 1,
+        "is_official": False,
+    }
+    try:
+        resp = client.table("community_events_calendar").insert(row).execute()
+        event_row = (resp.data or [{}])[0]
+        event_id = int(event_row.get("id") or 0)
+        client.table("community_event_attendees").insert({
+            "event_id": event_id,
+            "user_id": current_user.user_id,
+            "profile_id": profile_id,
+        }).execute()
+        event_item = _build_event_calendar_item(event_row, attending_event_ids={event_id})
+        return CommunityEventAttendanceResponse(event=event_item, is_attending=True)
+    except Exception as exc:
+        raise CommunityDataUnavailableError("Impossible de creer l'evenement.") from exc
+
+
+def toggle_community_event_attendance(
+    event_id: int,
+    current_user: AuthUserProfile,
+    access_token: str,
+) -> CommunityEventAttendanceResponse:
+    client = _get_client(access_token)
+    user_id = current_user.user_id
+    profile_id = f"user:{user_id}"
+    existing = (
+        client.table("community_event_attendees")
+        .select("id")
+        .eq("event_id", event_id)
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    is_attending = bool(existing.data)
+    if is_attending:
+        client.table("community_event_attendees").delete().eq("event_id", event_id).eq("user_id", user_id).execute()
+        try:
+            client.rpc("decrement_event_attendee_count", {"p_event_id": event_id}).execute()
+        except Exception:
+            pass
+        new_is_attending = False
+    else:
+        client.table("community_event_attendees").insert({
+            "event_id": event_id,
+            "user_id": user_id,
+            "profile_id": profile_id,
+        }).execute()
+        try:
+            client.rpc("increment_event_attendee_count", {"p_event_id": event_id}).execute()
+        except Exception:
+            pass
+        new_is_attending = True
+    event_resp = client.table("community_events_calendar").select("*").eq("id", event_id).limit(1).execute()
+    event_row = (event_resp.data or [{}])[0]
+    event_item = _build_event_calendar_item(event_row, attending_event_ids={event_id} if new_is_attending else set())
+    return CommunityEventAttendanceResponse(event=event_item, is_attending=new_is_attending)
+
+
+def get_community_notifications(
+    current_user: AuthUserProfile,
+    access_token: str,
+) -> CommunityNotificationsResponse:
+    client = _get_client(access_token)
+    items, unread = _load_notifications(client, current_user.user_id)
+    return CommunityNotificationsResponse(notifications=items, unread_count=unread)
+
+
+def mark_community_notification_read(
+    notification_id: str,
+    current_user: AuthUserProfile,
+    access_token: str,
+) -> CommunityNotificationsResponse:
+    client = _get_client(access_token)
+    try:
+        client.table("community_notifications").update({"is_read": True}).eq("id", notification_id).eq("user_id", current_user.user_id).execute()
+    except Exception:
+        pass
+    items, unread = _load_notifications(client, current_user.user_id)
+    return CommunityNotificationsResponse(notifications=items, unread_count=unread)
+
+
 def _load_thread_messages(client, conversation_id: str) -> list[CommunityAssistantThreadMessageItem]:
     response = (
         client.table("chat_messages")
@@ -1147,3 +1482,106 @@ def send_community_assistant_message(
         messages=_load_thread_messages(client, conversation_id or ""),
         source=ai_response.source,
     )
+
+
+def _build_ad_item(row: dict[str, Any], *, viewer_user_id: str | None = None) -> CommunityAdItem:
+    return CommunityAdItem(
+        id=int(row.get("id") or 0),
+        title=str(row.get("title") or ""),
+        body=str(row.get("body") or ""),
+        image_url=str(row.get("image_url")) if row.get("image_url") else None,
+        cta_label=str(row.get("cta_label") or "En savoir plus"),
+        cta_url=str(row.get("cta_url") or ""),
+        category=str(row.get("category") or "general"),
+        moderation_status=str(row.get("moderation_status") or "pending"),
+        created_by_profile_id=str(row.get("created_by_profile_id") or "") or None,
+        created_at=_format_datetime_label(row.get("created_at")),
+        is_own=bool(viewer_user_id and str(row.get("created_by_user_id") or "") == viewer_user_id),
+    )
+
+
+def get_community_ads(
+    current_user: AuthUserProfile | None,
+    access_token: str | None,
+) -> CommunityAdsResponse:
+    client = _get_client(access_token)
+    viewer_id = current_user.user_id if current_user else None
+    try:
+        response = (
+            client.table("community_ads")
+            .select("*")
+            .order("created_at", desc=True)
+            .limit(40)
+            .execute()
+        )
+        rows = response.data or []
+        ads = [_build_ad_item(r, viewer_user_id=viewer_id) for r in rows]
+        pending_count = sum(1 for ad in ads if ad.moderation_status == "pending" and ad.is_own)
+        return CommunityAdsResponse(ads=ads, pending_count=pending_count)
+    except Exception:
+        return CommunityAdsResponse(ads=[], pending_count=0)
+
+
+def create_community_ad(
+    payload: CommunityAdCreateRequest,
+    current_user: AuthUserProfile,
+    access_token: str,
+) -> CommunityAdItem:
+    client = _get_client(access_token)
+    profile_id = f"user:{current_user.user_id}"
+    row = {
+        "title": payload.title,
+        "body": payload.body or "",
+        "image_url": payload.image_url,
+        "cta_label": payload.cta_label or "En savoir plus",
+        "cta_url": payload.cta_url or "",
+        "category": payload.category or "general",
+        "created_by_profile_id": profile_id,
+        "created_by_user_id": current_user.user_id,
+        "moderation_status": "pending",
+    }
+    try:
+        resp = client.table("community_ads").insert(row).execute()
+        ad_row = (resp.data or [{}])[0]
+        return _build_ad_item(ad_row, viewer_user_id=current_user.user_id)
+    except Exception as exc:
+        raise CommunityDataUnavailableError("Impossible de soumettre la publicité.") from exc
+
+
+def rewrite_community_text(
+    payload: CommunityAIRewriteRequest,
+) -> CommunityAIRewriteResponse:
+    from .ai_service import _get_cohere_client
+    client = _get_cohere_client()
+    if client is None:
+        return CommunityAIRewriteResponse(rewritten=payload.text, source="fallback")
+    try:
+        context_hint = {
+            "publication": "une publication sur un réseau social communautaire d'étudiants africains en France",
+            "publicite": "une publicité sobre et professionnelle pour des étudiants africains",
+            "groupe": "la description d'un groupe communautaire pour étudiants",
+            "evenement": "l'annonce d'un événement étudiant",
+        }.get(payload.context or "publication", "une publication communautaire")
+        messages = [
+            {
+                "role": "user",
+                "content": (
+                    f"Reformule ce texte pour {context_hint}. "
+                    "Garde le sens, améliore le style, reste clair et naturel en français. "
+                    "Réponds uniquement avec le texte reformulé, sans commentaire ni explication.\n\n"
+                    f"Texte original :\n{payload.text}"
+                ),
+            }
+        ]
+        from .ai_service import _extract_text_from_response
+        from ..config import settings
+        response = client.chat(
+            model=settings.cohere_model,
+            messages=messages,
+        )
+        rewritten = _extract_text_from_response(response).strip()
+        if not rewritten or len(rewritten) < 4:
+            return CommunityAIRewriteResponse(rewritten=payload.text, source="fallback")
+        return CommunityAIRewriteResponse(rewritten=rewritten, source="cohere")
+    except Exception:
+        return CommunityAIRewriteResponse(rewritten=payload.text, source="fallback")
