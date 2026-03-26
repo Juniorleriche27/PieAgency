@@ -1825,17 +1825,22 @@ export function CommunityNetwork() {
   return (
     <div className="social-page-shell">
       <div className="social-topbar">
-        <Link className="social-topbar-brand" href="/communaute">
-          <Image
-            alt="PieAgency"
-            className="social-topbar-logo"
-            height={40}
-            priority
-            src="/pieagency-logo.jpg"
-            width={40}
-          />
-          <span className="social-topbar-brand-text">PieHUB</span>
-        </Link>
+        <div className="social-topbar-left">
+          <Link className="social-topbar-brand" href="/communaute">
+            <Image
+              alt="PieAgency"
+              className="social-topbar-logo"
+              height={40}
+              priority
+              src="/pieagency-logo.jpg"
+              width={40}
+            />
+            <span className="social-topbar-brand-text">PieHUB</span>
+          </Link>
+          <Link className="social-topbar-site-link" href="/">
+            PieAgency
+          </Link>
+        </div>
 
         <form className="social-topbar-search" onSubmit={handleSearchSubmit}>
           <span>⌕</span>

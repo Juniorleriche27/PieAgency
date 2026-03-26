@@ -3367,6 +3367,13 @@ footer {
   padding: 14px 20px;
 }
 
+.social-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
 .social-topbar-brand {
   display: inline-flex;
   align-items: center;
@@ -3388,6 +3395,25 @@ footer {
 .social-topbar-brand-text {
   font-size: 1.35rem;
   color: #0d1b38;
+}
+
+.social-topbar-site-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(13, 27, 56, 0.06);
+  color: #0d1b38;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  transition: var(--transition);
+}
+
+.social-topbar-site-link:hover {
+  background: rgba(13, 27, 56, 0.1);
 }
 
 .social-topbar-badge {
@@ -5600,6 +5626,11 @@ footer {
     height: 34px;
     border-radius: 10px;
   }
+  .social-topbar-site-link {
+    min-height: 34px;
+    padding: 0 12px;
+    font-size: 0.82rem;
+  }
   .social-topbar-actions {
     margin-left: 0;
     gap: 6px;
@@ -5625,6 +5656,13 @@ footer {
   .social-topbar {
     padding-left: 12px;
     padding-right: 12px;
+  }
+  .social-topbar-left {
+    gap: 8px;
+  }
+  .social-topbar-site-link {
+    padding: 0 10px;
+    font-size: 0.78rem;
   }
   .social-mobile-tabs { padding: 8px 12px 0; }
   .social-app-shell {
