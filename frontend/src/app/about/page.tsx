@@ -4,24 +4,24 @@ import { PageHero } from "@/components/page-hero";
 import { aboutValues, company } from "@/content/site";
 
 export const metadata: Metadata = {
-  title: "À propos",
+  title: "A propos",
   description:
-    "La vision, l’approche et les points de contact PieAgency entre le Togo et la France.",
+    "La vision, l'approche et les points de repere PieAgency entre le Togo et la France.",
 };
 
 export default function AboutPage() {
   return (
     <>
       <PageHero
-        breadcrumb="À propos"
-        description="PieAgency est une structure d’accompagnement étudiant qui aide les candidats à construire un dossier cohérent, à choisir les formations adaptées à leur profil et à avancer avec méthode dans leurs démarches académiques et administratives vers la France et la Belgique."
-        title="À propos de PieAgency"
+        breadcrumb="A propos"
+        description="PieAgency est une structure d'accompagnement etudiant qui aide les candidats a construire un dossier coherent, a choisir les formations adaptees a leur profil et a avancer avec methode dans leurs demarches academiques et administratives vers la France et la Belgique."
+        title="A propos de PieAgency"
       />
 
       <section className="section">
         <div className="container container-narrow">
           <p className="about-lead">
-            Nous voulons rendre l’accompagnement étudiant plus clair, plus structuré
+            Nous voulons rendre l&apos;accompagnement etudiant plus clair, plus structure
             et plus humain.
           </p>
 
@@ -35,55 +35,34 @@ export default function AboutPage() {
             ))}
           </div>
 
-          <h2 className="section-title mt-32">Présence Togo / France</h2>
+          <h2 className="section-title mt-32">Presence Togo / France</h2>
           <p className="section-lead">
-            PieAgency dispose d’un point de contact au Togo et d’un point de contact
-            en France pour rester plus proche des étudiants et mieux les orienter à
-            chaque étape de leur parcours.
+            PieAgency dispose d&apos;un point de repere au Togo et d&apos;un point de repere en
+            France pour mieux comprendre les parcours etudiants a chaque etape.
           </p>
 
           <div className="presence-grid">
             <div className="presence-card togo">
-              <div className="presence-card-flag">🇹🇬</div>
-              <h3>Contact Togo</h3>
+              <div className="presence-card-flag">{company.contacts.togo.flag}</div>
+              <h3>Presence Togo</h3>
               <p>
-                Suivi de proximité pour les étudiants encore au Togo, de la
-                préparation du dossier jusqu’au départ.
+                Suivi de proximite pour les etudiants encore au Togo, de la
+                preparation du dossier jusqu&apos;au depart.
               </p>
               <div className="presence-card-contact">
-                {company.contacts.togo.person} — {company.contacts.togo.phoneDisplay}
-              </div>
-              <div className="mt-16">
-                <ActionLink
-                  href={company.contacts.togo.whatsappHref}
-                  variant="waTogo"
-                  size="sm"
-                  external
-                >
-                  📱 WhatsApp Togo
-                </ActionLink>
+                {company.contacts.togo.person} - {company.contacts.togo.phoneDisplay}
               </div>
             </div>
 
             <div className="presence-card france">
-              <div className="presence-card-flag">🇫🇷</div>
-              <h3>Contact France</h3>
+              <div className="presence-card-flag">{company.contacts.france.flag}</div>
+              <h3>Presence France</h3>
               <p>
-                Accompagnement pour les étudiants déjà en France ou pour ceux qui ont
-                besoin d’un suivi depuis la France.
+                Accompagnement pour les etudiants deja en France ou pour ceux qui ont
+                besoin d&apos;un suivi depuis la France.
               </p>
               <div className="presence-card-contact">
-                {company.contacts.france.person} — {company.contacts.france.phoneDisplay}
-              </div>
-              <div className="mt-16">
-                <ActionLink
-                  href={company.contacts.france.whatsappHref}
-                  variant="waFrance"
-                  size="sm"
-                  external
-                >
-                  📱 WhatsApp France
-                </ActionLink>
+                {company.contacts.france.person} - {company.contacts.france.phoneDisplay}
               </div>
             </div>
           </div>

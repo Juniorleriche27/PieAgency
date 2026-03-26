@@ -17,11 +17,11 @@ type InsightPayload = {
 const defaultInsight: InsightPayload = {
   title: "Assistant PieAgency",
   summary:
-    "Un assistant contextuel pour orienter rapidement les visiteurs vers le bon accompagnement et le bon canal de contact.",
+    "Un assistant contextuel pour orienter rapidement les visiteurs vers le bon accompagnement et le bon canal de prise de contact.",
   bullets: [
     "Clarifie le service adapte au projet de l'etudiant.",
     "Reformule les etapes essentielles selon la page visitee.",
-    "Redirige vers WhatsApp ou le formulaire quand il faut passer a l'action.",
+    "Redirige vers le formulaire ou le chat quand il faut passer a l'action.",
   ],
   cta_label: "Parler a un conseiller",
   cta_href: "/contact",

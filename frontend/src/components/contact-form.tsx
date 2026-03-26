@@ -1,22 +1,22 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { company } from "@/content/site";
 import { getApiBaseUrl } from "@/lib/auth";
 
 type ChoiceValue = "" | "yes" | "no";
-
+type RespondentTypeValue = "Etudiant" | "Parent";
 type StudyLevelValue =
   | "Baccalaureat"
   | "Licence / Bachelor"
   | "Master"
   | "Doctorat"
   | "Autre";
-
 type TargetProjectValue = "Campus France" | "Campus Belgique";
 
 type ContactFormState = {
-  fullName: string;
+  respondentType: RespondentTypeValue | "";
+  respondentFullName: string;
+  studentFullName: string;
   phone: string;
   email: string;
   country: string;
@@ -24,6 +24,8 @@ type ContactFormState = {
   fundingSource: string;
   targetProject: TargetProjectValue | "";
   guarantorInformed: ChoiceValue;
+  guarantorFullName: string;
+  guarantorPhone: string;
   consultationDate: string;
   consultationTime: string;
   consentResources: boolean;
@@ -41,6 +43,11 @@ type ChoiceOption<Value extends string> = {
   value: Value;
   label: string;
 };
+
+const respondentOptions: ChoiceOption<RespondentTypeValue>[] = [
+  { value: "Etudiant", label: "Je suis l'etudiant" },
+  { value: "Parent", label: "Je suis un parent" },
+];
 
 const degreeOptions: ChoiceOption<StudyLevelValue>[] = [
   { value: "Baccalaureat", label: "Baccalaureat" },
@@ -62,39 +69,48 @@ const binaryOptions: ChoiceOption<Exclude<ChoiceValue, "">>[] = [
 
 const steps: StepDefinition[] = [
   {
-    title: "Vos coordonnees",
-    description: "Comment pouvons-nous vous contacter rapidement ?",
-    fields: ["fullName", "phone", "email", "country"],
+    title: "Coordonnees",
+    description: "Qui remplit ce formulaire et comment pouvons-nous vous recontacter ?",
+    fields: [
+      "respondentType",
+      "respondentFullName",
+      "studentFullName",
+      "phone",
+      "email",
+      "country",
+    ],
   },
   {
     title: "Dernier diplome",
-    description: "Quel est votre dernier diplome obtenu ?",
+    description: "Quel est le dernier diplome obtenu par l'etudiant concerne ?",
     fields: ["lastDegree"],
   },
   {
     title: "Financement",
-    description: "Qui financera vos etudes et votre projet ?",
+    description: "Qui financera les etudes et le projet d'accompagnement ?",
     fields: ["fundingSource"],
   },
   {
     title: "Projet vise",
-    description: "Souhaitez-vous avancer sur Campus France ou la Belgique ?",
+    description: "L'etudiant vise-t-il Campus France ou Campus Belgique ?",
     fields: ["targetProject"],
   },
   {
-    title: "Garant financier",
-    description: "Le garant financier est-il deja informe de votre projet d'immigration ?",
-    fields: ["guarantorInformed"],
+    title: "Garant",
+    description: "Nous avons besoin du statut du garant et de ses coordonnees.",
+    fields: ["guarantorInformed", "guarantorFullName", "guarantorPhone"],
   },
   {
     title: "Consultation",
-    description: "Choisissez votre disponibilite pour une consultation gratuite a distance.",
+    description: "Choisissez une disponibilite pour une consultation gratuite a distance.",
     fields: ["consultationDate", "consultationTime", "consentResources"],
   },
 ];
 
 const initialState: ContactFormState = {
-  fullName: "",
+  respondentType: "",
+  respondentFullName: "",
+  studentFullName: "",
   phone: "",
   email: "",
   country: "",
@@ -102,6 +118,8 @@ const initialState: ContactFormState = {
   fundingSource: "",
   targetProject: "",
   guarantorInformed: "",
+  guarantorFullName: "",
+  guarantorPhone: "",
   consultationDate: "",
   consultationTime: "",
   consentResources: false,
@@ -120,11 +138,16 @@ function derivePhoneCountryCode(phone: string) {
 }
 
 function buildStructuredMessage(form: ContactFormState) {
+  const studentName =
+    form.respondentType === "Parent" ? form.studentFullName.trim() : form.respondentFullName.trim();
+
   return [
     "Formulaire simplifie PieAgency",
     "",
     "Coordonnees",
-    `- Nom complet: ${form.fullName.trim()}`,
+    `- Formulaire renseigne par: ${form.respondentType}`,
+    `- Nom du repondant: ${form.respondentFullName.trim()}`,
+    `- Nom de l'etudiant concerne: ${studentName || "Non renseigne"}`,
     `- Telephone: ${form.phone.trim()}`,
     `- Email: ${form.email.trim()}`,
     `- Pays: ${form.country.trim()}`,
@@ -133,8 +156,14 @@ function buildStructuredMessage(form: ContactFormState) {
     `- Dernier diplome: ${form.lastDegree}`,
     `- Financement des etudes: ${form.fundingSource.trim()}`,
     `- Projet vise: ${form.targetProject}`,
-    `- Garant financier deja informe: ${form.guarantorInformed === "yes" ? "Oui" : "Non"}`,
-    `- Disponibilite consultation: ${form.consultationDate} a ${form.consultationTime}`,
+    "",
+    "Garant financier",
+    `- Garant deja informe: ${form.guarantorInformed === "yes" ? "Oui" : "Non"}`,
+    `- Nom du garant: ${form.guarantorFullName.trim()}`,
+    `- Numero du garant: ${form.guarantorPhone.trim()}`,
+    "",
+    "Consultation",
+    `- Disponibilite: ${form.consultationDate} a ${form.consultationTime}`,
   ].join("\n");
 }
 
@@ -188,8 +217,17 @@ export function ContactForm() {
   function validate(current: ContactFormState): FormErrors {
     const nextErrors: FormErrors = {};
 
-    if (current.fullName.trim().length < 3) {
-      nextErrors.fullName = "Entrez votre nom et prenom.";
+    if (!current.respondentType) {
+      nextErrors.respondentType = "Precisez qui remplit ce formulaire.";
+    }
+    if (current.respondentFullName.trim().length < 3) {
+      nextErrors.respondentFullName = "Entrez le nom complet du repondant.";
+    }
+    if (
+      current.respondentType === "Parent" &&
+      current.studentFullName.trim().length < 3
+    ) {
+      nextErrors.studentFullName = "Indiquez le nom de l'etudiant concerne.";
     }
     if (current.phone.trim().length < 6) {
       nextErrors.phone = "Le telephone est requis.";
@@ -201,7 +239,7 @@ export function ContactForm() {
       nextErrors.country = "Indiquez votre pays.";
     }
     if (!current.lastDegree) {
-      nextErrors.lastDegree = "Selectionnez votre dernier diplome.";
+      nextErrors.lastDegree = "Selectionnez le dernier diplome obtenu.";
     }
     if (current.fundingSource.trim().length < 2) {
       nextErrors.fundingSource = "Indiquez qui financera les etudes.";
@@ -211,6 +249,12 @@ export function ContactForm() {
     }
     if (!binaryOptions.some((option) => option.value === current.guarantorInformed)) {
       nextErrors.guarantorInformed = "Precisez si le garant est deja informe.";
+    }
+    if (current.guarantorFullName.trim().length < 3) {
+      nextErrors.guarantorFullName = "Indiquez le nom complet du garant.";
+    }
+    if (current.guarantorPhone.trim().length < 6) {
+      nextErrors.guarantorPhone = "Indiquez le numero du garant.";
     }
     if (!current.consultationDate) {
       nextErrors.consultationDate = "Choisissez un jour de consultation.";
@@ -287,7 +331,11 @@ export function ContactForm() {
     setFeedback(null);
 
     try {
-      const { firstName, lastName } = splitFullName(form.fullName);
+      const studentName =
+        form.respondentType === "Parent"
+          ? form.studentFullName.trim() || form.respondentFullName.trim()
+          : form.respondentFullName.trim();
+      const { firstName, lastName } = splitFullName(studentName);
       const summaryMessage = buildStructuredMessage(form);
       const isBelgiumProject = form.targetProject === "Campus Belgique";
 
@@ -320,17 +368,20 @@ export function ContactForm() {
           target_project: form.targetProject,
           immigration_attempt_count: 0,
           school_type: "Je reflechis pour le moment",
-          current_activity: `Dernier diplome declare: ${form.lastDegree}.`,
+          current_activity:
+            form.respondentType === "Parent"
+              ? `Formulaire renseigne par un parent pour ${studentName}.`
+              : "Formulaire renseigne directement par l'etudiant.",
           france_motivation: isBelgiumProject
-            ? "Le prospect souhaite un accompagnement Belgique et precisera sa motivation pendant la consultation."
-            : "Le prospect souhaite un accompagnement Campus France et precisera sa motivation pendant la consultation.",
+            ? "Le prospect vise un accompagnement Campus Belgique. Les motivations detaillees seront precisees pendant la consultation."
+            : "Le prospect vise un accompagnement Campus France. Les motivations detaillees seront precisees pendant la consultation.",
           funding_source: form.fundingSource.trim(),
           assistance_preference: isBelgiumProject
             ? "Accompagnement Belgique"
             : "Accompagnement Campus France",
           consultation_date: form.consultationDate,
           consultation_time: form.consultationTime,
-          referrer_name: "Formulaire web",
+          referrer_name: `Formulaire web - ${form.respondentType}`,
           can_invest: form.guarantorInformed === "yes",
           consent_resources: form.consentResources,
           message: summaryMessage,
@@ -408,20 +459,52 @@ export function ContactForm() {
         {currentStep === 0 ? (
           <div className="form-compact-fields">
             <div className="form-group">
-              <label className="form-label" htmlFor="fullName">
-                Nom & Prenom
+              <label className="form-label">Qui remplit ce formulaire ?</label>
+              <CompactChoiceGroup
+                error={errors.respondentType}
+                onSelect={(value) => updateField("respondentType", value)}
+                options={respondentOptions}
+                value={form.respondentType}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="respondentFullName">
+                Nom & Prenom du repondant
               </label>
               <input
-                aria-invalid={Boolean(errors.fullName)}
+                aria-invalid={Boolean(errors.respondentFullName)}
                 className="form-input"
-                id="fullName"
-                onChange={(event) => updateField("fullName", event.target.value)}
+                id="respondentFullName"
+                onChange={(event) => updateField("respondentFullName", event.target.value)}
                 placeholder="Nom & Prenom"
                 type="text"
-                value={form.fullName}
+                value={form.respondentFullName}
               />
-              {errors.fullName ? <div className="form-error">{errors.fullName}</div> : null}
+              {errors.respondentFullName ? (
+                <div className="form-error">{errors.respondentFullName}</div>
+              ) : null}
             </div>
+
+            {form.respondentType === "Parent" ? (
+              <div className="form-group">
+                <label className="form-label" htmlFor="studentFullName">
+                  Nom de l&apos;etudiant concerne
+                </label>
+                <input
+                  aria-invalid={Boolean(errors.studentFullName)}
+                  className="form-input"
+                  id="studentFullName"
+                  onChange={(event) => updateField("studentFullName", event.target.value)}
+                placeholder="Nom & Prenom de l&apos;etudiant"
+                  type="text"
+                  value={form.studentFullName}
+                />
+                {errors.studentFullName ? (
+                  <div className="form-error">{errors.studentFullName}</div>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="form-group">
               <label className="form-label" htmlFor="phone">
@@ -475,7 +558,7 @@ export function ContactForm() {
 
         {currentStep === 1 ? (
           <div className="form-group">
-            <label className="form-label">Quel est votre dernier diplome ?</label>
+            <label className="form-label">Quel est le dernier diplome obtenu ?</label>
             <CompactChoiceGroup
               error={errors.lastDegree}
               onSelect={(value) => updateField("lastDegree", value)}
@@ -488,7 +571,7 @@ export function ContactForm() {
         {currentStep === 2 ? (
           <div className="form-group">
             <label className="form-label" htmlFor="fundingSource">
-              Qui financera vos etudes ?
+              Qui financera les etudes ?
             </label>
             <input
               aria-invalid={Boolean(errors.fundingSource)}
@@ -508,7 +591,7 @@ export function ContactForm() {
         {currentStep === 3 ? (
           <div className="form-group">
             <label className="form-label">
-              Etes-vous interesse par Campus France ou Belgique ?
+              L&apos;etudiant est-il interesse par Campus France ou Belgique ?
             </label>
             <CompactChoiceGroup
               error={errors.targetProject}
@@ -520,16 +603,54 @@ export function ContactForm() {
         ) : null}
 
         {currentStep === 4 ? (
-          <div className="form-group">
-            <label className="form-label">
-              Le garant financier est-il deja informe de votre projet ?
-            </label>
-            <CompactChoiceGroup
-              error={errors.guarantorInformed}
-              onSelect={(value) => updateField("guarantorInformed", value)}
-              options={binaryOptions}
-              value={form.guarantorInformed}
-            />
+          <div className="form-compact-fields">
+            <div className="form-group">
+              <label className="form-label">
+                Le garant financier est-il deja informe du projet ?
+              </label>
+              <CompactChoiceGroup
+                error={errors.guarantorInformed}
+                onSelect={(value) => updateField("guarantorInformed", value)}
+                options={binaryOptions}
+                value={form.guarantorInformed}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="guarantorFullName">
+                Nom complet du garant
+              </label>
+              <input
+                aria-invalid={Boolean(errors.guarantorFullName)}
+                className="form-input"
+                id="guarantorFullName"
+                onChange={(event) => updateField("guarantorFullName", event.target.value)}
+                placeholder="Nom & Prenom du garant"
+                type="text"
+                value={form.guarantorFullName}
+              />
+              {errors.guarantorFullName ? (
+                <div className="form-error">{errors.guarantorFullName}</div>
+              ) : null}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="guarantorPhone">
+                Numero du garant
+              </label>
+              <input
+                aria-invalid={Boolean(errors.guarantorPhone)}
+                className="form-input"
+                id="guarantorPhone"
+                onChange={(event) => updateField("guarantorPhone", event.target.value)}
+                placeholder="+228 90 00 00 00"
+                type="tel"
+                value={form.guarantorPhone}
+              />
+              {errors.guarantorPhone ? (
+                <div className="form-error">{errors.guarantorPhone}</div>
+              ) : null}
+            </div>
           </div>
         ) : null}
 
@@ -591,11 +712,15 @@ export function ContactForm() {
 
       <div className="form-compact-footer">
         <div className="form-compact-note">
-          Besoin d&apos;aide tout de suite ? Ecrivez-nous sur{" "}
-          <a href={company.contacts.togo.whatsappHref} rel="noreferrer" target="_blank">
-            WhatsApp
-          </a>
-          .
+          Le formulaire est le canal principal. Vous pouvez aussi utiliser le chat du
+          site si vous avez une question immediate.
+          <button
+            className="form-compact-note-button"
+            onClick={() => window.dispatchEvent(new CustomEvent("pieagency-chat-open"))}
+            type="button"
+          >
+            Ouvrir le chat
+          </button>
         </div>
         <div className="form-compact-actions">
           <button

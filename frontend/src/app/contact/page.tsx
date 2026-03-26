@@ -4,7 +4,7 @@ import { ContactForm } from "@/components/contact-form";
 export const metadata: Metadata = {
   title: "Contact",
   description:
-    "Contactez PieAgency par email, téléphone, WhatsApp ou via le formulaire en ligne.",
+    "Contactez PieAgency via le formulaire en ligne ou le chat du site.",
 };
 
 export default function ContactPage() {

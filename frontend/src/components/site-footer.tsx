@@ -4,6 +4,10 @@ import { ActionLink } from "@/components/action-link";
 import { company, navigation } from "@/content/site";
 
 export function SiteFooter() {
+  const visibleCommunityLinks = company.communityLinks.filter(
+    (community) => !community.href.includes("chat.whatsapp.com"),
+  );
+
   return (
     <footer>
       <div className="container">
@@ -23,21 +27,11 @@ export function SiteFooter() {
             </div>
             <p className="footer-desc">{company.tagline}</p>
             <div className="footer-actions">
-              <ActionLink
-                href={company.contacts.togo.whatsappHref}
-                variant="waTogo"
-                size="sm"
-                external
-              >
-                WA Togo
+              <ActionLink href="/contact" variant="primary" size="sm">
+                Formulaire
               </ActionLink>
-              <ActionLink
-                href={company.contacts.france.whatsappHref}
-                variant="waFrance"
-                size="sm"
-                external
-              >
-                WA France
+              <ActionLink href="/faq" variant="outline" size="sm">
+                FAQ
               </ActionLink>
             </div>
             <div className="community-stack mt-16">
@@ -83,7 +77,7 @@ export function SiteFooter() {
 
           <div className="footer-col">
             <h4>Communaute</h4>
-            {company.communityLinks.map((community) => (
+            {visibleCommunityLinks.map((community) => (
               <a
                 className="footer-link"
                 href={community.href}

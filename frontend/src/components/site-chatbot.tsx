@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { company } from "@/content/site";
 import { ensureActiveSession, getApiBaseUrl } from "@/lib/auth";
 
 type ChatRole = "user" | "assistant";
@@ -199,9 +198,7 @@ export function SiteChatbot() {
       if (lineBreak) {
         nodes.push(<br key={`br-${matchIndex}`} />);
       } else if (url) {
-        const label = url.includes("wa.me")
-          ? "Ouvrir WhatsApp"
-          : url.replace(/^https?:\/\//, "");
+        const label = url.replace(/^https?:\/\//, "") || "Ouvrir le lien";
         nodes.push(
           <a
             className="chatbot-inline-link"
@@ -243,23 +240,13 @@ export function SiteChatbot() {
       };
     }
 
-    if (normalized.includes("whatsapp togo")) {
+    if (normalized.includes("whatsapp")) {
       return {
         kind: "link" as const,
-        label: "WhatsApp Togo",
-        href: company.contacts.togo.whatsappHref,
-        external: true,
-        tone: "whatsapp",
-      };
-    }
-
-    if (normalized.includes("whatsapp france")) {
-      return {
-        kind: "link" as const,
-        label: "WhatsApp France",
-        href: company.contacts.france.whatsappHref,
-        external: true,
-        tone: "whatsapp",
+        label: "Remplir le formulaire",
+        href: "/contact",
+        external: false,
+        tone: "primary",
       };
     }
 
@@ -267,9 +254,9 @@ export function SiteChatbot() {
       return {
         kind: "link" as const,
         label: "Parler a un conseiller",
-        href: company.contacts.togo.whatsappHref,
-        external: true,
-        tone: "whatsapp",
+        href: "/contact",
+        external: false,
+        tone: "primary",
       };
     }
 
@@ -373,7 +360,7 @@ export function SiteChatbot() {
       }
     } catch {
       setAssistantMessage(
-        "Je ne peux pas repondre proprement pour le moment. Vous pouvez passer par le formulaire ou WhatsApp pour parler a un conseiller PieAgency.",
+        "Je ne peux pas repondre proprement pour le moment. Vous pouvez passer par le formulaire ou le chat du site pour parler a un conseiller PieAgency.",
       );
     } finally {
       setIsSending(false);

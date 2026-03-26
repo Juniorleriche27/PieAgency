@@ -1242,9 +1242,8 @@ export function CommunityNetwork() {
       "",
       resource.description,
       "",
-      "Pour obtenir la version complete ou un accompagnement, contactez PieAgency.",
-      `WhatsApp Togo: ${company.contacts.togo.whatsappHref}`,
-      `WhatsApp France: ${company.contacts.france.whatsappHref}`,
+      "Pour obtenir la version complete ou un accompagnement, utilisez le formulaire PieAgency ou le chat du site.",
+      "Formulaire: https://pieagency.fr/contact",
     ].join("\n");
 
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
@@ -1923,7 +1922,7 @@ export function CommunityNetwork() {
 
           <div className="social-nav-group">
             <div className="social-nav-label">Rejoindre</div>
-            <a className="social-nav-item" href={company.communityLinks[0].href} rel="noreferrer" target="_blank"><span className="social-nav-symbol">💬</span><span>WhatsApp PieHUB</span></a>
+            <Link className="social-nav-item" href="/contact"><span className="social-nav-symbol">💬</span><span>Formulaire PieAgency</span></Link>
             <a className="social-nav-item" href={company.communityLinks[1].href} rel="noreferrer" target="_blank"><span className="social-nav-symbol">👥</span><span>Groupe Facebook</span></a>
           </div>
         </aside>
@@ -2273,7 +2272,7 @@ export function CommunityNetwork() {
                           </div>
                           {isInscrit ? (
                             <div className="social-event-confirm-note">
-                              ✅ Inscription confirmee. Vous recevrez le lien de connexion sur WhatsApp avant l&apos;evenement.
+                              ✅ Inscription confirmee. Vous recevrez le lien de connexion dans votre espace ou par retour PieAgency avant l&apos;evenement.
                             </div>
                           ) : null}
                         </div>
@@ -2596,7 +2595,7 @@ export function CommunityNetwork() {
             <div className="social-widget-title">
               <strong>🌍 Nos espaces</strong>
             </div>
-            <a className="social-space-link is-whatsapp" href={company.communityLinks[0].href} rel="noreferrer" target="_blank">💬 Groupe WhatsApp</a>
+            <Link className="social-space-link is-page" href="/contact">📝 Formulaire PieAgency</Link>
             <a className="social-space-link is-facebook" href={company.communityLinks[1].href} rel="noreferrer" target="_blank">👥 Groupe Facebook</a>
             <a className="social-space-link is-page" href={company.communityLinks[2].href} rel="noreferrer" target="_blank">📢 Page Facebook</a>
           </div>
@@ -3065,7 +3064,7 @@ export function CommunityNetwork() {
                   <input
                     className="social-compose-input"
                     onChange={(e) => setAdForm((f) => ({ ...f, cta_url: e.target.value }))}
-                    placeholder="https://wa.me/... ou https://votre-site.com"
+                    placeholder="https://votre-site.com ou https://docs..."
                     type="url"
                     value={adForm.cta_url}
                   />

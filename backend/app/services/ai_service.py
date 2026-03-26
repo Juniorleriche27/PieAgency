@@ -97,7 +97,7 @@ def _chat_fallback(request: AIChatRequest) -> AIChatResponse:
         answer=answer,
         suggested_actions=[
             str(page["cta_label"]),
-            "Ouvrir WhatsApp Togo",
+            "Ouvrir le formulaire",
             "Remplir le formulaire de contact",
         ],
         escalation_recommended=True,
@@ -112,19 +112,19 @@ def _community_reply_fallback(request: CommunityAIReplyRequest) -> CommunityAIRe
             "PieAgency commence par comprendre votre profil, votre projet d'etudes et votre destination, "
             "puis l'equipe vous oriente vers l'accompagnement adapte pour le dossier, les lettres, le visa "
             "ou la preparation de l'entretien. Le plus simple maintenant est de passer par le formulaire "
-            "ou WhatsApp pour qu'on analyse votre situation concretement."
+            "ou le chat du site pour qu'on analyse votre situation concretement."
         )
     elif "visa" in message:
         reply = (
             "Pour le visa, PieAgency aide surtout a structurer les pieces, les lettres et les justificatifs "
-            "avant le depot. Si vous voulez, laissez-nous votre situation exacte ici ou contactez-nous sur "
-            "WhatsApp afin qu'on vous dise quoi renforcer en priorite."
+            "avant le depot. Si vous voulez, laissez-nous votre situation exacte ici ou passez par le "
+            "formulaire afin qu'on vous dise quoi renforcer en priorite."
         )
     else:
         reply = (
             "On peut vous aider a clarifier le processus, choisir le bon accompagnement et avancer avec une "
             "vraie methode. Si vous voulez un retour precis sur votre cas, le plus efficace est de nous ecrire "
-            "sur WhatsApp ou de remplir le formulaire de contact pour qu'on vous oriente rapidement."
+            "dans le chat du site ou de remplir le formulaire de contact pour qu'on vous oriente rapidement."
         )
 
     return CommunityAIReplyResponse(reply=reply, source="fallback")
@@ -178,8 +178,8 @@ def should_generate_community_reply(
         "accompagnement",
         "aide",
         "formulaire",
-        "whatsapp",
         "contact",
+        "chat",
         "orientation",
         "procedure",
         "procédure",
@@ -283,7 +283,7 @@ Contraintes:
 - texte propre uniquement, sans markdown, sans **, sans listes markdown;
 - ne pas afficher d'URL brute dans la reponse;
 - suggested_actions: 2 ou 3 actions concretes;
-- si l'utilisateur veut demarrer, mentionner le formulaire ou WhatsApp.
+- si l'utilisateur veut demarrer, mentionner le formulaire ou le chat.
 """.strip()
 
 
@@ -317,7 +317,7 @@ Contraintes:
 - maximum 220 mots;
 - texte propre uniquement, sans markdown, sans **, sans listes markdown;
 - ne pas afficher d'URL brute dans la reponse;
-- si l'utilisateur veut demarrer, mentionner le formulaire ou WhatsApp.
+- si l'utilisateur veut demarrer, mentionner le formulaire ou le chat.
 """.strip()
 
 
@@ -424,7 +424,7 @@ Contexte global:
 Ta mission:
 - repondre comme un profil officiel utile, humain et clair dans une discussion communautaire;
 - expliquer concretement comment PieAgency aide;
-- orienter intelligemment vers le formulaire, WhatsApp, le contact direct ou la communaute si pertinent;
+- orienter intelligemment vers le formulaire, le chat du site ou la communaute si pertinent;
 - ne jamais inventer de prix, delais officiels, garanties ou promesses d'admission.
 
 Retourne uniquement un JSON valide:

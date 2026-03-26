@@ -7,10 +7,10 @@ SITE_KNOWLEDGE = dedent(
     vers la France et la Belgique avec une approche claire, humaine et structuree.
 
     Contacts officiels :
-    - Email principal : contact@pieagency.fr
-    - Email secondaire : junior.pieagency@gmail.com
-    - France : Ibrahim B. - (+33) 6 35 32 04 40 - WhatsApp https://wa.me/33635320440
-    - Togo : Junior L. - +228 92 09 25 72 - WhatsApp https://wa.me/22892092572
+    - Formulaire principal : https://pieagency.fr/contact
+    - Chat du site : disponible sur les pages publiques pour les premieres questions
+    - Presence France : Ibrahim B. - (+33) 6 35 32 04 40
+    - Presence Togo : Junior L. - +228 92 09 25 72
 
     Services principaux :
     - Campus France : analyse du dossier, formulation du projet d'etudes,
@@ -26,20 +26,19 @@ SITE_KNOWLEDGE = dedent(
     - Ecoles privees France : identification d'ecoles adaptees, strategie de candidature.
 
     Communaute :
-    - WhatsApp : https://chat.whatsapp.com/DWwuJQP3ym9JW4OZj11H1C
     - Groupe Facebook : https://web.facebook.com/groups/8418722288154510/
     - Page Facebook : https://web.facebook.com/profile.php?id=61564375512991
 
     FAQ utiles :
     - L'accompagnement est personnalise.
-    - Les echanges directs sur WhatsApp sont possibles.
+    - Le formulaire et le chat sont les deux canaux privilegies pour prendre contact.
     - PieAgency accompagne aussi l'entretien Campus France.
     - PieAgency est present au Togo et en France.
 
     Regles d'assistance :
     - Ne jamais inventer des prix, delais officiels, decisions consulaires ou admissions garanties.
     - Ne jamais promettre un visa ou une admission.
-    - Si la question depasse le site ou demande une verification humaine, orienter vers le formulaire de contact ou WhatsApp.
+    - Si la question depasse le site ou demande une verification humaine, orienter vers le formulaire de contact ou le chat.
     - Rester tres concret, utile, rassurant sans blabla.
     """
 ).strip()
@@ -51,7 +50,7 @@ PAGE_CONTEXTS = {
         "bullets": [
             "Qualifier le projet et le niveau d'etudes.",
             "Rediriger vers le service le plus pertinent.",
-            "Pousser vers contact ou WhatsApp si le dossier semble pret.",
+            "Pousser vers le formulaire ou le chat si le dossier semble pret.",
         ],
         "cta_label": "Commencer mon dossier",
         "cta_href": "/contact",
@@ -75,8 +74,8 @@ PAGE_CONTEXTS = {
             "Rappeler que le depot final reste fait par l'etudiant.",
             "Inviter a parler a un conseiller si le dossier est complexe.",
         ],
-        "cta_label": "Parler a un conseiller",
-        "cta_href": "https://wa.me/22892092572",
+        "cta_label": "Remplir le formulaire",
+        "cta_href": "/contact",
     },
     "/belgique": {
         "title": "Assistant Belgique",
@@ -126,12 +125,12 @@ PAGE_CONTEXTS = {
         "title": "Assistant Communaute",
         "summary": "Orienter vers les bons espaces communautaires PieAgency.",
         "bullets": [
-            "WhatsApp pour les echanges directs.",
+            "Le chat pour les premieres questions.",
             "Facebook pour suivre les publications et discussions.",
             "Conseiller le contact prive si la demande est personnelle.",
         ],
-        "cta_label": "Rejoindre WhatsApp",
-        "cta_href": "https://chat.whatsapp.com/DWwuJQP3ym9JW4OZj11H1C",
+        "cta_label": "Envoyer ma demande",
+        "cta_href": "/contact",
     },
     "/faq": {
         "title": "Assistant FAQ",
@@ -139,7 +138,7 @@ PAGE_CONTEXTS = {
         "bullets": [
             "Repondre vite et clairement.",
             "Ne pas inventer au-dela du site.",
-            "Basculer vers contact ou WhatsApp si le cas est specifique.",
+            "Basculer vers le formulaire ou le chat si le cas est specifique.",
         ],
         "cta_label": "Poser ma question",
         "cta_href": "/contact",
@@ -157,7 +156,7 @@ PAGE_CONTEXTS = {
     },
     "/contact": {
         "title": "Assistant Contact",
-        "summary": "Aider le visiteur a choisir entre formulaire, WhatsApp Togo, WhatsApp France ou email.",
+        "summary": "Aider le visiteur a choisir entre le formulaire du site et le chat PieAgency.",
         "bullets": [
             "Clarifier le meilleur canal selon l'urgence.",
             "Encourager un message precis et utile.",

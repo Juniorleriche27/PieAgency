@@ -17,6 +17,12 @@ const visaPage = servicePages.find((page) => page.slug === "visa")!;
 const alternativePages = servicePages.filter((page) =>
   ["belgique", "paris-saclay", "parcoursup", "ecoles"].includes(page.slug),
 );
+const visibleCommunityLinks = company.communityLinks.filter(
+  (community) => !community.href.includes("chat.whatsapp.com"),
+);
+const homepageFaqItems = faqItems
+  .filter((item) => !item.question.toLowerCase().includes("whatsapp"))
+  .slice(0, 5);
 
 export default function HomePage() {
   return (
@@ -43,13 +49,8 @@ export default function HomePage() {
               <ActionLink href="/contact" variant="gold" size="lg">
                 Commencer mon dossier
               </ActionLink>
-              <ActionLink
-                href={company.contacts.france.whatsappHref}
-                variant="outlineWhite"
-                size="lg"
-                external
-              >
-                💬 Parler à un conseiller
+              <ActionLink href="/faq" variant="outlineWhite" size="lg">
+                Comprendre le processus
               </ActionLink>
             </div>
             <div className="hero-trust">
@@ -147,10 +148,9 @@ export default function HomePage() {
                     En savoir plus
                   </ActionLink>
                   <ActionLink
-                    href={company.contacts.togo.whatsappHref}
+                    href="/contact"
                     variant="outline"
                     size="sm"
-                    external
                   >
                     Démarrer
                   </ActionLink>
@@ -347,7 +347,7 @@ export default function HomePage() {
             subtitle="Retrouvez des échanges, des conseils et des informations utiles à travers nos espaces communautaires."
           />
           <div className="community-grid">
-            {company.communityLinks.map((community, index) => (
+            {visibleCommunityLinks.map((community, index) => (
               <Reveal className="community-card" delay={index * 80} key={community.label}>
                 <div className={`community-icon ${community.iconClass}`}>
                   {community.icon}
@@ -387,25 +387,11 @@ export default function HomePage() {
             ))}
           </div>
           <div className="contact-actions">
-            <ActionLink
-              href={company.contacts.togo.whatsappHref}
-              variant="waTogo"
-              external
-            >
-              📱 WhatsApp Togo
-            </ActionLink>
-            <ActionLink
-              href={company.contacts.france.whatsappHref}
-              variant="waFrance"
-              external
-            >
-              📱 WhatsApp France
-            </ActionLink>
-            <ActionLink href={`mailto:${company.emails.primary}`} variant="outline" external>
-              ✉️ Envoyer un email
-            </ActionLink>
             <ActionLink href="/contact" variant="primary">
               Formulaire de contact
+            </ActionLink>
+            <ActionLink href="/faq" variant="outline">
+              Questions frequentes
             </ActionLink>
           </div>
         </div>
@@ -414,7 +400,7 @@ export default function HomePage() {
       <section className="section bg-gray">
         <div className="container container-faq">
           <SectionHeader eyebrow="Questions fréquentes" title="Questions fréquentes" />
-          <FAQAccordion items={faqItems.slice(0, 5)} />
+          <FAQAccordion items={homepageFaqItems} />
           <div className="text-center mt-24">
             <ActionLink href="/faq" variant="outline">
               Voir toutes les questions →
@@ -434,13 +420,8 @@ export default function HomePage() {
             <ActionLink href="/contact" variant="gold" size="lg">
               Commencer mon dossier
             </ActionLink>
-            <ActionLink
-              href={company.contacts.france.whatsappHref}
-              variant="outlineWhite"
-              size="lg"
-              external
-            >
-              💬 Parler à un conseiller
+            <ActionLink href="/faq" variant="outlineWhite" size="lg">
+              Voir les questions frequentes
             </ActionLink>
           </div>
         </div>

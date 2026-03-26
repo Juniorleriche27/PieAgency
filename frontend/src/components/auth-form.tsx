@@ -311,7 +311,7 @@ export function AuthForm() {
           {mode === "sign-up" ? (
             <div className="auth-grid">
               <div className="auth-field">
-                <label htmlFor="phone">Telephone / WhatsApp</label>
+                <label htmlFor="phone">Telephone</label>
                 <input
                   id="phone"
                   onChange={(event) => setPhone(event.target.value)}

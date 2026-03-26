@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ActionLink } from "@/components/action-link";
 import { PortalAccessPanel } from "@/components/portal-access-panel";
-import { company } from "@/content/site";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { authenticatedFetch, getApiBaseUrl } from "@/lib/auth";
 
@@ -259,13 +258,15 @@ export function StudentSpaceView() {
               <ActionLink href="/contact" variant="primary">
                 Contacter PieAgency
               </ActionLink>
-              <ActionLink
-                external
-                href={company.contacts.togo.whatsappHref}
-                variant="waTogo"
+              <button
+                className="btn btn-outline"
+                onClick={() =>
+                  window.dispatchEvent(new CustomEvent("pieagency-chat-open"))
+                }
+                type="button"
               >
-                WhatsApp Togo
-              </ActionLink>
+                Ouvrir le chat
+              </button>
             </div>
           </div>
 

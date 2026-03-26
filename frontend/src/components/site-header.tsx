@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ActionLink } from "@/components/action-link";
-import { company, navigation } from "@/content/site";
+import { navigation } from "@/content/site";
 import { clearStoredSession, readStoredSession } from "@/lib/auth";
 
 export function SiteHeader() {
@@ -254,22 +254,6 @@ export function SiteHeader() {
                 Deconnexion
               </button>
             ) : null}
-            <ActionLink
-              href={company.contacts.togo.whatsappHref}
-              onClick={() => setIsMenuOpen(false)}
-              variant="waTogo"
-              external
-            >
-              WhatsApp Togo
-            </ActionLink>
-            <ActionLink
-              href={company.contacts.france.whatsappHref}
-              onClick={() => setIsMenuOpen(false)}
-              variant="waFrance"
-              external
-            >
-              WhatsApp France
-            </ActionLink>
             <ActionLink
               href="/contact"
               onClick={() => setIsMenuOpen(false)}

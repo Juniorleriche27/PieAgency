@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { FloatingWhatsapp } from "@/components/floating-whatsapp";
 import { SiteAssistantSpotlight } from "@/components/site-assistant-spotlight";
 import { SiteChatbot } from "@/components/site-chatbot";
 import { SiteFooter } from "@/components/site-footer";
@@ -21,7 +20,6 @@ export function SiteChrome({
       <main>{children}</main>
       {isCommunityRoute ? null : <SiteAssistantSpotlight />}
       {isCommunityRoute ? null : <SiteFooter />}
-      {isCommunityRoute ? null : <FloatingWhatsapp />}
       {isCommunityRoute ? null : <SiteChatbot />}
     </>
   );
