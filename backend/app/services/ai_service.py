@@ -275,6 +275,8 @@ Contraintes:
 - reponse en francais;
 - concise mais utile;
 - maximum 220 mots;
+- texte propre uniquement, sans markdown, sans **, sans listes markdown;
+- ne pas afficher d'URL brute dans la reponse;
 - suggested_actions: 2 ou 3 actions concretes;
 - si l'utilisateur veut demarrer, mentionner le formulaire ou WhatsApp.
 """.strip()
@@ -304,6 +306,8 @@ Ta mission:
 Contraintes:
 - concise mais utile;
 - maximum 220 mots;
+- texte propre uniquement, sans markdown, sans **, sans listes markdown;
+- ne pas afficher d'URL brute dans la reponse;
 - si l'utilisateur veut demarrer, mentionner le formulaire ou WhatsApp.
 """.strip()
 

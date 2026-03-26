@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { company } from "@/content/site";
 import { ensureActiveSession, getApiBaseUrl } from "@/lib/auth";
 
 type ChatRole = "user" | "assistant";
@@ -22,7 +24,7 @@ const initialMessages: ChatMessage[] = [
   {
     role: "assistant",
     content:
-      "Bonjour, je suis l'assistant PieAgency. Je peux vous aider sur Campus France, visa, Belgique, Parcoursup, Paris-Saclay, ecoles privees, ou vous orienter vers le bon contact.",
+      "Bonjour, je suis la messagerie PieAgency. Je peux vous aider sur Campus France, visa, Belgique, Parcoursup, Paris-Saclay, ecoles privees, ou vous orienter vers le bon contact.",
   },
 ];
 
@@ -95,6 +97,117 @@ export function SiteChatbot() {
       };
       return updated;
     });
+  }
+
+  function cleanAssistantText(text: string) {
+    return text
+      .replace(/\*\*/g, "")
+      .replace(/__/g, "")
+      .replace(/`/g, "")
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, "$1 $2")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  function renderMessageContent(text: string) {
+    const normalized = cleanAssistantText(text);
+    const tokenPattern = /(https?:\/\/[^\s]+)|(\n)/g;
+    const nodes: ReactNode[] = [];
+    let lastIndex = 0;
+    let matchIndex = 0;
+
+    for (const match of normalized.matchAll(tokenPattern)) {
+      const [fullMatch, url, lineBreak] = match;
+      const start = match.index ?? 0;
+
+      if (start > lastIndex) {
+        nodes.push(normalized.slice(lastIndex, start));
+      }
+
+      if (lineBreak) {
+        nodes.push(<br key={`br-${matchIndex}`} />);
+      } else if (url) {
+        const label = url.includes("wa.me")
+          ? "Ouvrir WhatsApp"
+          : url.replace(/^https?:\/\//, "");
+        nodes.push(
+          <a
+            className="chatbot-inline-link"
+            href={url}
+            key={`url-${matchIndex}`}
+            rel="noreferrer"
+            target="_blank"
+          >
+            {label}
+          </a>,
+        );
+      }
+
+      lastIndex = start + fullMatch.length;
+      matchIndex += 1;
+    }
+
+    if (lastIndex < normalized.length) {
+      nodes.push(normalized.slice(lastIndex));
+    }
+
+    return nodes;
+  }
+
+  function resolveSuggestedAction(action: string) {
+    const normalized = action.trim().toLowerCase();
+
+    if (
+      normalized.includes("formulaire") ||
+      normalized.includes("dossier") ||
+      normalized.includes("envoyer ma demande")
+    ) {
+      return {
+        kind: "link" as const,
+        label: "Commencer mon dossier",
+        href: "/contact",
+        external: false,
+        tone: "primary",
+      };
+    }
+
+    if (normalized.includes("whatsapp togo")) {
+      return {
+        kind: "link" as const,
+        label: "WhatsApp Togo",
+        href: company.contacts.togo.whatsappHref,
+        external: true,
+        tone: "whatsapp",
+      };
+    }
+
+    if (normalized.includes("whatsapp france")) {
+      return {
+        kind: "link" as const,
+        label: "WhatsApp France",
+        href: company.contacts.france.whatsappHref,
+        external: true,
+        tone: "whatsapp",
+      };
+    }
+
+    if (normalized.includes("conseiller")) {
+      return {
+        kind: "link" as const,
+        label: "Parler a un conseiller",
+        href: company.contacts.togo.whatsappHref,
+        external: true,
+        tone: "whatsapp",
+      };
+    }
+
+    return {
+      kind: "prompt" as const,
+      label: action,
+      prompt: action,
+      tone: "secondary",
+    };
   }
 
   function handleStreamEvent(rawEvent: string) {
@@ -202,8 +315,8 @@ export function SiteChatbot() {
         <div className="chatbot-panel">
           <div className="chatbot-header">
             <div>
-              <div className="chatbot-kicker">Assistant IA</div>
-              <div className="chatbot-title">Assistant PieAgency</div>
+              <div className="chatbot-kicker">Messagerie</div>
+              <div className="chatbot-title">Conseiller PieAgency</div>
             </div>
             <button
               aria-label="Fermer le chatbot"
@@ -221,7 +334,7 @@ export function SiteChatbot() {
                 className={`chatbot-message ${message.role}`}
                 key={`${message.role}-${index}`}
               >
-                {message.content}
+                {renderMessageContent(message.content)}
               </div>
             ))}
             {isSending && !hasStartedStreaming ? (
@@ -232,17 +345,47 @@ export function SiteChatbot() {
           </div>
 
           <div className="chatbot-suggestions">
-            {suggestedActions.map((action) => (
-              <button
-                className="chatbot-chip"
-                disabled={isBusy}
-                key={action}
-                onClick={() => sendMessage(action)}
-                type="button"
-              >
-                {action}
-              </button>
-            ))}
+            {suggestedActions.map((action) => {
+              const resolved = resolveSuggestedAction(action);
+
+              if (resolved.kind === "link") {
+                if (resolved.external) {
+                  return (
+                    <a
+                      className={`chatbot-action chatbot-action-${resolved.tone}`}
+                      href={resolved.href}
+                      key={action}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {resolved.label}
+                    </a>
+                  );
+                }
+
+                return (
+                  <Link
+                    className={`chatbot-action chatbot-action-${resolved.tone}`}
+                    href={resolved.href}
+                    key={action}
+                  >
+                    {resolved.label}
+                  </Link>
+                );
+              }
+
+              return (
+                <button
+                  className={`chatbot-action chatbot-action-${resolved.tone}`}
+                  disabled={isBusy}
+                  key={action}
+                  onClick={() => sendMessage(resolved.prompt)}
+                  type="button"
+                >
+                  {resolved.label}
+                </button>
+              );
+            })}
           </div>
 
           <form
@@ -268,14 +411,13 @@ export function SiteChatbot() {
       ) : null}
 
       <button
+        aria-label={isOpen ? "Fermer la messagerie" : "Ouvrir la messagerie"}
         className="chatbot-launcher"
         onClick={() => setIsOpen((current) => !current)}
         type="button"
       >
-        <span aria-hidden="true" className="chatbot-launcher-dot">
+        <span aria-hidden="true" className="chatbot-launcher-dot" />
           💬
-        </span>
-        <span>Messagerie</span>
       </button>
     </div>
   );
