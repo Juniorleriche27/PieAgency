@@ -43,6 +43,7 @@ export function SiteChatbot() {
   const [hasStartedStreaming, setHasStartedStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const isBusy = isSending;
 
@@ -61,6 +62,76 @@ export function SiteChatbot() {
       node.scrollTop = node.scrollHeight;
     }
   }, [messages, isOpen]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+
+    if (!isOpen) {
+      root.classList.remove("chat-open");
+      body.classList.remove("chat-open");
+      return;
+    }
+
+    root.classList.add("chat-open");
+    body.classList.add("chat-open");
+
+    if (!window.matchMedia("(max-width: 640px)").matches) {
+      return () => {
+        root.classList.remove("chat-open");
+        body.classList.remove("chat-open");
+      };
+    }
+
+    const lockedScrollY = window.scrollY;
+    body.dataset.chatScrollY = String(lockedScrollY);
+    body.style.position = "fixed";
+    body.style.top = `-${lockedScrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+
+    return () => {
+      const nextScrollY = Number(body.dataset.chatScrollY || lockedScrollY);
+      root.classList.remove("chat-open");
+      body.classList.remove("chat-open");
+      delete body.dataset.chatScrollY;
+      body.style.position = "";
+      body.style.top = "";
+      body.style.left = "";
+      body.style.right = "";
+      body.style.width = "";
+      body.style.overflow = "";
+      window.scrollTo(0, nextScrollY);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      document.documentElement.style.removeProperty("--chatbot-mobile-height");
+      return;
+    }
+
+    const root = document.documentElement;
+    const viewport = window.visualViewport;
+    const syncViewportHeight = () => {
+      const nextHeight = Math.round(viewport?.height ?? window.innerHeight);
+      root.style.setProperty("--chatbot-mobile-height", `${nextHeight}px`);
+    };
+
+    syncViewportHeight();
+    viewport?.addEventListener("resize", syncViewportHeight);
+    viewport?.addEventListener("scroll", syncViewportHeight);
+    window.addEventListener("resize", syncViewportHeight);
+
+    return () => {
+      viewport?.removeEventListener("resize", syncViewportHeight);
+      viewport?.removeEventListener("scroll", syncViewportHeight);
+      window.removeEventListener("resize", syncViewportHeight);
+      root.style.removeProperty("--chatbot-mobile-height");
+    };
+  }, [isOpen]);
 
   function appendAssistantChunk(text: string) {
     setHasStartedStreaming(true);
@@ -312,113 +383,131 @@ export function SiteChatbot() {
   return (
     <div className={`chatbot-shell ${isOpen ? "open" : ""}`}>
       {isOpen ? (
-        <div className="chatbot-panel">
-          <div className="chatbot-header">
-            <div>
-              <div className="chatbot-kicker">Messagerie</div>
-              <div className="chatbot-title">Conseiller PieAgency</div>
-            </div>
-            <button
-              aria-label="Fermer le chatbot"
-              className="chatbot-close"
-              onClick={() => setIsOpen(false)}
-              type="button"
-            >
-              X
-            </button>
-          </div>
-
-          <div className="chatbot-body" ref={bodyRef}>
-            {messages.map((message, index) => (
-              <div
-                className={`chatbot-message ${message.role}`}
-                key={`${message.role}-${index}`}
+        <>
+          <button
+            aria-label="Fermer la messagerie"
+            className="chatbot-backdrop"
+            onClick={() => setIsOpen(false)}
+            type="button"
+          />
+          <div className="chatbot-panel">
+            <div className="chatbot-header">
+              <div>
+                <div className="chatbot-kicker">Messagerie</div>
+                <div className="chatbot-title">Conseiller PieAgency</div>
+              </div>
+              <button
+                aria-label="Fermer le chatbot"
+                className="chatbot-close"
+                onClick={() => setIsOpen(false)}
+                type="button"
               >
-                {renderMessageContent(message.content)}
-              </div>
-            ))}
-            {isSending && !hasStartedStreaming ? (
-              <div className="chatbot-message assistant">
-                L&apos;assistant reflechit...
-              </div>
-            ) : null}
-          </div>
+                X
+              </button>
+            </div>
 
-          <div className="chatbot-suggestions">
-            {suggestedActions.map((action) => {
-              const resolved = resolveSuggestedAction(action);
+            <div className="chatbot-body" ref={bodyRef}>
+              {messages.map((message, index) => (
+                <div
+                  className={`chatbot-message ${message.role}`}
+                  key={`${message.role}-${index}`}
+                >
+                  {renderMessageContent(message.content)}
+                </div>
+              ))}
+              {isSending && !hasStartedStreaming ? (
+                <div className="chatbot-message assistant">
+                  L&apos;assistant reflechit...
+                </div>
+              ) : null}
+            </div>
 
-              if (resolved.kind === "link") {
-                if (resolved.external) {
+            <div className="chatbot-suggestions">
+              {suggestedActions.map((action) => {
+                const resolved = resolveSuggestedAction(action);
+
+                if (resolved.kind === "link") {
+                  if (resolved.external) {
+                    return (
+                      <a
+                        className={`chatbot-action chatbot-action-${resolved.tone}`}
+                        href={resolved.href}
+                        key={action}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {resolved.label}
+                      </a>
+                    );
+                  }
+
                   return (
-                    <a
+                    <Link
                       className={`chatbot-action chatbot-action-${resolved.tone}`}
                       href={resolved.href}
                       key={action}
-                      rel="noreferrer"
-                      target="_blank"
                     >
                       {resolved.label}
-                    </a>
+                    </Link>
                   );
                 }
 
                 return (
-                  <Link
+                  <button
                     className={`chatbot-action chatbot-action-${resolved.tone}`}
-                    href={resolved.href}
+                    disabled={isBusy}
                     key={action}
+                    onClick={() => sendMessage(resolved.prompt)}
+                    type="button"
                   >
                     {resolved.label}
-                  </Link>
+                  </button>
                 );
-              }
+              })}
+            </div>
 
-              return (
-                <button
-                  className={`chatbot-action chatbot-action-${resolved.tone}`}
-                  disabled={isBusy}
-                  key={action}
-                  onClick={() => sendMessage(resolved.prompt)}
-                  type="button"
-                >
-                  {resolved.label}
-                </button>
-              );
-            })}
+            <form
+              className="chatbot-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void sendMessage(input);
+              }}
+            >
+              <textarea
+                className="chatbot-input"
+                disabled={isBusy}
+                onChange={(event) => setInput(event.target.value)}
+                onFocus={() => {
+                  window.requestAnimationFrame(() => {
+                    bodyRef.current?.scrollTo({
+                      top: bodyRef.current.scrollHeight,
+                      behavior: "smooth",
+                    });
+                  });
+                }}
+                placeholder="Posez votre question sur PieAgency..."
+                ref={inputRef}
+                rows={3}
+                value={input}
+              />
+              <button className="btn btn-primary" disabled={isBusy} type="submit">
+                Envoyer
+              </button>
+            </form>
           </div>
-
-          <form
-            className="chatbot-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void sendMessage(input);
-            }}
-          >
-            <textarea
-              className="chatbot-input"
-              disabled={isBusy}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder="Posez votre question sur PieAgency..."
-              rows={3}
-              value={input}
-            />
-            <button className="btn btn-primary" disabled={isBusy} type="submit">
-              Envoyer
-            </button>
-          </form>
-        </div>
+        </>
       ) : null}
 
-      <button
-        aria-label={isOpen ? "Fermer la messagerie" : "Ouvrir la messagerie"}
-        className="chatbot-launcher"
-        onClick={() => setIsOpen((current) => !current)}
-        type="button"
-      >
-        <span aria-hidden="true" className="chatbot-launcher-dot" />
-          💬
-      </button>
+      {!isOpen ? (
+        <button
+          aria-label="Ouvrir la messagerie"
+          className="chatbot-launcher"
+          onClick={() => setIsOpen(true)}
+          type="button"
+        >
+          <span aria-hidden="true" className="chatbot-launcher-dot" />
+        </button>
+      ) : null}
     </div>
   );
 }
