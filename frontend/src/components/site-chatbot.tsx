@@ -410,44 +410,51 @@ export function SiteChatbot() {
             </div>
 
             <div className="chatbot-suggestions">
-              {suggestedActions.map((action) => {
-                const resolved = resolveSuggestedAction(action);
+              {Array.from(
+                new Map(
+                  suggestedActions.map((a) => {
+                    const r = resolveSuggestedAction(a);
+                    return [r.label, { action: a, resolved: r }];
+                  })
+                ).values()
+              ).map(({ action, resolved }) => {
+                const resolved2 = resolved;
 
-                if (resolved.kind === "link") {
-                  if (resolved.external) {
+                if (resolved2.kind === "link") {
+                  if (resolved2.external) {
                     return (
                       <a
-                        className={`chatbot-action chatbot-action-${resolved.tone}`}
-                        href={resolved.href}
-                        key={action}
+                        className={`chatbot-action chatbot-action-${resolved2.tone}`}
+                        href={resolved2.href}
+                        key={resolved2.label}
                         rel="noreferrer"
                         target="_blank"
                       >
-                        {resolved.label}
+                        {resolved2.label}
                       </a>
                     );
                   }
 
                   return (
                     <Link
-                      className={`chatbot-action chatbot-action-${resolved.tone}`}
-                      href={resolved.href}
-                      key={action}
+                      className={`chatbot-action chatbot-action-${resolved2.tone}`}
+                      href={resolved2.href}
+                      key={resolved2.label}
                     >
-                      {resolved.label}
+                      {resolved2.label}
                     </Link>
                   );
                 }
 
                 return (
                   <button
-                    className={`chatbot-action chatbot-action-${resolved.tone}`}
+                    className={`chatbot-action chatbot-action-${resolved2.tone}`}
                     disabled={isBusy}
-                    key={action}
-                    onClick={() => sendMessage(resolved.prompt)}
+                    key={resolved2.label}
+                    onClick={() => sendMessage(resolved2.prompt)}
                     type="button"
                   >
-                    {resolved.label}
+                    {resolved2.label}
                   </button>
                 );
               })}
