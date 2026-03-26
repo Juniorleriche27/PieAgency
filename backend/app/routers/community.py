@@ -27,6 +27,7 @@ from ..schemas import (
     CommunityNotificationsResponse,
     CommunityPollVoteRequest,
     CommunityPostCreateRequest,
+    CommunityPostItem,
 )
 from ..services.community_service import (
     CommunityDataUnavailableError,
@@ -41,6 +42,7 @@ from ..services.community_service import (
     get_community_events_calendar,
     get_community_groups,
     get_community_notifications,
+    get_group_posts,
     mark_community_notification_read,
     rewrite_community_text,
     send_community_assistant_message,
@@ -251,3 +253,12 @@ def community_ai_rewrite(
     current_user: AuthUserProfile = Depends(get_current_user),
 ) -> CommunityAIRewriteResponse:
     return rewrite_community_text(payload)
+
+
+@router.get("/community/groups/{group_id}/posts", response_model=list[CommunityPostItem])
+async def community_get_group_posts(
+    group_id: str,
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+):
+    return get_group_posts(group_id, current_user, access_token)

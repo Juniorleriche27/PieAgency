@@ -187,6 +187,7 @@ type CommunityPostApi = {
   viewer_has_liked?: boolean;
   viewer_has_saved?: boolean;
   viewer_poll_vote?: number | null;
+  group_id?: string | null;
 };
 
 type CommunityMutationApi = {
@@ -397,6 +398,7 @@ export async function createCommunityPost(payload: {
   resourceSize?: string;
   question?: string;
   options?: string[];
+  groupId?: string | null;
 }): Promise<CommunityMutationData> {
   const response = await authenticatedFetch(
     "/api/community/posts",
@@ -414,6 +416,7 @@ export async function createCommunityPost(payload: {
         resource_size: payload.resourceSize,
         question: payload.question,
         options: payload.options || [],
+        group_id: payload.groupId ?? null,
       }),
     },
     { requireAuth: true },
@@ -841,4 +844,15 @@ export async function rewriteWithAI(text: string, context = "publication"): Prom
   if (!response.ok) return text;
   const payload = (await response.json()) as { rewritten: string };
   return payload.rewritten || text;
+}
+
+export async function fetchGroupPosts(groupId: string): Promise<CommunityPost[]> {
+  const response = await authenticatedFetch(
+    `/api/community/groups/${groupId}/posts`,
+    undefined,
+    { requireAuth: true },
+  );
+  if (!response.ok) return [];
+  const data = (await response.json()) as CommunityPostApi[];
+  return data.map(mapPost);
 }

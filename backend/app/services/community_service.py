@@ -432,6 +432,7 @@ def _build_post_item(
         viewer_has_liked=post_id in (liked_post_ids or set()),
         viewer_has_saved=post_id in (saved_post_ids or set()),
         viewer_poll_vote=(poll_votes or {}).get(post_id),
+        group_id=str(row["group_id"]) if row.get("group_id") is not None else None,
     )
 
 
@@ -865,6 +866,7 @@ def create_community_post(
             else []
         ),
         "moderation_status": "pending" if payload.post_type == "resource" else "approved",
+        "group_id": int(payload.group_id) if payload.group_id else None,
     }
     response = client.table("community_posts").insert(insert_payload).execute()
     rows = response.data or []
@@ -1585,3 +1587,28 @@ def rewrite_community_text(
         return CommunityAIRewriteResponse(rewritten=rewritten, source="cohere")
     except Exception:
         return CommunityAIRewriteResponse(rewritten=payload.text, source="fallback")
+
+
+def get_group_posts(
+    group_id: str,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> list[CommunityPostItem]:
+    client = _get_client(access_token)
+    try:
+        rows = (
+            client.table("community_posts")
+            .select("*")
+            .eq("group_id", int(group_id))
+            .neq("moderation_status", "pending")
+            .order("created_at", desc=True)
+            .limit(50)
+            .execute()
+        )
+        post_rows = rows.data or []
+        if not post_rows:
+            return []
+        post_ids = [int(r.get("id") or 0) for r in post_rows]
+        return _load_post_items(client, post_ids=post_ids, viewer_user_id=current_user.user_id)
+    except Exception:
+        return []

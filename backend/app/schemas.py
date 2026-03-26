@@ -417,6 +417,7 @@ class CommunityPostItem(BaseModel):
     viewer_has_liked: bool = False
     viewer_has_saved: bool = False
     viewer_poll_vote: int | None = None
+    group_id: str | None = None
 
 
 class CommunityBootstrapResponse(BaseModel):
@@ -439,6 +440,7 @@ class CommunityPostCreateRequest(BaseModel):
     resource_size: str | None = Field(default=None, max_length=40)
     question: str | None = Field(default=None, max_length=300)
     options: list[str] = Field(default_factory=list, max_length=6)
+    group_id: str | None = None
 
     @field_validator("tag", "content", "resource_name", "resource_size", "question", mode="before")
     @classmethod

@@ -24,6 +24,7 @@ import {
   fetchCommunityAds,
   createCommunityAd,
   rewriteWithAI,
+  fetchGroupPosts,
   type CommunityGroupItem as ApiGroupItem,
   type CommunityEventCalendarItem as ApiEventItem,
   type CommunityNotificationItem,
@@ -769,7 +770,12 @@ export function CommunityNetwork() {
   const [composePollOptions, setComposePollOptions] = useState(["", "", "", ""]);
   const [hashtagFilter, setHashtagFilter] = useState<string | null>(null);
   const [selectedGroupName, setSelectedGroupName] = useState<string | null>(null);
+  const [selectedApiGroupId, setSelectedApiGroupId] = useState<string | null>(null);
+  const [groupDetailPosts, setGroupDetailPosts] = useState<SocialPost[]>([]);
+  const [isLoadingGroupPosts, setIsLoadingGroupPosts] = useState(false);
+  const [composeGroupId, setComposeGroupId] = useState<string | null>(null);
   const [selectedEventName, setSelectedEventName] = useState<string | null>(null);
+  const [selectedApiEventId, setSelectedApiEventId] = useState<string | null>(null);
   const [resourceFilter, setResourceFilter] = useState<"tous" | "PDF" | "DOC">("tous");
   const [searchTerm, setSearchTerm] = useState("");
   const [loadedExtraCount, setLoadedExtraCount] = useState(0);
@@ -1023,6 +1029,13 @@ export function CommunityNetwork() {
     }
     if (nextTab !== "groupes") {
       setSelectedGroupName(null);
+      setSelectedApiGroupId(null);
+      setGroupDetailPosts([]);
+      setComposeGroupId(null);
+    }
+    if (nextTab !== "evenements") {
+      setSelectedEventName(null);
+      setSelectedApiEventId(null);
     }
     if (nextTab !== "evenements") {
       setSelectedEventName(null);
@@ -1092,6 +1105,20 @@ export function CommunityNetwork() {
       pushToast(result.isMember ? `✅ Rejoint : ${groupName}` : `Groupe quitté : ${groupName}`);
     } catch {
       pushToast("Connectez-vous pour rejoindre un groupe.");
+    }
+  }
+
+  async function openGroupDetail(group: ApiGroupItem) {
+    setSelectedApiGroupId(String(group.id));
+    setSelectedGroupName(null);
+    setIsLoadingGroupPosts(true);
+    try {
+      const gposts = await fetchGroupPosts(String(group.id));
+      setGroupDetailPosts(gposts);
+    } catch {
+      setGroupDetailPosts([]);
+    } finally {
+      setIsLoadingGroupPosts(false);
     }
   }
 
@@ -1258,6 +1285,7 @@ export function CommunityNetwork() {
     setComposeResourceSize("");
     setComposePollQuestion("");
     setComposePollOptions(["", "", "", ""]);
+    setComposeGroupId(null);
   }
 
   function resolveComposeTag(rawText: string) {
@@ -1319,6 +1347,7 @@ export function CommunityNetwork() {
             : undefined,
         question: composeMode === "poll" ? inferredQuestion : undefined,
         options: composeMode === "poll" ? normalizedOptions : undefined,
+        groupId: composeGroupId,
       });
       setPosts((current) => [
         mutation.post,
@@ -1326,8 +1355,18 @@ export function CommunityNetwork() {
       ]);
       syncPostViewState(mutation.post);
       closeCompose();
-      switchTab("feed");
-      pushToast("Publication partagee avec la communaute.");
+      if (selectedApiGroupId) {
+        // Reload group posts after posting in a group
+        setIsLoadingGroupPosts(true);
+        fetchGroupPosts(selectedApiGroupId)
+          .then((gposts) => setGroupDetailPosts(gposts))
+          .catch(() => {})
+          .finally(() => setIsLoadingGroupPosts(false));
+        pushToast("Publication partagee dans ce groupe.");
+      } else {
+        switchTab("feed");
+        pushToast("Publication partagee avec la communaute.");
+      }
     } catch (error) {
       if (error instanceof Error && error.message === "AUTH_REQUIRED") {
         pushToast("Connectez-vous pour publier dans PieHUB.");
@@ -2037,12 +2076,21 @@ export function CommunityNetwork() {
 
           {activeTab === "groupes" ? (
             <section className="social-tab-section">
-              {selectedGroupName ? (
+              {(selectedGroupName || selectedApiGroupId) ? (
                 <>
-                  <button className="social-back-button" onClick={() => setSelectedGroupName(null)} type="button">
+                  <button
+                    className="social-back-button"
+                    onClick={() => {
+                      setSelectedGroupName(null);
+                      setSelectedApiGroupId(null);
+                      setGroupDetailPosts([]);
+                      setComposeGroupId(null);
+                    }}
+                    type="button"
+                  >
                     ← Retour aux groupes
                   </button>
-                  {(() => {
+                  {selectedGroupName ? (() => {
                     const group = GROUPS.find((g) => g.name === selectedGroupName);
                     if (!group) return null;
                     const tag = GROUP_TAG_MAP[group.name];
@@ -2082,7 +2130,54 @@ export function CommunityNetwork() {
                         )}
                       </>
                     );
-                  })()}
+                  })() : selectedApiGroupId ? (() => {
+                    const group = apiGroups.find((g) => String(g.id) === selectedApiGroupId);
+                    if (!group) return null;
+                    return (
+                      <>
+                        <div className="social-group-detail-header">
+                          <span className="social-group-detail-icon">{group.icon}</span>
+                          <div className="social-group-detail-info">
+                            <h2>{group.name}</h2>
+                            <p>{group.description}</p>
+                            <small>{group.memberCount.toLocaleString()} membres</small>
+                          </div>
+                          <button
+                            className={`social-join-button ${group.isMember ? "is-joined" : ""}`}
+                            onClick={() => void handleApiGroupMembership(group.id, group.name)}
+                            type="button"
+                          >
+                            {group.isMember ? "✓ Rejoint" : "Rejoindre"}
+                          </button>
+                        </div>
+                        <div className="social-group-post-count">
+                          {isLoadingGroupPosts ? "Chargement..." : `${groupDetailPosts.length} publication${groupDetailPosts.length !== 1 ? "s" : ""} dans ce groupe`}
+                        </div>
+                        <div className="social-section-actions">
+                          <button
+                            className="social-primary-pill"
+                            onClick={() => {
+                              setComposeGroupId(selectedApiGroupId);
+                              openCompose("text");
+                            }}
+                            type="button"
+                          >
+                            + Publier dans ce groupe
+                          </button>
+                        </div>
+                        {isLoadingGroupPosts ? null : groupDetailPosts.length > 0 ? (
+                          groupDetailPosts.map((post) => renderPost(post))
+                        ) : (
+                          <div className="social-list-card social-empty-state">
+                            <span className="social-list-copy">
+                              <strong>Aucune publication pour le moment.</strong>
+                              <small>Soyez le premier a partager dans ce groupe.</small>
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })() : null}
                 </>
               ) : (
                 <>
@@ -2118,7 +2213,9 @@ export function CommunityNetwork() {
                       <div className="social-list-card" key={`api-${group.id}`}>
                         <span className="social-list-icon">{group.icon}</span>
                         <span className="social-list-copy">
-                          <strong>{group.name}</strong>
+                          <button className="social-group-name-button" onClick={() => void openGroupDetail(group)} type="button">
+                            <strong>{group.name}</strong>
+                          </button>
                           <small>{group.memberCount.toLocaleString()} membres · {group.description}</small>
                         </span>
                         <button className={`social-join-button ${group.isMember ? "is-joined" : ""}`} onClick={() => void handleApiGroupMembership(group.id, group.name)} type="button">
@@ -2134,12 +2231,12 @@ export function CommunityNetwork() {
 
           {activeTab === "evenements" ? (
             <section className="social-tab-section">
-              {selectedEventName ? (
+              {(selectedEventName || selectedApiEventId) ? (
                 <>
-                  <button className="social-back-button" onClick={() => setSelectedEventName(null)} type="button">
+                  <button className="social-back-button" onClick={() => { setSelectedEventName(null); setSelectedApiEventId(null); }} type="button">
                     ← Retour aux evenements
                   </button>
-                  {(() => {
+                  {selectedEventName ? (() => {
                     const event = EVENTS.find((e) => e.name === selectedEventName);
                     if (!event) return null;
                     const isInscrit = eventState[event.name];
@@ -2181,7 +2278,48 @@ export function CommunityNetwork() {
                         </div>
                       </div>
                     );
-                  })()}
+                  })() : selectedApiEventId ? (() => {
+                    const event = apiEvents.find((e) => String(e.id) === selectedApiEventId);
+                    if (!event) return null;
+                    return (
+                      <div className="social-event-detail">
+                        <div className="social-event-detail-date">
+                          <strong>{event.eventDate.slice(8, 10) || "—"}</strong>
+                          <span>{event.eventDate.slice(5, 7) || ""}</span>
+                        </div>
+                        <div className="social-event-detail-body">
+                          <h2>{event.name}</h2>
+                          <p>{event.description}</p>
+                          <div className="social-event-detail-meta">
+                            <span>🕐 {event.eventTime}</span>
+                            <span>👥 {event.attendeeCount + (event.isAttending ? 0 : 0)} participants</span>
+                            <span>📍 {event.locationType === "online" ? "En ligne" : event.locationDetail || "Presentiel"}</span>
+                          </div>
+                          <div className="social-event-detail-actions">
+                            <button
+                              className={`social-event-button ${event.isAttending ? "is-joined" : ""}`}
+                              onClick={() => void handleApiEventAttendance(event.id, event.name)}
+                              type="button"
+                            >
+                              {event.isAttending ? "✓ Inscrit — Annuler" : "S'inscrire a cet evenement"}
+                            </button>
+                            <button
+                              className="social-secondary-button"
+                              onClick={() => openMessagesWith("piehub")}
+                              type="button"
+                            >
+                              💬 Poser une question
+                            </button>
+                          </div>
+                          {event.isAttending ? (
+                            <div className="social-event-confirm-note">
+                              ✅ Inscription confirmee. Vous recevrez les informations de connexion avant l&apos;evenement.
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })() : null}
                 </>
               ) : (
                 <>
@@ -2221,7 +2359,9 @@ export function CommunityNetwork() {
                           <span>{event.eventDate.slice(5, 7) || ""}</span>
                         </div>
                         <div className="social-event-copy">
-                          <strong>{event.name}</strong>
+                          <button className="social-group-name-button" onClick={() => setSelectedApiEventId(String(event.id))} type="button">
+                            <strong>{event.name}</strong>
+                          </button>
                           <small>{event.eventTime} · {event.attendeeCount} participants · {event.description}</small>
                         </div>
                         <button

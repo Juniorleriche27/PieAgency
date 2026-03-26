@@ -1209,6 +1209,9 @@ alter table if exists public.community_posts
 create index if not exists community_posts_moderation_idx
   on public.community_posts (moderation_status, post_type, created_at desc);
 
+ALTER TABLE community_posts ADD COLUMN IF NOT EXISTS group_id bigint REFERENCES community_groups(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_community_posts_group_id ON community_posts(group_id);
+
 -- ── Community Ads ─────────────────────────────────────────────────────────────
 create table if not exists public.community_ads (
   id bigserial primary key,
