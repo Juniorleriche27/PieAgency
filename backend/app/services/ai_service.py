@@ -8,6 +8,7 @@ import cohere
 
 from ..config import settings
 from ..knowledge_base import SITE_KNOWLEDGE, get_page_context
+from .rag_service import retrieve_rag_context
 from ..schemas import (
     AIChatRequest,
     AIChatResponse,
@@ -247,6 +248,9 @@ def _build_chat_context(request: AIChatRequest) -> tuple[dict[str, str | list[st
 
 def _build_json_chat_system_prompt(request: AIChatRequest) -> str:
     page, _ = _build_chat_context(request)
+    last_user_message = _get_last_user_message(request)
+    rag_context = retrieve_rag_context(last_user_message) if last_user_message else ""
+    rag_section = f"\nContexte RAG (extraits reels du groupe WhatsApp Campus France):\n{rag_context}\n" if rag_context else ""
     return f"""
 Tu es l'assistant IA public de PieAgency sur le site web.
 
@@ -257,10 +261,11 @@ Contexte page:
 - Path: {request.page_path}
 - Page: {page["title"]}
 - Resume: {page["summary"]}
-
+{rag_section}
 Ta mission:
 - repondre uniquement sur PieAgency, ses services, son fonctionnement, le parcours etudiant,
   et l'orientation vers le bon accompagnement;
+- si un contexte RAG est fourni, l'utiliser pour donner une reponse plus precise et concrete;
 - si la question demande une verification humaine, recommander un conseiller;
 - ne jamais inventer de prix, delais officiels ou garanties.
 
@@ -284,6 +289,9 @@ Contraintes:
 
 def _build_stream_chat_system_prompt(request: AIChatRequest) -> str:
     page, _ = _build_chat_context(request)
+    last_user_message = _get_last_user_message(request)
+    rag_context = retrieve_rag_context(last_user_message) if last_user_message else ""
+    rag_section = f"\nContexte RAG (extraits reels du groupe WhatsApp Campus France):\n{rag_context}\n" if rag_context else ""
     return f"""
 Tu es l'assistant IA public de PieAgency sur le site web.
 
@@ -294,10 +302,11 @@ Contexte page:
 - Path: {request.page_path}
 - Page: {page["title"]}
 - Resume: {page["summary"]}
-
+{rag_section}
 Ta mission:
 - repondre uniquement sur PieAgency, ses services, son fonctionnement, le parcours etudiant,
   et l'orientation vers le bon accompagnement;
+- si un contexte RAG est fourni, l'utiliser pour donner une reponse plus precise et concrete;
 - si la question demande une verification humaine, recommander un conseiller;
 - ne jamais inventer de prix, delais officiels ou garanties;
 - ne pas utiliser de JSON, de balises ou de listes artificielles;
