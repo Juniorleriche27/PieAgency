@@ -33,6 +33,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -3352,6 +3353,7 @@ footer {
   background: #f2f4f8;
   min-height: calc(100vh - 68px);
   padding-top: 0;
+  overflow-x: clip;
 }
 
 .social-topbar {
@@ -3372,6 +3374,7 @@ footer {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .social-topbar-brand {
@@ -3382,6 +3385,7 @@ footer {
   font-weight: 700;
   color: #0d1b38;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .social-topbar-logo {
@@ -3444,6 +3448,7 @@ footer {
   border: 1.5px solid #e4e7ee;
   color: #8896a8;
   font-size: 0.88rem;
+  min-width: 0;
 }
 
 .social-topbar-search-icon {
@@ -3484,6 +3489,7 @@ footer {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .social-mobile-tabs {
@@ -4912,6 +4918,11 @@ footer {
     flex-wrap: wrap;
   }
 
+  .social-topbar-left {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
   .social-topbar-search {
     order: 3;
     max-width: none;
@@ -4945,6 +4956,32 @@ footer {
   .social-topbar {
     padding-left: 12px;
     padding-right: 12px;
+  }
+
+  .social-topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    row-gap: 10px;
+  }
+
+  .social-topbar-left {
+    min-width: 0;
+    flex: initial;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .social-topbar-actions {
+    margin-left: 0;
+    justify-self: end;
+  }
+
+  .social-topbar-search {
+    grid-column: 1 / -1;
+    order: initial;
+    width: 100%;
+    max-width: none;
   }
 
   .social-mobile-tabs {
