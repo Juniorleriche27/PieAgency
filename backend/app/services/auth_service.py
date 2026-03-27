@@ -91,23 +91,10 @@ def _profile_from_user(user: User, existing_row: dict | None = None) -> AuthUser
     )
 
 
-def _load_profile_row(client, user_id: str) -> dict | None:
-    try:
-        response = client.table("profiles").select("*").eq("user_id", user_id).limit(1).execute()
-    except Exception:
-        logger.exception("Unable to load profile row from Supabase")
-        return None
-
-    data = response.data or []
-    return data[0] if data else None
-
-
-def _sync_profile(client, user: User) -> AuthUserProfile:
-    existing_row = _load_profile_row(client, user.id)
+def _profile_payload(user: User, existing_row: dict | None = None) -> dict:
     metadata = user.user_metadata or {}
-
-    role = _determine_role(user.email, existing_row.get("role") if existing_row else None)
-    payload = {
+    role = _determine_role(user.email, (existing_row or {}).get("role"))
+    return {
         "user_id": user.id,
         "email": _normalize_optional_text(user.email),
         "full_name": _normalize_optional_text(
@@ -122,6 +109,33 @@ def _sync_profile(client, user: User) -> AuthUserProfile:
         "role": role.value,
         "is_active": bool((existing_row or {}).get("is_active", True)),
     }
+
+
+def _load_profile_row(client, user_id: str) -> dict | None:
+    try:
+        response = client.table("profiles").select("*").eq("user_id", user_id).limit(1).execute()
+    except Exception:
+        logger.exception("Unable to load profile row from Supabase")
+        return None
+
+    data = response.data or []
+    return data[0] if data else None
+
+
+def _needs_profile_upsert(existing_row: dict | None, payload: dict) -> bool:
+    if not existing_row:
+        return True
+
+    tracked_fields = ("email", "full_name", "phone", "country", "role", "is_active")
+    return any(existing_row.get(field) != payload.get(field) for field in tracked_fields)
+
+
+def _sync_profile(client, user: User) -> AuthUserProfile:
+    existing_row = _load_profile_row(client, user.id)
+    payload = _profile_payload(user, existing_row)
+
+    if existing_row and not _needs_profile_upsert(existing_row, payload):
+        return _profile_from_row(existing_row)
 
     try:
         response = client.table("profiles").upsert(payload, on_conflict="user_id").execute()
