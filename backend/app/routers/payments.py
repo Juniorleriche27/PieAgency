@@ -9,8 +9,8 @@ from ..schemas import (
     PaymentStatusResponse,
 )
 from ..services.payment_service import (
-    MakutaNotConfiguredError,
-    MakutaRequestError,
+    MaketouNotConfiguredError,
+    MaketouRequestError,
     fetch_payment_status,
     get_payment_config,
     initiate_payment,
@@ -29,21 +29,21 @@ def read_payment_config() -> PaymentConfigResponse:
 
 
 @router.post(
-    "/payments/makuta/transactions",
+    "/payments/maketou/checkout",
     response_model=PaymentIntentCreateResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_payment_transaction(
+def create_payment_checkout(
     payload: PaymentIntentCreateRequest,
 ) -> PaymentIntentCreateResponse:
     try:
         return initiate_payment(payload)
-    except MakutaNotConfiguredError as exc:
+    except MaketouNotConfiguredError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
-    except MakutaRequestError as exc:
+    except MaketouRequestError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     except Exception as exc:
-        logger.exception("Unable to initiate Makuta payment")
+        logger.exception("Unable to initiate MakeTou payment")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Impossible d'initier le paiement pour le moment.",
@@ -51,18 +51,18 @@ def create_payment_transaction(
 
 
 @router.get(
-    "/payments/makuta/transactions/{transaction_id}",
+    "/payments/maketou/carts/{cart_id}",
     response_model=PaymentStatusResponse,
 )
-def get_payment_transaction_status(transaction_id: str) -> PaymentStatusResponse:
+def get_payment_cart_status(cart_id: str) -> PaymentStatusResponse:
     try:
-        return fetch_payment_status(transaction_id)
-    except MakutaNotConfiguredError as exc:
+        return fetch_payment_status(cart_id)
+    except MaketouNotConfiguredError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
-    except MakutaRequestError as exc:
+    except MaketouRequestError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     except Exception as exc:
-        logger.exception("Unable to fetch Makuta payment status")
+        logger.exception("Unable to fetch MakeTou cart status")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Impossible de verifier le statut du paiement pour le moment.",

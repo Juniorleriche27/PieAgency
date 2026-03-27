@@ -168,7 +168,7 @@ PAGE_CONTEXTS = {
     },
     "/paiement": {
         "title": "Assistant Paiement",
-        "summary": "Aider le visiteur a regler un montant deja valide avec PieAgency via Makuta.",
+        "summary": "Aider le visiteur a regler un montant deja valide avec PieAgency via MakeTou.",
         "bullets": [
             "Rappeler qu'il ne s'agit pas d'un paiement a prix automatique.",
             "Verifier qu'un conseiller a deja valide le montant.",

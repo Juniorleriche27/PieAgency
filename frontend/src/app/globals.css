@@ -2087,6 +2087,16 @@ textarea.form-input {
   line-height: 1.6;
 }
 
+.payment-return-banner {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(13, 27, 56, 0.05);
+  border: 1px solid rgba(13, 27, 56, 0.08);
+  color: var(--navy);
+  font-size: 0.88rem;
+}
+
 .payment-status-card {
   margin-top: 20px;
   padding: 22px;
@@ -2125,17 +2135,18 @@ textarea.form-input {
 }
 
 .payment-status-pill.is-pending,
-.payment-status-pill.is-initiated {
+.payment-status-pill.is-waiting_payment {
   background: rgba(200, 169, 107, 0.18);
   color: #88621d;
 }
 
-.payment-status-pill.is-success {
+.payment-status-pill.is-completed {
   background: rgba(41, 199, 104, 0.14);
   color: #13794a;
 }
 
-.payment-status-pill.is-failed {
+.payment-status-pill.is-abandoned,
+.payment-status-pill.is-payment_failed {
   background: rgba(180, 35, 24, 0.12);
   color: #912018;
 }
@@ -2175,6 +2186,13 @@ textarea.form-input {
   color: var(--navy);
   line-height: 1.5;
   overflow-wrap: anywhere;
+}
+
+.payment-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .cta-section {
@@ -6671,6 +6689,10 @@ body.chat-open .wa-float {
     flex-direction: column;
     align-items: stretch;
   }
+  .payment-inline-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
   .payment-grid,
   .payment-status-grid {
     grid-template-columns: 1fr;
@@ -6679,7 +6701,8 @@ body.chat-open .wa-float {
     max-width: none;
   }
   .payment-form-footer .btn,
-  .payment-status-card .btn {
+  .payment-status-card .btn,
+  .payment-inline-actions .btn {
     width: 100%;
   }
   .payment-step-item {

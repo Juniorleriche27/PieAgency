@@ -1,36 +1,36 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { servicePages } from "@/content/site";
 import { getApiBaseUrl } from "@/lib/auth";
 
 type PaymentConfig = {
   enabled: boolean;
-  provider: "makuta";
+  provider: "maketou";
   merchant_label: string;
-  currency_options: string[];
-  operator_options: Array<{ code: string; label: string }>;
+  display_currency: string;
   instructions: string;
   status_check_enabled: boolean;
 };
 
 type PaymentResponse = {
-  provider: "makuta";
-  status: "initiated" | "pending" | "success" | "failed" | "unknown";
+  provider: "maketou";
+  status: "waiting_payment" | "completed" | "abandoned" | "payment_failed" | "unknown";
   message: string;
-  transaction_id?: string | null;
+  cart_id?: string | null;
+  redirect_url?: string | null;
+  payment_id?: string | null;
   reference?: string | null;
-  provider_status?: string | null;
   status_check_enabled: boolean;
 };
 
 type PaymentStatusResponse = {
-  provider: "makuta";
-  transaction_id: string;
-  status: "pending" | "success" | "failed" | "unknown";
+  provider: "maketou";
+  cart_id: string;
+  status: "waiting_payment" | "completed" | "abandoned" | "payment_failed" | "unknown";
   message: string;
-  provider_status?: string | null;
+  payment_id?: string | null;
   reference?: string | null;
 };
 
@@ -38,16 +38,15 @@ type PaymentFormState = {
   fullName: string;
   email: string;
   phone: string;
-  accountNumber: string;
-  operatorCode: string;
   amount: string;
-  currency: string;
   serviceSlug: string;
   dossierReference: string;
   reason: string;
 };
 
 type PaymentFormErrors = Partial<Record<keyof PaymentFormState, string>>;
+
+const LAST_CHECKOUT_STORAGE_KEY = "pieagency.payment.lastCheckout";
 
 const serviceOptions = servicePages.map((service) => ({
   slug: service.slug,
@@ -58,10 +57,7 @@ const initialState: PaymentFormState = {
   fullName: "",
   email: "",
   phone: "",
-  accountNumber: "",
-  operatorCode: "",
   amount: "",
-  currency: "XOF",
   serviceSlug: "",
   dossierReference: "",
   reason: "Acompte convenu avec PieAgency",
@@ -76,6 +72,7 @@ export function PaymentForm() {
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
   const searchParams = useSearchParams();
   const serviceFromQuery = searchParams.get("service") ?? "";
+  const checkoutReturn = searchParams.get("checkout") === "return";
   const [config, setConfig] = useState<PaymentConfig | null>(null);
   const [form, setForm] = useState<PaymentFormState>(initialState);
   const [errors, setErrors] = useState<PaymentFormErrors>({});
@@ -128,12 +125,6 @@ export function PaymentForm() {
         }
 
         setConfig(payload);
-        setForm((current) => ({
-          ...current,
-          currency: payload.currency_options[0] ?? current.currency,
-          operatorCode:
-            current.operatorCode || payload.operator_options[0]?.code || current.operatorCode,
-        }));
       } catch (error) {
         if (!isMounted) {
           return;
@@ -180,20 +171,10 @@ export function PaymentForm() {
     if (current.phone.trim().length < 6) {
       nextErrors.phone = "Indiquez votre numero principal.";
     }
-    if (current.accountNumber.trim().length < 6) {
-      nextErrors.accountNumber = "Indiquez le numero lie au moyen de paiement.";
-    }
-    if (current.operatorCode.trim().length < 2) {
-      nextErrors.operatorCode = "Selectionnez ou renseignez l'operateur.";
-    }
 
     const amountValue = Number(current.amount);
     if (!Number.isFinite(amountValue) || amountValue <= 0) {
       nextErrors.amount = "Entrez un montant valide.";
-    }
-
-    if (current.currency.trim().length !== 3) {
-      nextErrors.currency = "La devise doit contenir 3 lettres.";
     }
     if (current.reason.trim().length < 4) {
       nextErrors.reason = "Precisez l'objet du paiement.";
@@ -201,6 +182,71 @@ export function PaymentForm() {
 
     return nextErrors;
   }
+
+  const checkStatus = useCallback(async (cartId: string) => {
+    setIsCheckingStatus(true);
+    try {
+      const response = await fetch(
+        `${apiBaseUrl}/api/payments/maketou/carts/${encodeURIComponent(cartId)}`,
+        {
+          cache: "no-store",
+        },
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | ({ detail?: string } & PaymentStatusResponse)
+        | null;
+
+      if (!response.ok) {
+        throw new Error(
+          payload?.detail ?? "Impossible de verifier le statut du paiement.",
+        );
+      }
+      if (!payload) {
+        throw new Error("MakeTou n'a pas retourne de statut exploitable.");
+      }
+
+      setStatusResult(payload);
+
+      if (
+        typeof window !== "undefined" &&
+        ["completed", "abandoned", "payment_failed"].includes(payload.status)
+      ) {
+        window.localStorage.removeItem(LAST_CHECKOUT_STORAGE_KEY);
+      }
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Impossible de verifier le statut du paiement.",
+      });
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  }, [apiBaseUrl]);
+
+  useEffect(() => {
+    if (!checkoutReturn || typeof window === "undefined") {
+      return;
+    }
+
+    const rawValue = window.localStorage.getItem(LAST_CHECKOUT_STORAGE_KEY);
+    if (!rawValue) {
+      return;
+    }
+
+    try {
+      const savedCheckout = JSON.parse(rawValue) as PaymentResponse;
+      setPaymentResult(savedCheckout);
+
+      if (savedCheckout.cart_id) {
+        void checkStatus(savedCheckout.cart_id);
+      }
+    } catch {
+      window.localStorage.removeItem(LAST_CHECKOUT_STORAGE_KEY);
+    }
+  }, [checkoutReturn, checkStatus]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -215,7 +261,7 @@ export function PaymentForm() {
       setFeedback({
         type: "info",
         message:
-          "Le paiement en ligne n'est pas encore active sur ce backend. Ajoutez les identifiants Makuta dans Render.",
+          "Le paiement en ligne n'est pas encore active sur ce backend. Ajoutez la configuration MakeTou dans Render.",
       });
       return;
     }
@@ -226,7 +272,7 @@ export function PaymentForm() {
     setStatusResult(null);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/payments/makuta/transactions`, {
+      const response = await fetch(`${apiBaseUrl}/api/payments/maketou/checkout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -235,10 +281,7 @@ export function PaymentForm() {
           full_name: form.fullName.trim(),
           email: form.email.trim(),
           phone: form.phone.trim(),
-          account_number: form.accountNumber.trim(),
-          operator_code: form.operatorCode.trim(),
           amount: Number(form.amount),
-          currency: form.currency.trim().toUpperCase(),
           service_slug: form.serviceSlug || null,
           dossier_reference: form.dossierReference.trim() || null,
           reason: form.reason.trim(),
@@ -255,14 +298,24 @@ export function PaymentForm() {
         );
       }
       if (!payload) {
-        throw new Error("Makuta n'a pas retourne de reponse exploitable.");
+        throw new Error("MakeTou n'a pas retourne de reponse exploitable.");
       }
 
       setPaymentResult(payload);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(LAST_CHECKOUT_STORAGE_KEY, JSON.stringify(payload));
+      }
+
       setFeedback({
         type: "success",
         message: payload.message,
       });
+
+      if (payload.redirect_url && typeof window !== "undefined") {
+        window.setTimeout(() => {
+          window.location.assign(payload.redirect_url!);
+        }, 900);
+      }
     } catch (error) {
       setFeedback({
         type: "error",
@@ -276,79 +329,40 @@ export function PaymentForm() {
     }
   }
 
-  async function handleCheckStatus() {
-    if (!paymentResult?.transaction_id) {
-      return;
-    }
-
-    setIsCheckingStatus(true);
-    try {
-      const response = await fetch(
-        `${apiBaseUrl}/api/payments/makuta/transactions/${encodeURIComponent(
-          paymentResult.transaction_id,
-        )}`,
-        {
-          cache: "no-store",
-        },
-      );
-      const payload = (await response.json().catch(() => null)) as
-        | ({ detail?: string } & PaymentStatusResponse)
-        | null;
-
-      if (!response.ok) {
-        throw new Error(
-          payload?.detail ?? "Impossible de verifier le statut du paiement.",
-        );
-      }
-
-      setStatusResult(payload);
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Impossible de verifier le statut du paiement.",
-      });
-    } finally {
-      setIsCheckingStatus(false);
-    }
-  }
-
   const currentService = serviceOptions.find((item) => item.slug === form.serviceSlug);
-  const operatorOptions = config?.operator_options ?? [];
-  const currencyOptions = config?.currency_options.length ? config.currency_options : ["XOF"];
+  const displayCurrency = config?.display_currency ?? "XOF";
 
   return (
     <div className="payment-layout">
       <div className="payment-info-card">
-        <div className="section-label">Paiement Makuta</div>
-        <h2 className="section-title">Payer un acompte ou un montant valide avec PieAgency</h2>
+        <div className="section-label">Paiement MakeTou</div>
+        <h2 className="section-title">Payer un acompte ou un montant convenu</h2>
         <p className="section-lead compact">
-          Cette page sert uniquement a regler un montant deja valide avec un conseiller.
-          Aucun tarif automatique n&apos;est applique sur le site.
+          Cette page sert a regler un montant deja valide avec un conseiller PieAgency.
+          Le client sera redirige vers la page de paiement securisee MakeTou pour finaliser
+          l&apos;operation.
         </p>
 
         <div className="payment-step-list">
           <div className="payment-step-item">
             <span>1</span>
             <div>
-              <strong>Renseignez le montant convenu</strong>
-              <p>Utilisez le meme montant que celui confirme par PieAgency.</p>
+              <strong>Saisissez le montant convenu</strong>
+              <p>Le produit MakeTou utilise est en prix libre, donc le client entre le montant valide.</p>
             </div>
           </div>
           <div className="payment-step-item">
             <span>2</span>
             <div>
-              <strong>Choisissez l&apos;operateur Makuta</strong>
-              <p>Le numero de paiement doit etre lie au moyen de paiement utilise.</p>
+              <strong>Creez le panier</strong>
+              <p>Le site prepare un panier MakeTou avec vos informations et votre reference dossier.</p>
             </div>
           </div>
           <div className="payment-step-item">
             <span>3</span>
             <div>
-              <strong>Validez sur votre telephone</strong>
-              <p>Apres soumission, confirmez la demande de paiement sur votre appareil.</p>
+              <strong>Finalisez sur la page securisee</strong>
+              <p>Vous etes redirige vers MakeTou, puis vous revenez ici pour verifier le statut.</p>
             </div>
           </div>
         </div>
@@ -356,6 +370,7 @@ export function PaymentForm() {
         <div className="payment-note-card">
           <div className="payment-note-kicker">Configuration</div>
           <p>{config?.instructions ?? "Chargement de la configuration de paiement..."}</p>
+          <div className="payment-service-pill">Devise affichee : {displayCurrency}</div>
           {currentService ? (
             <div className="payment-service-pill">Service preselectionne : {currentService.label}</div>
           ) : null}
@@ -366,7 +381,7 @@ export function PaymentForm() {
         <div className="payment-form-head">
           <div>
             <div className="section-label">Formulaire de paiement</div>
-            <h3>Paiement securise</h3>
+            <h3>Paiement securise via MakeTou</h3>
           </div>
           <div className={`payment-badge ${config?.enabled ? "is-live" : "is-disabled"}`}>
             {config?.enabled ? "Actif" : isLoadingConfig ? "Chargement" : "Indisponible"}
@@ -376,6 +391,12 @@ export function PaymentForm() {
         {feedback ? (
           <div className={`form-feedback ${feedback.type === "info" ? "success" : feedback.type}`}>
             {feedback.message}
+          </div>
+        ) : null}
+
+        {checkoutReturn ? (
+          <div className="payment-return-banner">
+            Vous revenez de MakeTou. Vous pouvez verifier le statut de votre paiement ci-dessous.
           </div>
         ) : null}
 
@@ -414,7 +435,7 @@ export function PaymentForm() {
 
           <div className="form-group">
             <label className="form-label" htmlFor="payment-phone">
-              Numero principal
+              Telephone
             </label>
             <input
               aria-invalid={Boolean(errors.phone)}
@@ -426,24 +447,6 @@ export function PaymentForm() {
               value={form.phone}
             />
             {errors.phone ? <div className="form-error">{errors.phone}</div> : null}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="payment-account-number">
-              Numero lie au paiement
-            </label>
-            <input
-              aria-invalid={Boolean(errors.accountNumber)}
-              className="form-input"
-              id="payment-account-number"
-              onChange={(event) => updateField("accountNumber", event.target.value)}
-              placeholder="+228 90 00 00 00"
-              type="tel"
-              value={form.accountNumber}
-            />
-            {errors.accountNumber ? (
-              <div className="form-error">{errors.accountNumber}</div>
-            ) : null}
           </div>
 
           <div className="form-group">
@@ -466,7 +469,7 @@ export function PaymentForm() {
               }}
               value={form.serviceSlug}
             >
-              <option value="">Montant libre / acompte general</option>
+              <option value="">Acompte general</option>
               {serviceOptions.map((service) => (
                 <option key={service.slug} value={service.slug}>
                   {service.label}
@@ -491,7 +494,7 @@ export function PaymentForm() {
 
           <div className="form-group">
             <label className="form-label" htmlFor="payment-amount">
-              Montant convenu
+              Montant convenu ({displayCurrency})
             </label>
             <input
               aria-invalid={Boolean(errors.amount)}
@@ -500,66 +503,11 @@ export function PaymentForm() {
               min="1"
               onChange={(event) => updateField("amount", event.target.value)}
               placeholder="Ex: 75000"
-              step="0.01"
+              step="1"
               type="number"
               value={form.amount}
             />
             {errors.amount ? <div className="form-error">{errors.amount}</div> : null}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="payment-currency">
-              Devise
-            </label>
-            <select
-              aria-invalid={Boolean(errors.currency)}
-              className="form-input"
-              id="payment-currency"
-              onChange={(event) => updateField("currency", event.target.value)}
-              value={form.currency}
-            >
-              {currencyOptions.map((currency) => (
-                <option key={currency} value={currency}>
-                  {currency}
-                </option>
-              ))}
-            </select>
-            {errors.currency ? <div className="form-error">{errors.currency}</div> : null}
-          </div>
-
-          <div className="form-group payment-operator-field">
-            <label className="form-label" htmlFor="payment-operator">
-              Operateur Makuta
-            </label>
-            {operatorOptions.length ? (
-              <select
-                aria-invalid={Boolean(errors.operatorCode)}
-                className="form-input"
-                id="payment-operator"
-                onChange={(event) => updateField("operatorCode", event.target.value)}
-                value={form.operatorCode}
-              >
-                <option value="">Selectionnez un operateur</option>
-                {operatorOptions.map((operator) => (
-                  <option key={operator.code} value={operator.code}>
-                    {operator.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                aria-invalid={Boolean(errors.operatorCode)}
-                className="form-input"
-                id="payment-operator"
-                onChange={(event) => updateField("operatorCode", event.target.value)}
-                placeholder="Code ou nom operateur Makuta"
-                type="text"
-                value={form.operatorCode}
-              />
-            )}
-            {errors.operatorCode ? (
-              <div className="form-error">{errors.operatorCode}</div>
-            ) : null}
           </div>
 
           <div className="form-group payment-reason-field">
@@ -581,11 +529,11 @@ export function PaymentForm() {
 
         <div className="payment-form-footer">
           <div className="payment-footnote">
-            Le paiement en ligne ne remplace pas le diagnostic. Il sert a regler un montant
-            deja confirme avec PieAgency.
+            Le paiement est finalise sur la page securisee MakeTou. Le montant saisi doit
+            correspondre au montant deja confirme avec PieAgency.
           </div>
           <button className="btn btn-primary btn-lg" disabled={isSubmitting || isLoadingConfig} type="submit">
-            {isSubmitting ? "Connexion Makuta..." : "Initier le paiement"}
+            {isSubmitting ? "Creation du panier..." : "Continuer vers le paiement"}
           </button>
         </div>
 
@@ -593,8 +541,8 @@ export function PaymentForm() {
           <div className="payment-status-card">
             <div className="payment-status-head">
               <div>
-                <div className="payment-note-kicker">Transaction envoyee</div>
-                <h4>Suivi du paiement</h4>
+                <div className="payment-note-kicker">Panier cree</div>
+                <h4>Suivi MakeTou</h4>
               </div>
               <div className={`payment-status-pill is-${paymentResult.status}`}>
                 {paymentResult.status}
@@ -602,28 +550,40 @@ export function PaymentForm() {
             </div>
             <div className="payment-status-grid">
               <div>
-                <span>Transaction</span>
-                <strong>{paymentResult.transaction_id ?? "Non retournee"}</strong>
+                <span>Panier</span>
+                <strong>{paymentResult.cart_id ?? "Non retourne"}</strong>
               </div>
               <div>
                 <span>Reference</span>
                 <strong>{paymentResult.reference ?? "Non retournee"}</strong>
               </div>
               <div>
-                <span>Statut Makuta</span>
-                <strong>{paymentResult.provider_status ?? "En attente"}</strong>
+                <span>Paiement</span>
+                <strong>{paymentResult.payment_id ?? "En attente"}</strong>
               </div>
             </div>
-            {paymentResult.status_check_enabled && paymentResult.transaction_id ? (
-              <button
-                className="btn btn-outline"
-                disabled={isCheckingStatus}
-                onClick={handleCheckStatus}
-                type="button"
-              >
-                {isCheckingStatus ? "Verification..." : "Verifier le statut"}
-              </button>
-            ) : null}
+            <div className="payment-inline-actions">
+              {paymentResult.redirect_url ? (
+                <a
+                  className="btn btn-primary"
+                  href={paymentResult.redirect_url}
+                  rel="noreferrer"
+                  target="_self"
+                >
+                  Ouvrir MakeTou
+                </a>
+              ) : null}
+              {paymentResult.status_check_enabled && paymentResult.cart_id ? (
+                <button
+                  className="btn btn-outline"
+                  disabled={isCheckingStatus}
+                  onClick={() => checkStatus(paymentResult.cart_id!)}
+                  type="button"
+                >
+                  {isCheckingStatus ? "Verification..." : "Verifier le statut"}
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : null}
 
@@ -641,16 +601,16 @@ export function PaymentForm() {
             <p>{statusResult.message}</p>
             <div className="payment-status-grid">
               <div>
-                <span>Transaction</span>
-                <strong>{statusResult.transaction_id}</strong>
+                <span>Panier</span>
+                <strong>{statusResult.cart_id}</strong>
               </div>
               <div>
                 <span>Reference</span>
                 <strong>{statusResult.reference ?? "Non retournee"}</strong>
               </div>
               <div>
-                <span>Statut Makuta</span>
-                <strong>{statusResult.provider_status ?? "Inconnu"}</strong>
+                <span>Paiement</span>
+                <strong>{statusResult.payment_id ?? "En attente"}</strong>
               </div>
             </div>
           </div>

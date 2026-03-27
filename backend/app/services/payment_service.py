@@ -9,18 +9,17 @@ from ..schemas import (
     PaymentConfigResponse,
     PaymentIntentCreateRequest,
     PaymentIntentCreateResponse,
-    PaymentOperatorItem,
     PaymentStatusResponse,
 )
 
 logger = logging.getLogger(__name__)
 
 
-class MakutaNotConfiguredError(RuntimeError):
+class MaketouNotConfiguredError(RuntimeError):
     pass
 
 
-class MakutaRequestError(RuntimeError):
+class MaketouRequestError(RuntimeError):
     pass
 
 
@@ -30,13 +29,11 @@ def _resolve_url(url_or_path: str) -> str:
         return ""
     if value.startswith("http://") or value.startswith("https://"):
         return value
-    if not settings.makuta_base_url:
-        return value
-    return f"{settings.makuta_base_url.rstrip('/')}/{value.lstrip('/')}"
+    return f"{settings.maketou_base_url.rstrip('/')}/{value.lstrip('/')}"
 
 
 def _request_timeout() -> float:
-    return max(settings.makuta_request_timeout_seconds, 5.0)
+    return max(settings.maketou_request_timeout_seconds, 5.0)
 
 
 def _safe_json(response: httpx.Response) -> dict[str, Any]:
@@ -47,79 +44,51 @@ def _safe_json(response: httpx.Response) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
-def _extract_value(payload: dict[str, Any], candidates: tuple[str, ...]) -> str | None:
-    for key in candidates:
-        value = payload.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-        if isinstance(value, (int, float)):
-            return str(value)
+def _extract_string(payload: dict[str, Any], key: str) -> str | None:
+    value = payload.get(key)
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    if isinstance(value, (int, float)):
+        return str(value)
     return None
 
 
-def _build_headers(user_token: str | None = None) -> dict[str, str]:
-    headers = {
+def _split_full_name(full_name: str) -> tuple[str, str]:
+    parts = [item for item in full_name.strip().split() if item]
+    if not parts:
+        return "Client", "PieAgency"
+    if len(parts) == 1:
+        return parts[0], parts[0]
+    return parts[0], " ".join(parts[1:])
+
+
+def _build_headers() -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {settings.maketou_api_key}",
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
-    if settings.makuta_app_token:
-        headers["App-Token"] = settings.makuta_app_token
-    if user_token:
-        headers["User-Token"] = user_token
-    return headers
 
 
 def _ensure_configured() -> None:
-    if not settings.makuta_enabled:
-        raise MakutaNotConfiguredError(
-            "Makuta n'est pas configure. Renseignez le wallet, l'App-Token et l'endpoint de transaction.",
+    if not settings.maketou_enabled:
+        raise MaketouNotConfiguredError(
+            "MakeTou n'est pas configure. Ajoutez la cle API et le productDocumentId dans Render.",
         )
 
 
-def _authenticate_makuta(client: httpx.Client) -> str:
-    if settings.makuta_user_token.strip():
-        return settings.makuta_user_token.strip()
+def _resolve_product_document_id(service_slug: str | None) -> str:
+    if service_slug:
+        service_product = settings.maketou_service_product_map.get(service_slug)
+        if service_product:
+            return service_product
 
-    login_url = _resolve_url(settings.makuta_login_url)
-    if not login_url:
-        raise MakutaNotConfiguredError(
-            "Le login Makuta n'est pas configure. Ajoutez MAKUTA_LOGIN_URL ou MAKUTA_USER_TOKEN.",
-        )
-    if not settings.makuta_login_identity or not settings.makuta_login_password:
-        raise MakutaNotConfiguredError(
-            "Les identifiants Makuta ne sont pas configures.",
-        )
+    if settings.maketou_default_product_document_id.strip():
+        return settings.maketou_default_product_document_id.strip()
 
-    payload = {
-        settings.makuta_login_identity_field: settings.makuta_login_identity,
-        settings.makuta_login_password_field: settings.makuta_login_password,
-    }
-
-    try:
-        response = client.post(
-            login_url,
-            headers=_build_headers(),
-            json=payload,
-            timeout=_request_timeout(),
-        )
-    except Exception as exc:  # pragma: no cover - network error path
-        logger.exception("Makuta authentication failed")
-        raise MakutaRequestError("Connexion impossible au service Makuta.") from exc
-
-    data = _safe_json(response)
-    if response.status_code >= 400:
-        error_message = _extract_value(data, ("message", "detail", "error"))
-        raise MakutaRequestError(
-            error_message or "Authentification Makuta refusee.",
-        )
-
-    header_token = response.headers.get("User-Token") or response.headers.get("user-token")
-    body_token = _extract_value(data, ("userToken", "user_token", "token", "accessToken"))
-    token = (header_token or body_token or "").strip()
-    if not token:
-        raise MakutaRequestError("Makuta n'a pas retourne de User-Token exploitable.")
-
-    return token
+    raise MaketouNotConfiguredError(
+        "Aucun productDocumentId MakeTou n'est configure pour ce paiement.",
+    )
 
 
 def _normalize_amount(amount: float) -> int | float:
@@ -127,183 +96,144 @@ def _normalize_amount(amount: float) -> int | float:
     return int(rounded) if rounded.is_integer() else rounded
 
 
-def _build_reason(payload: PaymentIntentCreateRequest) -> str:
-    parts = [payload.reason.strip()]
+def _build_checkout_meta(payload: PaymentIntentCreateRequest) -> dict[str, str]:
+    meta = {
+        "source": "pieagency-website",
+        "reason": payload.reason.strip(),
+    }
     if payload.service_slug:
-        parts.append(f"Service {payload.service_slug}")
+        meta["serviceSlug"] = payload.service_slug
     if payload.dossier_reference:
-        parts.append(f"Ref {payload.dossier_reference.strip()}")
-    return " | ".join(parts)
+        meta["dossierReference"] = payload.dossier_reference
+    return meta
+
+
+def _extract_reference(payload: dict[str, Any]) -> str | None:
+    meta = payload.get("meta")
+    if isinstance(meta, dict):
+        reference = meta.get("dossierReference")
+        if isinstance(reference, str) and reference.strip():
+            return reference.strip()
+    return None
+
+
+def _normalize_status(raw_status: str | None) -> str:
+    if raw_status in {"waiting_payment", "completed", "abandoned", "payment_failed"}:
+        return raw_status
+    return "unknown"
 
 
 def get_payment_config() -> PaymentConfigResponse:
     instructions = (
-        "Paiement en ligne via Makuta. Le montant doit correspondre a un montant deja valide "
-        "avec un conseiller PieAgency."
+        "Paiement en ligne via MakeTou. Le client saisit uniquement un montant deja valide "
+        "avec un conseiller PieAgency. Le produit MakeTou utilise doit etre configure en Prix libre."
     )
-    if not settings.makuta_enabled:
+    if not settings.maketou_enabled:
         instructions = (
-            "Le paiement en ligne n'est pas encore active. Ajoutez les identifiants Makuta "
-            "dans l'environnement backend pour l'ouvrir au public."
+            "Le paiement en ligne n'est pas encore actif. Ajoutez la cle API MakeTou et un "
+            "productDocumentId configure en Prix libre dans l'environnement backend."
         )
 
     return PaymentConfigResponse(
-        enabled=settings.makuta_enabled,
-        provider="makuta",
-        merchant_label=settings.makuta_merchant_label,
-        currency_options=settings.makuta_supported_currency_list,
-        operator_options=[
-            PaymentOperatorItem(code=code, label=label)
-            for code, label in settings.makuta_operator_option_list
-        ],
+        enabled=settings.maketou_enabled,
+        provider="maketou",
+        merchant_label=settings.maketou_merchant_label,
+        display_currency=settings.maketou_display_currency.strip().upper() or "XOF",
         instructions=instructions,
-        status_check_enabled=bool(settings.makuta_status_url_template.strip()),
+        status_check_enabled=settings.maketou_enabled
+        and bool(settings.maketou_cart_status_endpoint_template),
     )
 
 
 def initiate_payment(payload: PaymentIntentCreateRequest) -> PaymentIntentCreateResponse:
     _ensure_configured()
-    transaction_url = _resolve_url(settings.makuta_transaction_endpoint)
-    if not transaction_url:
-        raise MakutaNotConfiguredError(
-            "L'endpoint de transaction Makuta est vide.",
-        )
+    checkout_url = settings.maketou_checkout_endpoint
+    product_document_id = _resolve_product_document_id(payload.service_slug)
+    first_name, last_name = _split_full_name(payload.full_name)
 
-    client = httpx.Client()
+    checkout_payload = {
+        "productDocumentId": product_document_id,
+        "email": payload.email,
+        "firstName": first_name,
+        "lastName": last_name,
+        "phone": payload.phone,
+        "redirectURL": settings.maketou_return_url,
+        "customerPrice": _normalize_amount(payload.amount),
+        "meta": _build_checkout_meta(payload),
+    }
+
     try:
-        user_token = _authenticate_makuta(client)
-        makuta_payload = {
-            "wallet": settings.makuta_wallet_id,
-            "walletOperation": settings.makuta_wallet_operation,
-            "walletAmount": _normalize_amount(payload.amount),
-            "clientOperator": payload.operator_code,
-            "clientCurrency": payload.currency,
-            "clientAccountNumber": payload.account_number,
-            "reason": _build_reason(payload),
-            "isPreview": False,
-            "makeC2B": True,
-        }
-
-        response = client.post(
-            transaction_url,
-            headers=_build_headers(user_token),
-            json=makuta_payload,
+        response = httpx.post(
+            _resolve_url(checkout_url),
+            headers=_build_headers(),
+            json=checkout_payload,
             timeout=_request_timeout(),
         )
-    except MakutaRequestError:
-        raise
     except Exception as exc:  # pragma: no cover - network error path
-        logger.exception("Makuta payment initiation failed")
-        raise MakutaRequestError("Impossible d'initier le paiement Makuta pour le moment.") from exc
-    finally:
-        client.close()
+        logger.exception("MakeTou checkout initiation failed")
+        raise MaketouRequestError("Impossible d'initier le paiement MakeTou.") from exc
 
     data = _safe_json(response)
     if response.status_code >= 400:
-        error_message = _extract_value(data, ("message", "detail", "error"))
-        raise MakutaRequestError(error_message or "Makuta a refuse la demande de paiement.")
+        message = _extract_string(data, "message") or "MakeTou a refuse la creation du panier."
+        raise MaketouRequestError(message)
 
-    transaction_id = _extract_value(
-        data,
-        (
-            "financialTransactionId",
-            "financial_transaction_id",
-            "transactionId",
-            "transaction_id",
-            "id",
-        ),
-    )
-    reference = _extract_value(
-        data,
-        ("reference", "externalReference", "clientReference", "traceId"),
-    ) or payload.dossier_reference
-    provider_status = _extract_value(
-        data,
-        ("status", "transactionStatus", "paymentStatus", "state"),
-    )
+    cart = data.get("cart")
+    cart_payload = cart if isinstance(cart, dict) else {}
+    raw_status = _extract_string(cart_payload, "status")
+    cart_id = _extract_string(cart_payload, "id")
+    payment_id = _extract_string(cart_payload, "paymentId")
+    redirect_url = _extract_string(data, "redirectUrl")
 
     return PaymentIntentCreateResponse(
-        provider="makuta",
-        status="pending",
+        provider="maketou",
+        status=_normalize_status(raw_status),
         message=(
-            "La demande de paiement a ete envoyee. Verifiez votre telephone ou votre moyen "
-            "de paiement pour confirmer l'operation."
+            "Le panier MakeTou a ete cree. Vous allez maintenant etre redirige vers la page "
+            "de paiement pour finaliser l'operation."
         ),
-        transaction_id=transaction_id,
-        reference=reference,
-        provider_status=provider_status,
-        status_check_enabled=bool(settings.makuta_status_url_template.strip()),
+        cart_id=cart_id,
+        redirect_url=redirect_url,
+        payment_id=payment_id,
+        reference=payload.dossier_reference,
+        status_check_enabled=settings.maketou_enabled
+        and bool(settings.maketou_cart_status_endpoint_template),
     )
 
 
-def fetch_payment_status(transaction_id: str) -> PaymentStatusResponse:
+def fetch_payment_status(cart_id: str) -> PaymentStatusResponse:
     _ensure_configured()
-    template = settings.makuta_status_url_template.strip()
-    if not template:
-        return PaymentStatusResponse(
-            provider="makuta",
-            transaction_id=transaction_id,
-            status="unknown",
-            message="Le suivi automatique Makuta n'est pas configure.",
-            provider_status=None,
-            reference=None,
+    template = settings.maketou_cart_status_endpoint_template
+    if "{cart_id}" not in template:
+        raise MaketouNotConfiguredError(
+            "MAKETOU_CART_STATUS_URL_TEMPLATE doit contenir {cart_id}.",
         )
 
-    if "{transaction_id}" not in template:
-        raise MakutaNotConfiguredError(
-            "MAKUTA_STATUS_URL_TEMPLATE doit contenir {transaction_id}.",
-        )
-
-    status_url = _resolve_url(template.format(transaction_id=quote(transaction_id, safe="")))
-    method = settings.makuta_status_http_method.strip().upper() or "GET"
-
-    client = httpx.Client()
+    status_url = _resolve_url(template.format(cart_id=quote(cart_id, safe="")))
     try:
-        user_token = _authenticate_makuta(client)
-        response = client.request(
-            method,
+        response = httpx.get(
             status_url,
-            headers=_build_headers(user_token),
+            headers=_build_headers(),
             timeout=_request_timeout(),
         )
-    except MakutaRequestError:
-        raise
     except Exception as exc:  # pragma: no cover - network error path
-        logger.exception("Makuta payment status lookup failed")
-        raise MakutaRequestError("Impossible de verifier le statut du paiement.") from exc
-    finally:
-        client.close()
+        logger.exception("MakeTou cart status lookup failed")
+        raise MaketouRequestError("Impossible de verifier le statut du panier MakeTou.") from exc
 
     data = _safe_json(response)
     if response.status_code >= 400:
-        error_message = _extract_value(data, ("message", "detail", "error"))
-        raise MakutaRequestError(error_message or "Makuta a refuse la verification du paiement.")
+        message = _extract_string(data, "message") or "MakeTou a refuse la verification du panier."
+        raise MaketouRequestError(message)
 
-    provider_status = _extract_value(
-        data,
-        ("status", "transactionStatus", "paymentStatus", "state"),
-    )
-    normalized_status = "unknown"
-    if provider_status:
-        lowered = provider_status.lower()
-        if any(token in lowered for token in ("success", "paid", "completed", "done")):
-            normalized_status = "success"
-        elif any(token in lowered for token in ("fail", "cancel", "reject", "error")):
-            normalized_status = "failed"
-        elif any(token in lowered for token in ("pending", "wait", "process", "initiated")):
-            normalized_status = "pending"
-
-    reference = _extract_value(
-        data,
-        ("reference", "externalReference", "clientReference", "traceId"),
-    )
-    message = _extract_value(data, ("message", "detail")) or "Statut Makuta recupere."
+    raw_status = _extract_string(data, "status")
+    payment_id = _extract_string(data, "paymentId")
+    reference = _extract_reference(data)
 
     return PaymentStatusResponse(
-        provider="makuta",
-        transaction_id=transaction_id,
-        status=normalized_status,
-        message=message,
-        provider_status=provider_status,
+        provider="maketou",
+        cart_id=cart_id,
+        status=_normalize_status(raw_status),
+        message="Statut du panier MakeTou recupere.",
+        payment_id=payment_id,
         reference=reference,
     )

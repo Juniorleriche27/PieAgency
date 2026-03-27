@@ -18,24 +18,16 @@ class Settings(BaseSettings):
     supabase_service_role_key: str = ""
     supabase_contact_table: str = "contact_requests"
     admin_emails: str = ""
-    makuta_base_url: str = ""
-    makuta_api_version: str = "v1"
-    makuta_app_token: str = ""
-    makuta_user_token: str = ""
-    makuta_login_url: str = ""
-    makuta_login_identity: str = ""
-    makuta_login_password: str = ""
-    makuta_login_identity_field: str = "login"
-    makuta_login_password_field: str = "password"
-    makuta_wallet_id: str = ""
-    makuta_wallet_operation: str = "CREDIT"
-    makuta_transaction_url: str = ""
-    makuta_status_url_template: str = ""
-    makuta_status_http_method: str = "GET"
-    makuta_supported_currencies: str = "XOF"
-    makuta_operator_options: str = ""
-    makuta_request_timeout_seconds: float = 20.0
-    makuta_merchant_label: str = "PieAgency"
+    maketou_base_url: str = "https://api.maketou.net"
+    maketou_api_key: str = ""
+    maketou_checkout_url: str = ""
+    maketou_cart_status_url_template: str = ""
+    maketou_default_product_document_id: str = ""
+    maketou_service_products: str = ""
+    maketou_redirect_url: str = ""
+    maketou_display_currency: str = "XOF"
+    maketou_request_timeout_seconds: float = 20.0
+    maketou_merchant_label: str = "PieAgency"
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
@@ -73,52 +65,62 @@ class Settings(BaseSettings):
         }
 
     @property
-    def makuta_enabled(self) -> bool:
+    def maketou_enabled(self) -> bool:
         return bool(
-            self.makuta_wallet_id
-            and self.makuta_app_token
-            and self.makuta_transaction_endpoint
+            self.maketou_api_key
+            and self.maketou_checkout_endpoint
+            and (
+                self.maketou_default_product_document_id
+                or self.maketou_service_product_map
+            )
         )
 
     @property
-    def makuta_transaction_endpoint(self) -> str:
-        if self.makuta_transaction_url.strip():
-            return self.makuta_transaction_url.strip()
+    def maketou_checkout_endpoint(self) -> str:
+        if self.maketou_checkout_url.strip():
+            return self.maketou_checkout_url.strip()
 
-        base_url = self.makuta_base_url.rstrip("/")
-        api_version = self.makuta_api_version.strip().strip("/")
-        if not base_url or not api_version:
+        base_url = self.maketou_base_url.rstrip("/")
+        if not base_url:
             return ""
 
-        return f"{base_url}/{api_version}/financial-transactions/0"
+        return f"{base_url}/api/v1/stores/cart/checkout"
 
     @property
-    def makuta_supported_currency_list(self) -> list[str]:
-        return [
-            currency.strip().upper()
-            for currency in self.makuta_supported_currencies.split(",")
-            if currency.strip()
-        ] or ["XOF"]
+    def maketou_cart_status_endpoint_template(self) -> str:
+        if self.maketou_cart_status_url_template.strip():
+            return self.maketou_cart_status_url_template.strip()
+
+        base_url = self.maketou_base_url.rstrip("/")
+        if not base_url:
+            return ""
+
+        return f"{base_url}/api/v1/stores/cart/{{cart_id}}"
 
     @property
-    def makuta_operator_option_list(self) -> list[tuple[str, str]]:
-        options: list[tuple[str, str]] = []
-        for item in self.makuta_operator_options.split(","):
+    def maketou_service_product_map(self) -> dict[str, str]:
+        product_map: dict[str, str] = {}
+        for item in self.maketou_service_products.split(","):
             raw_item = item.strip()
             if not raw_item:
                 continue
 
-            if ":" in raw_item:
-                code, label = raw_item.split(":", 1)
-            else:
-                code, label = raw_item, raw_item
+            if ":" not in raw_item:
+                continue
 
-            normalized_code = code.strip()
-            normalized_label = label.strip()
-            if normalized_code and normalized_label:
-                options.append((normalized_code, normalized_label))
+            service_slug, product_document_id = raw_item.split(":", 1)
+            normalized_service_slug = service_slug.strip()
+            normalized_product_document_id = product_document_id.strip()
+            if normalized_service_slug and normalized_product_document_id:
+                product_map[normalized_service_slug] = normalized_product_document_id
 
-        return options
+        return product_map
+
+    @property
+    def maketou_return_url(self) -> str:
+        if self.maketou_redirect_url.strip():
+            return self.maketou_redirect_url.strip()
+        return f"{self.frontend_origin.rstrip('/')}/paiement?checkout=return"
 
 
 settings = Settings()
