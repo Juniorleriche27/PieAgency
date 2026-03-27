@@ -724,7 +724,7 @@ export function ContactForm() {
         </div>
         <div className="form-compact-actions">
           <button
-            className="btn btn-outline"
+            className="btn btn-outline-white"
             disabled={currentStep === 0 || isSubmitting}
             onClick={handlePreviousStep}
             type="button"

@@ -1594,10 +1594,10 @@ nav {
   gap: 20px;
   padding: 24px;
   border-radius: 28px;
-  background: linear-gradient(180deg, #12271d 0%, #0d1b15 100%);
-  border: 1px solid rgba(108, 170, 132, 0.18);
-  box-shadow: 0 22px 60px rgba(9, 19, 15, 0.24);
-  color: #f4faf6;
+  background: linear-gradient(180deg, #0d1b38 0%, #091427 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 22px 60px rgba(9, 19, 56, 0.28);
+  color: #f0f4ff;
 }
 
 .form-compact-funnel .form-feedback {
