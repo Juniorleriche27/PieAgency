@@ -354,298 +354,380 @@ export function PaymentForm() {
 
   const currentService = serviceOptions.find((item) => item.slug === form.serviceSlug);
   const displayCurrency = config?.display_currency ?? "XOF";
+  const progressStep =
+    paymentResult || statusResult || checkoutReturn
+      ? 3
+      : form.serviceSlug ||
+          form.dossierReference.trim() ||
+          form.amount.trim() ||
+          form.reason.trim() !== initialState.reason
+        ? 2
+        : 1;
+  const journeyItems = [
+    {
+      number: 1,
+      label: "Vos informations",
+    },
+    {
+      number: 2,
+      label: "Montant & dossier",
+    },
+    {
+      number: 3,
+      label: "Paiement securise",
+    },
+  ];
+  const trustItems = [
+    "Paiement traite sur la page securisee MakeTou.",
+    `Devise affichee : ${displayCurrency}.`,
+    "Montant libre, mais deja valide avec PieAgency avant paiement.",
+    currentService ? `Service concerne : ${currentService.label}.` : "Reference dossier facultative mais recommandee.",
+  ];
 
   return (
-    <div className="payment-layout">
-      <div className="payment-info-card">
-        <div className="section-label">Paiement MakeTou</div>
-        <h2 className="section-title">Payer un acompte ou un montant convenu</h2>
-        <p className="section-lead compact">
-          Cette page sert a regler un montant deja valide avec un conseiller PieAgency.
-          Le client sera redirige vers la page de paiement securisee MakeTou pour finaliser
-          l&apos;operation.
-        </p>
-
-        <div className="payment-step-list">
-          <div className="payment-step-item">
-            <span>1</span>
-            <div>
-              <strong>Saisissez le montant convenu</strong>
-              <p>Le produit MakeTou utilise est en prix libre, donc le client entre le montant valide.</p>
-            </div>
-          </div>
-          <div className="payment-step-item">
-            <span>2</span>
-            <div>
-              <strong>Creez le panier</strong>
-              <p>Le site prepare un panier MakeTou avec vos informations et votre reference dossier.</p>
-            </div>
-          </div>
-          <div className="payment-step-item">
-            <span>3</span>
-            <div>
-              <strong>Finalisez sur la page securisee</strong>
-              <p>Vous etes redirige vers MakeTou, puis vous revenez ici pour verifier le statut.</p>
-            </div>
-          </div>
+    <div className="payment-shell">
+      <div className="payment-page-head">
+        <div>
+          <div className="section-label">Paiement en ligne</div>
+          <h2 className="section-title payment-page-title">Regler un montant convenu</h2>
+          <p className="section-lead compact payment-page-copy">
+            Remplissez le formulaire ci-dessous uniquement pour un montant deja valide
+            avec un conseiller PieAgency. Vous serez ensuite redirige vers MakeTou pour
+            finaliser le paiement.
+          </p>
         </div>
-
-        <div className="payment-note-card">
-          <div className="payment-note-kicker">Configuration</div>
-          <p>{config?.instructions ?? "Chargement de la configuration de paiement..."}</p>
-          <div className="payment-service-pill">Devise affichee : {displayCurrency}</div>
-          {currentService ? (
-            <div className="payment-service-pill">Service preselectionne : {currentService.label}</div>
-          ) : null}
+        <div className={`payment-badge ${config?.enabled ? "is-live" : "is-disabled"}`}>
+          {config?.enabled ? "Actif" : isLoadingConfig ? "Chargement" : "Indisponible"}
         </div>
       </div>
 
-      <form className="form-card payment-form-card" onSubmit={handleSubmit}>
-        <div className="payment-form-head">
-          <div>
+      <div className="payment-progress" aria-hidden="true">
+        {journeyItems.map((item) => {
+          const state =
+            progressStep > item.number
+              ? "is-complete"
+              : progressStep === item.number
+                ? "is-active"
+                : "is-pending";
+
+          return (
+            <div className={`payment-progress-step ${state}`} key={item.number}>
+              <span className="payment-progress-circle">{item.number}</span>
+              <span className="payment-progress-label">{item.label}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {feedback ? (
+        <div className={`form-feedback ${feedback.type === "info" ? "success" : feedback.type}`}>
+          {feedback.message}
+        </div>
+      ) : null}
+
+      {checkoutReturn ? (
+        <div className="payment-return-banner">
+          Vous revenez de MakeTou. Vous pouvez verifier le statut de votre paiement ci-dessous.
+        </div>
+      ) : null}
+
+      <div className="payment-main-grid">
+        <form className="form-card payment-form-card" onSubmit={handleSubmit}>
+          <div className="payment-form-intro">
             <div className="section-label">Formulaire de paiement</div>
-            <h3>Paiement securise via MakeTou</h3>
-          </div>
-          <div className={`payment-badge ${config?.enabled ? "is-live" : "is-disabled"}`}>
-            {config?.enabled ? "Actif" : isLoadingConfig ? "Chargement" : "Indisponible"}
-          </div>
-        </div>
-
-        {feedback ? (
-          <div className={`form-feedback ${feedback.type === "info" ? "success" : feedback.type}`}>
-            {feedback.message}
-          </div>
-        ) : null}
-
-        {checkoutReturn ? (
-          <div className="payment-return-banner">
-            Vous revenez de MakeTou. Vous pouvez verifier le statut de votre paiement ci-dessous.
-          </div>
-        ) : null}
-
-        <div className="payment-grid">
-          <div className="form-group">
-            <label className="form-label" htmlFor="payment-full-name">
-              Nom complet
-            </label>
-            <input
-              aria-invalid={Boolean(errors.fullName)}
-              className="form-input"
-              id="payment-full-name"
-              onChange={(event) => updateField("fullName", event.target.value)}
-              placeholder="Nom et prenom"
-              type="text"
-              value={form.fullName}
-            />
-            {errors.fullName ? <div className="form-error">{errors.fullName}</div> : null}
+            <h3>Completer le paiement</h3>
+            <p>
+              Saisissez vos coordonnees, le service concerne et le montant deja valide
+              avec PieAgency.
+            </p>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="payment-email">
-              Email
-            </label>
-            <input
-              aria-invalid={Boolean(errors.email)}
-              className="form-input"
-              id="payment-email"
-              onChange={(event) => updateField("email", event.target.value)}
-              placeholder="vous@email.com"
-              type="email"
-              value={form.email}
-            />
-            {errors.email ? <div className="form-error">{errors.email}</div> : null}
-          </div>
+          <div className="payment-card-section">
+            <div className="payment-card-section-head">
+              <div className="payment-card-kicker">Identite</div>
+              <p>Les coordonnees qui seront rattachees au paiement et au dossier.</p>
+            </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="payment-phone">
-              Telephone
-            </label>
-            <input
-              aria-invalid={Boolean(errors.phone)}
-              className="form-input"
-              id="payment-phone"
-              inputMode="tel"
-              onBlur={(event) => updateField("phone", normalizePhone(event.target.value))}
-              onChange={(event) => updateField("phone", event.target.value)}
-              placeholder="+22899159953"
-              type="tel"
-              value={form.phone}
-            />
-            {errors.phone ? <div className="form-error">{errors.phone}</div> : null}
-            <div className="form-help">
-              Saisissez toujours le numero avec l&apos;indicatif pays, par exemple
-              {" "}
-              <code>+22899159953</code>.
+            <div className="payment-grid">
+              <div className="form-group">
+                <label className="form-label" htmlFor="payment-full-name">
+                  Nom complet
+                </label>
+                <input
+                  aria-invalid={Boolean(errors.fullName)}
+                  className="form-input"
+                  id="payment-full-name"
+                  onChange={(event) => updateField("fullName", event.target.value)}
+                  placeholder="Nom et prenom"
+                  type="text"
+                  value={form.fullName}
+                />
+                {errors.fullName ? <div className="form-error">{errors.fullName}</div> : null}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="payment-email">
+                  Email
+                </label>
+                <input
+                  aria-invalid={Boolean(errors.email)}
+                  className="form-input"
+                  id="payment-email"
+                  onChange={(event) => updateField("email", event.target.value)}
+                  placeholder="vous@email.com"
+                  type="email"
+                  value={form.email}
+                />
+                {errors.email ? <div className="form-error">{errors.email}</div> : null}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="payment-phone">
+                  Telephone
+                </label>
+                <input
+                  aria-invalid={Boolean(errors.phone)}
+                  className="form-input"
+                  id="payment-phone"
+                  inputMode="tel"
+                  onBlur={(event) => updateField("phone", normalizePhone(event.target.value))}
+                  onChange={(event) => updateField("phone", event.target.value)}
+                  placeholder="+22899159953"
+                  type="tel"
+                  value={form.phone}
+                />
+                {errors.phone ? <div className="form-error">{errors.phone}</div> : null}
+                <div className="form-help">
+                  Saisissez toujours le numero avec l&apos;indicatif pays, par exemple{" "}
+                  <code>+22899159953</code>.
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="payment-service">
+                  Service concerne
+                </label>
+                <select
+                  className="form-input"
+                  id="payment-service"
+                  onChange={(event) => {
+                    const nextServiceSlug = event.target.value;
+                    const shouldUpdateReason =
+                      !form.reason.trim() ||
+                      form.reason === initialState.reason ||
+                      form.reason === getServiceReason(form.serviceSlug);
+                    updateField("serviceSlug", nextServiceSlug);
+                    if (shouldUpdateReason) {
+                      updateField("reason", getServiceReason(nextServiceSlug));
+                    }
+                  }}
+                  value={form.serviceSlug}
+                >
+                  <option value="">Acompte general</option>
+                  {serviceOptions.map((service) => (
+                    <option key={service.slug} value={service.slug}>
+                      {service.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="payment-service">
-              Service concerne
-            </label>
-            <select
-              className="form-input"
-              id="payment-service"
-              onChange={(event) => {
-                const nextServiceSlug = event.target.value;
-                const shouldUpdateReason =
-                  !form.reason.trim() ||
-                  form.reason === initialState.reason ||
-                  form.reason === getServiceReason(form.serviceSlug);
-                updateField("serviceSlug", nextServiceSlug);
-                if (shouldUpdateReason) {
-                  updateField("reason", getServiceReason(nextServiceSlug));
-                }
-              }}
-              value={form.serviceSlug}
-            >
-              <option value="">Acompte general</option>
-              {serviceOptions.map((service) => (
-                <option key={service.slug} value={service.slug}>
-                  {service.label}
-                </option>
+          <div className="payment-card-divider" />
+
+          <div className="payment-card-section">
+            <div className="payment-card-section-head">
+              <div className="payment-card-kicker">Dossier et montant</div>
+              <p>Les informations qui permettent de relier le paiement a votre accompagnement.</p>
+            </div>
+
+            <div className="payment-grid">
+              <div className="form-group">
+                <label className="form-label" htmlFor="payment-reference">
+                  Reference dossier
+                </label>
+                <input
+                  className="form-input"
+                  id="payment-reference"
+                  onChange={(event) => updateField("dossierReference", event.target.value)}
+                  placeholder="Ex: PIE-2026-014"
+                  type="text"
+                  value={form.dossierReference}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="payment-amount">
+                  Montant convenu ({displayCurrency})
+                </label>
+                <input
+                  aria-invalid={Boolean(errors.amount)}
+                  className="form-input"
+                  id="payment-amount"
+                  min="1"
+                  onChange={(event) => updateField("amount", event.target.value)}
+                  placeholder="Ex: 75000"
+                  step="1"
+                  type="number"
+                  value={form.amount}
+                />
+                {errors.amount ? <div className="form-error">{errors.amount}</div> : null}
+              </div>
+
+              <div className="form-group payment-reason-field">
+                <label className="form-label" htmlFor="payment-reason">
+                  Objet du paiement
+                </label>
+                <textarea
+                  aria-invalid={Boolean(errors.reason)}
+                  className="form-input"
+                  id="payment-reason"
+                  onChange={(event) => updateField("reason", event.target.value)}
+                  placeholder="Acompte convenu pour votre accompagnement"
+                  rows={3}
+                  value={form.reason}
+                />
+                {errors.reason ? <div className="form-error">{errors.reason}</div> : null}
+              </div>
+            </div>
+          </div>
+
+          <div className="payment-form-footer">
+            <button className="btn btn-primary btn-lg" disabled={isSubmitting || isLoadingConfig} type="submit">
+              {isSubmitting ? "Creation du panier..." : "Continuer vers le paiement"}
+            </button>
+            <div className="payment-footnote">
+              Le paiement est finalise sur la page securisee MakeTou. Le montant saisi doit
+              correspondre au montant deja confirme avec PieAgency.
+            </div>
+          </div>
+        </form>
+
+        <aside className="payment-sidebar">
+          <div className="payment-side-card">
+            <div className="payment-side-title">Comment ca marche</div>
+            <div className="payment-side-list">
+              <div className="payment-side-item">
+                <span className="payment-side-item-index">1</span>
+                <div>
+                  <strong>Remplissez ce formulaire</strong>
+                  <p>Vos coordonnees, le service et le montant valide avec votre conseiller.</p>
+                </div>
+              </div>
+              <div className="payment-side-item">
+                <span className="payment-side-item-index">2</span>
+                <div>
+                  <strong>Redirection securisee</strong>
+                  <p>Vous etes redirige vers MakeTou pour choisir votre moyen de paiement.</p>
+                </div>
+              </div>
+              <div className="payment-side-item">
+                <span className="payment-side-item-index">3</span>
+                <div>
+                  <strong>Confirmation</strong>
+                  <p>Vous revenez ici pour verifier le statut du panier et du paiement.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="payment-side-card">
+            <div className="payment-side-title">Securite</div>
+            <div className="payment-check-list">
+              {trustItems.map((item) => (
+                <div className="payment-check-item" key={item}>
+                  <span className="payment-check-mark">OK</span>
+                  <span>{item}</span>
+                </div>
               ))}
-            </select>
+            </div>
           </div>
+        </aside>
+      </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="payment-reference">
-              Reference dossier
-            </label>
-            <input
-              className="form-input"
-              id="payment-reference"
-              onChange={(event) => updateField("dossierReference", event.target.value)}
-              placeholder="Ex: PIE-2026-014"
-              type="text"
-              value={form.dossierReference}
-            />
-          </div>
+      {paymentResult || statusResult ? (
+        <div className="payment-results-stack">
+          {paymentResult ? (
+            <div className="payment-status-card">
+              <div className="payment-status-head">
+                <div>
+                  <div className="payment-note-kicker">Panier cree</div>
+                  <h4>Suivi MakeTou</h4>
+                </div>
+                <div className={`payment-status-pill is-${paymentResult.status}`}>
+                  {paymentResult.status}
+                </div>
+              </div>
+              <div className="payment-status-grid">
+                <div>
+                  <span>Panier</span>
+                  <strong>{paymentResult.cart_id ?? "Non retourne"}</strong>
+                </div>
+                <div>
+                  <span>Reference</span>
+                  <strong>{paymentResult.reference ?? "Non retournee"}</strong>
+                </div>
+                <div>
+                  <span>Paiement</span>
+                  <strong>{paymentResult.payment_id ?? "En attente"}</strong>
+                </div>
+              </div>
+              <div className="payment-inline-actions">
+                {paymentResult.redirect_url ? (
+                  <a
+                    className="btn btn-primary"
+                    href={paymentResult.redirect_url}
+                    rel="noreferrer"
+                    target="_self"
+                  >
+                    Ouvrir MakeTou
+                  </a>
+                ) : null}
+                {paymentResult.status_check_enabled && paymentResult.cart_id ? (
+                  <button
+                    className="btn btn-outline"
+                    disabled={isCheckingStatus}
+                    onClick={() => checkStatus(paymentResult.cart_id!)}
+                    type="button"
+                  >
+                    {isCheckingStatus ? "Verification..." : "Verifier le statut"}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="payment-amount">
-              Montant convenu ({displayCurrency})
-            </label>
-            <input
-              aria-invalid={Boolean(errors.amount)}
-              className="form-input"
-              id="payment-amount"
-              min="1"
-              onChange={(event) => updateField("amount", event.target.value)}
-              placeholder="Ex: 75000"
-              step="1"
-              type="number"
-              value={form.amount}
-            />
-            {errors.amount ? <div className="form-error">{errors.amount}</div> : null}
-          </div>
-
-          <div className="form-group payment-reason-field">
-            <label className="form-label" htmlFor="payment-reason">
-              Objet du paiement
-            </label>
-            <textarea
-              aria-invalid={Boolean(errors.reason)}
-              className="form-input"
-              id="payment-reason"
-              onChange={(event) => updateField("reason", event.target.value)}
-              placeholder="Acompte convenu pour votre accompagnement"
-              rows={3}
-              value={form.reason}
-            />
-            {errors.reason ? <div className="form-error">{errors.reason}</div> : null}
-          </div>
+          {statusResult ? (
+            <div className="payment-status-card is-secondary">
+              <div className="payment-status-head">
+                <div>
+                  <div className="payment-note-kicker">Derniere verification</div>
+                  <h4>Statut courant</h4>
+                </div>
+                <div className={`payment-status-pill is-${statusResult.status}`}>
+                  {statusResult.status}
+                </div>
+              </div>
+              <p>{statusResult.message}</p>
+              <div className="payment-status-grid">
+                <div>
+                  <span>Panier</span>
+                  <strong>{statusResult.cart_id}</strong>
+                </div>
+                <div>
+                  <span>Reference</span>
+                  <strong>{statusResult.reference ?? "Non retournee"}</strong>
+                </div>
+                <div>
+                  <span>Paiement</span>
+                  <strong>{statusResult.payment_id ?? "En attente"}</strong>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
-
-        <div className="payment-form-footer">
-          <div className="payment-footnote">
-            Le paiement est finalise sur la page securisee MakeTou. Le montant saisi doit
-            correspondre au montant deja confirme avec PieAgency.
-          </div>
-          <button className="btn btn-primary btn-lg" disabled={isSubmitting || isLoadingConfig} type="submit">
-            {isSubmitting ? "Creation du panier..." : "Continuer vers le paiement"}
-          </button>
-        </div>
-
-        {paymentResult ? (
-          <div className="payment-status-card">
-            <div className="payment-status-head">
-              <div>
-                <div className="payment-note-kicker">Panier cree</div>
-                <h4>Suivi MakeTou</h4>
-              </div>
-              <div className={`payment-status-pill is-${paymentResult.status}`}>
-                {paymentResult.status}
-              </div>
-            </div>
-            <div className="payment-status-grid">
-              <div>
-                <span>Panier</span>
-                <strong>{paymentResult.cart_id ?? "Non retourne"}</strong>
-              </div>
-              <div>
-                <span>Reference</span>
-                <strong>{paymentResult.reference ?? "Non retournee"}</strong>
-              </div>
-              <div>
-                <span>Paiement</span>
-                <strong>{paymentResult.payment_id ?? "En attente"}</strong>
-              </div>
-            </div>
-            <div className="payment-inline-actions">
-              {paymentResult.redirect_url ? (
-                <a
-                  className="btn btn-primary"
-                  href={paymentResult.redirect_url}
-                  rel="noreferrer"
-                  target="_self"
-                >
-                  Ouvrir MakeTou
-                </a>
-              ) : null}
-              {paymentResult.status_check_enabled && paymentResult.cart_id ? (
-                <button
-                  className="btn btn-outline"
-                  disabled={isCheckingStatus}
-                  onClick={() => checkStatus(paymentResult.cart_id!)}
-                  type="button"
-                >
-                  {isCheckingStatus ? "Verification..." : "Verifier le statut"}
-                </button>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-
-        {statusResult ? (
-          <div className="payment-status-card is-secondary">
-            <div className="payment-status-head">
-              <div>
-                <div className="payment-note-kicker">Derniere verification</div>
-                <h4>Statut courant</h4>
-              </div>
-              <div className={`payment-status-pill is-${statusResult.status}`}>
-                {statusResult.status}
-              </div>
-            </div>
-            <p>{statusResult.message}</p>
-            <div className="payment-status-grid">
-              <div>
-                <span>Panier</span>
-                <strong>{statusResult.cart_id}</strong>
-              </div>
-              <div>
-                <span>Reference</span>
-                <strong>{statusResult.reference ?? "Non retournee"}</strong>
-              </div>
-              <div>
-                <span>Paiement</span>
-                <strong>{statusResult.payment_id ?? "En attente"}</strong>
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </form>
+      ) : null}
     </div>
   );
 }

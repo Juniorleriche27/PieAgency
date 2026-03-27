@@ -1926,132 +1926,33 @@ textarea.form-input {
   font-weight: 600;
 }
 
-.payment-layout {
-  display: grid;
-  grid-template-columns: minmax(280px, 0.92fr) minmax(0, 1.08fr);
-  gap: 28px;
-  align-items: start;
+.payment-page-section {
+  padding-top: 132px;
+  padding-bottom: 72px;
+  background: linear-gradient(180deg, #faf8f3 0, #fff 260px);
 }
 
-.payment-info-card,
-.payment-form-card,
-.payment-status-card {
-  min-width: 0;
-}
-
-.payment-info-card {
-  padding: 32px;
-  border-radius: 28px;
-  background: linear-gradient(180deg, #0d1b38 0%, #132a52 100%);
-  color: #f5f7fc;
-  box-shadow: 0 24px 70px rgba(13, 27, 56, 0.18);
-}
-
-.payment-info-card .section-label,
-.payment-info-card .section-title,
-.payment-info-card .section-lead {
-  color: #f5f7fc;
-}
-
-.payment-info-card .section-lead {
-  color: rgba(245, 247, 252, 0.72);
-}
-
-.payment-step-list {
+.payment-shell {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  margin-top: 24px;
+  gap: 24px;
 }
 
-.payment-step-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 16px 18px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.payment-step-item span {
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #29c768, #1ea45d);
-  color: #fff;
-  font-size: 0.84rem;
-  font-weight: 800;
-}
-
-.payment-step-item strong {
-  display: block;
-  color: #fff;
-  margin-bottom: 4px;
-}
-
-.payment-step-item p {
-  color: rgba(245, 247, 252, 0.72);
-  font-size: 0.88rem;
-  line-height: 1.55;
-}
-
-.payment-note-card {
-  margin-top: 24px;
-  padding: 18px 20px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.payment-note-kicker {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(245, 247, 252, 0.52);
-  margin-bottom: 8px;
-}
-
-.payment-note-card p {
-  color: rgba(245, 247, 252, 0.76);
-  font-size: 0.9rem;
-  line-height: 1.6;
-}
-
-.payment-service-pill {
-  display: inline-flex;
-  align-items: center;
-  margin-top: 12px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  background: rgba(41, 199, 104, 0.12);
-  color: #9ff0bf;
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
-.payment-form-card {
-  padding: 32px;
-  border-radius: 28px;
-  border: 1px solid var(--gray-100);
-  box-shadow: 0 24px 70px rgba(13, 27, 56, 0.08);
-}
-
-.payment-form-head {
+.payment-page-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 22px;
+  gap: 24px;
 }
 
-.payment-form-head h3 {
+.payment-page-title {
+  margin-bottom: 12px;
+}
+
+.payment-page-copy {
+  max-width: 760px;
   margin-bottom: 0;
+  color: var(--gray-600);
 }
 
 .payment-badge {
@@ -2076,36 +1977,279 @@ textarea.form-input {
   color: var(--navy);
 }
 
+.payment-progress {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.payment-progress-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--gray-100);
+  background: #fff;
+}
+
+.payment-progress-circle {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.payment-progress-label {
+  min-width: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.payment-progress-step.is-complete {
+  border-color: rgba(41, 199, 104, 0.18);
+  background: rgba(41, 199, 104, 0.06);
+}
+
+.payment-progress-step.is-complete .payment-progress-circle {
+  background: linear-gradient(135deg, #29c768, #1ea45d);
+  color: #fff;
+}
+
+.payment-progress-step.is-complete .payment-progress-label {
+  color: #13794a;
+}
+
+.payment-progress-step.is-active {
+  border-color: rgba(13, 27, 56, 0.14);
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(13, 27, 56, 0.07);
+}
+
+.payment-progress-step.is-active .payment-progress-circle {
+  background: #0d1b38;
+  color: #fff;
+}
+
+.payment-progress-step.is-active .payment-progress-label {
+  color: var(--navy);
+}
+
+.payment-progress-step.is-pending .payment-progress-circle {
+  background: rgba(13, 27, 56, 0.06);
+  color: var(--gray-500);
+}
+
+.payment-progress-step.is-pending .payment-progress-label {
+  color: var(--gray-500);
+}
+
+.payment-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.14fr) minmax(280px, 0.76fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.payment-form-card,
+.payment-side-card,
+.payment-status-card {
+  min-width: 0;
+}
+
+.payment-form-card {
+  padding: 28px;
+  border-radius: 28px;
+  border: 1px solid var(--gray-100);
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(13, 27, 56, 0.08);
+}
+
+.payment-form-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.payment-form-intro h3 {
+  color: var(--navy);
+  margin-bottom: 0;
+}
+
+.payment-form-intro p {
+  margin: 0;
+  color: var(--gray-600);
+  line-height: 1.6;
+}
+
+.payment-card-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.payment-card-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.payment-card-kicker,
+.payment-note-kicker {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gray-400);
+  margin-bottom: 0;
+}
+
+.payment-card-section-head p {
+  margin: 0;
+  color: var(--gray-500);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.payment-card-divider {
+  height: 1px;
+  margin: 22px 0;
+  background: var(--gray-100);
+}
+
 .payment-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0 14px;
 }
 
-.payment-operator-field,
 .payment-reason-field {
   grid-column: 1 / -1;
 }
 
 .payment-form-footer {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 12px;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid var(--gray-100);
 }
 
+.payment-form-footer .btn {
+  width: 100%;
+}
+
 .payment-footnote {
-  max-width: 420px;
+  max-width: none;
   color: var(--gray-500);
   font-size: 0.84rem;
   line-height: 1.6;
 }
 
+.payment-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.payment-side-card {
+  padding: 24px;
+  border-radius: 24px;
+  border: 1px solid var(--gray-100);
+  background: #fff;
+  box-shadow: 0 18px 48px rgba(13, 27, 56, 0.06);
+}
+
+.payment-side-title {
+  color: var(--navy);
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.payment-side-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.payment-side-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.payment-side-item-index {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(13, 27, 56, 0.06);
+  color: var(--navy);
+  border: 1px solid rgba(13, 27, 56, 0.08);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.payment-side-item strong {
+  display: block;
+  color: var(--navy);
+  margin-bottom: 4px;
+}
+
+.payment-side-item p {
+  margin: 0;
+  color: var(--gray-500);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.payment-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.payment-check-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--gray-100);
+  background: var(--gray-50);
+  color: var(--gray-700);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.payment-check-mark {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(41, 199, 104, 0.14);
+  color: #13794a;
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
 .payment-return-banner {
-  margin-bottom: 18px;
   padding: 12px 14px;
   border-radius: 16px;
   background: rgba(13, 27, 56, 0.05);
@@ -2114,8 +2258,13 @@ textarea.form-input {
   font-size: 0.88rem;
 }
 
+.payment-results-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .payment-status-card {
-  margin-top: 20px;
   padding: 22px;
   border-radius: 24px;
   border: 1px solid var(--gray-100);
@@ -6684,47 +6833,64 @@ body.chat-open .wa-float {
   footer { padding: 48px 0 32px; }
 }
 
+@media (max-width: 980px) {
+  .payment-page-head,
+  .payment-status-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .payment-main-grid,
+  .payment-progress {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── 20. Formulaire tunnel — mobile ── */
 @media (max-width: 640px) {
   .form-funnel-card {
     padding: 20px 16px;
     border-radius: 16px;
   }
-  .payment-layout {
-    grid-template-columns: 1fr;
+
+  .payment-page-section {
+    padding-top: 108px;
+    padding-bottom: 48px;
+  }
+
+  .payment-shell {
     gap: 18px;
   }
-  .payment-info-card,
+
   .payment-form-card,
+  .payment-side-card,
   .payment-status-card {
     padding: 20px 16px;
     border-radius: 22px;
   }
-  .payment-form-head,
-  .payment-form-footer,
-  .payment-status-head {
-    flex-direction: column;
-    align-items: stretch;
+
+  .payment-progress-step,
+  .payment-check-item {
+    padding: 12px 14px;
   }
+
+  .payment-form-footer,
   .payment-inline-actions {
     flex-direction: column;
     align-items: stretch;
   }
+
   .payment-grid,
   .payment-status-grid {
     grid-template-columns: 1fr;
   }
-  .payment-footnote {
-    max-width: none;
-  }
+
   .payment-form-footer .btn,
   .payment-status-card .btn,
   .payment-inline-actions .btn {
     width: 100%;
   }
-  .payment-step-item {
-    padding: 14px;
-  }
+
   .form-compact-funnel {
     padding: 18px 16px;
     border-radius: 22px;
