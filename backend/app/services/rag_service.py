@@ -44,7 +44,7 @@ def _embed_query(query: str) -> list[float] | None:
 
 def retrieve_rag_context(query: str, top_k: int = 5, threshold: float = 0.38) -> str:
     """
-    Embed the query and retrieve the top-k most relevant WhatsApp chunks.
+    Embed the query and retrieve the top-k most relevant community chunks.
     Returns a formatted string ready to be injected into a system prompt,
     or an empty string if nothing useful is found.
     """
@@ -87,6 +87,6 @@ def retrieve_rag_context(query: str, top_k: int = 5, threshold: float = 0.38) ->
     joined = "\n\n---\n\n".join(snippets)
     return (
         "Extraits de conversations reelles d'etudiants sur Campus France "
-        "(groupe WhatsApp PieAgency) pertinents pour cette question :\n\n"
+        "(communaute PieAgency) pertinents pour cette question :\n\n"
         + joined
     )

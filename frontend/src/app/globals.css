@@ -2715,12 +2715,6 @@ footer {
   color: #fff;
 }
 
-.chatbot-action-whatsapp {
-  background: rgba(37, 211, 102, 0.1);
-  border-color: rgba(37, 211, 102, 0.22);
-  color: #168b48;
-}
-
 .chatbot-action-secondary {
   background: #fff;
   border-color: var(--gray-200);
@@ -4910,12 +4904,6 @@ body.chat-open .wa-float {
 
 .social-space-link + .social-space-link {
   margin-top: 8px;
-}
-
-.social-space-link.is-whatsapp {
-  background: rgba(37, 211, 102, 0.1);
-  border: 1px solid rgba(37, 211, 102, 0.2);
-  color: #1db954;
 }
 
 .social-space-link.is-facebook,

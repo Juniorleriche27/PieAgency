@@ -17,12 +17,8 @@ const visaPage = servicePages.find((page) => page.slug === "visa")!;
 const alternativePages = servicePages.filter((page) =>
   ["belgique", "paris-saclay", "parcoursup", "ecoles"].includes(page.slug),
 );
-const visibleCommunityLinks = company.communityLinks.filter(
-  (community) => !community.href.includes("chat.whatsapp.com"),
-);
-const homepageFaqItems = faqItems
-  .filter((item) => !item.question.toLowerCase().includes("whatsapp"))
-  .slice(0, 5);
+const visibleCommunityLinks = company.communityLinks;
+const homepageFaqItems = faqItems.slice(0, 5);
 
 export default function HomePage() {
   return (

@@ -4,9 +4,7 @@ import { ActionLink } from "@/components/action-link";
 import { company, navigation } from "@/content/site";
 
 export function SiteFooter() {
-  const visibleCommunityLinks = company.communityLinks.filter(
-    (community) => !community.href.includes("chat.whatsapp.com"),
-  );
+  const visibleCommunityLinks = company.communityLinks;
 
   return (
     <footer>

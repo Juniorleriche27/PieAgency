@@ -417,7 +417,7 @@ export function SiteChatbot() {
                     return [r.label, { action: a, resolved: r }];
                   })
                 ).values()
-              ).map(({ action, resolved }) => {
+              ).map(({ resolved }) => {
                 const resolved2 = resolved;
 
                 if (resolved2.kind === "link") {

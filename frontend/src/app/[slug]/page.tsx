@@ -36,17 +36,6 @@ export default async function ServicePage({ params }: ServicePageProps) {
     notFound();
   }
 
-  const secondaryCta =
-    servicePage.secondaryCta.href.includes("wa.me") ||
-    servicePage.secondaryCta.href.includes("whatsapp")
-      ? {
-          href: "/contact",
-          label: "Remplir le formulaire",
-          variant: "outline" as const,
-          external: false,
-        }
-      : servicePage.secondaryCta;
-
   return (
     <>
       <PageHero
@@ -114,12 +103,12 @@ export default async function ServicePage({ params }: ServicePageProps) {
               {servicePage.primaryCta.label}
             </ActionLink>
             <ActionLink
-              external={secondaryCta.external}
-              href={secondaryCta.href}
-              variant={secondaryCta.variant}
+              external={servicePage.secondaryCta.external}
+              href={servicePage.secondaryCta.href}
+              variant={servicePage.secondaryCta.variant}
               size="lg"
             >
-              {secondaryCta.label}
+              {servicePage.secondaryCta.label}
             </ActionLink>
           </div>
         </div>

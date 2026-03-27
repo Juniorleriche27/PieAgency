@@ -18,8 +18,6 @@ const variantClassName: Record<ActionVariant, string> = {
   outline: "btn btn-outline",
   outlineWhite: "btn btn-outline-white",
   green: "btn btn-green",
-  waTogo: "btn btn-wa-togo",
-  waFrance: "btn btn-wa-france",
 };
 
 export function ActionLink({

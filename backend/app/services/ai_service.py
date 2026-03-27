@@ -250,7 +250,7 @@ def _build_json_chat_system_prompt(request: AIChatRequest) -> str:
     page, _ = _build_chat_context(request)
     last_user_message = _get_last_user_message(request)
     rag_context = retrieve_rag_context(last_user_message) if last_user_message else ""
-    rag_section = f"\nContexte RAG (extraits reels du groupe WhatsApp Campus France):\n{rag_context}\n" if rag_context else ""
+    rag_section = f"\nContexte RAG (extraits reels de la communaute Campus France):\n{rag_context}\n" if rag_context else ""
     return f"""
 Tu es l'assistant IA public de PieAgency sur le site web.
 
@@ -291,7 +291,7 @@ def _build_stream_chat_system_prompt(request: AIChatRequest) -> str:
     page, _ = _build_chat_context(request)
     last_user_message = _get_last_user_message(request)
     rag_context = retrieve_rag_context(last_user_message) if last_user_message else ""
-    rag_section = f"\nContexte RAG (extraits reels du groupe WhatsApp Campus France):\n{rag_context}\n" if rag_context else ""
+    rag_section = f"\nContexte RAG (extraits reels de la communaute Campus France):\n{rag_context}\n" if rag_context else ""
     return f"""
 Tu es l'assistant IA public de PieAgency sur le site web.
 

@@ -1,11 +1,9 @@
-export type ActionVariant =
+﻿export type ActionVariant =
   | "primary"
   | "gold"
   | "outline"
   | "outlineWhite"
-  | "green"
-  | "waTogo"
-  | "waFrance";
+  | "green";
 
 export type TimelineStep = {
   title: string;
@@ -48,7 +46,6 @@ export const company = {
       person: "Ibrahim B.",
       phoneDisplay: "(+33) 6 35 32 04 40",
       phoneHref: "tel:+33635320440",
-      whatsappHref: "https://wa.me/33635320440",
     },
     togo: {
       label: "Togo",
@@ -56,18 +53,17 @@ export const company = {
       person: "Junior L.",
       phoneDisplay: "+228 92 09 25 72",
       phoneHref: "tel:+22892092572",
-      whatsappHref: "https://wa.me/22892092572",
     },
   },
   communityLinks: [
     {
-      label: "Communauté WhatsApp",
+      label: "Formulaire PieAgency",
       description:
-        "Rejoignez notre espace d’échange principal pour suivre les informations utiles, les conseils et les actualités de PieAgency.",
-      href: "https://chat.whatsapp.com/DWwuJQP3ym9JW4OZj11H1C",
-      cta: "Rejoindre la communauté",
-      icon: "💬",
-      iconClass: "wa",
+        "Le formulaire du site permet de lancer une demande claire, structurée et traitée par l’équipe PieAgency.",
+      href: "/contact",
+      cta: "Ouvrir le formulaire",
+      icon: "📝",
+      iconClass: "form",
       variant: "green" as ActionVariant,
     },
     {
@@ -220,10 +216,9 @@ export const servicePages: ServicePage[] = [
       variant: "primary",
     },
     secondaryCta: {
-      label: "📱 Commencer sur WhatsApp",
-      href: company.contacts.togo.whatsappHref,
-      variant: "green",
-      external: true,
+      label: "Voir les questions frequentes",
+      href: "/faq",
+      variant: "outline",
     },
   },
   {
@@ -284,10 +279,9 @@ export const servicePages: ServicePage[] = [
       variant: "primary",
     },
     secondaryCta: {
-      label: "💬 Parler à un conseiller",
-      href: company.contacts.togo.whatsappHref,
-      variant: "green",
-      external: true,
+      label: "Voir les questions frequentes",
+      href: "/faq",
+      variant: "outline",
     },
   },
   {
@@ -324,10 +318,9 @@ export const servicePages: ServicePage[] = [
       variant: "primary",
     },
     secondaryCta: {
-      label: "📱 Démarrer sur WhatsApp",
-      href: company.contacts.togo.whatsappHref,
-      variant: "waTogo",
-      external: true,
+      label: "Voir les questions frequentes",
+      href: "/faq",
+      variant: "outline",
     },
   },
   {
@@ -364,10 +357,9 @@ export const servicePages: ServicePage[] = [
       variant: "primary",
     },
     secondaryCta: {
-      label: "📱 Démarrer sur WhatsApp",
-      href: company.contacts.togo.whatsappHref,
-      variant: "green",
-      external: true,
+      label: "Voir les questions frequentes",
+      href: "/faq",
+      variant: "outline",
     },
   },
   {
@@ -404,10 +396,9 @@ export const servicePages: ServicePage[] = [
       variant: "primary",
     },
     secondaryCta: {
-      label: "📱 Démarrer sur WhatsApp",
-      href: company.contacts.togo.whatsappHref,
-      variant: "waTogo",
-      external: true,
+      label: "Voir les questions frequentes",
+      href: "/faq",
+      variant: "outline",
     },
   },
   {
@@ -444,10 +435,9 @@ export const servicePages: ServicePage[] = [
       variant: "primary",
     },
     secondaryCta: {
-      label: "📱 Démarrer sur WhatsApp",
-      href: company.contacts.togo.whatsappHref,
-      variant: "green",
-      external: true,
+      label: "Voir les questions frequentes",
+      href: "/faq",
+      variant: "outline",
     },
   },
 ];
@@ -471,9 +461,9 @@ export const faqItems = [
       "Oui. Chaque accompagnement tient compte du profil de l’étudiant, de son niveau, de son projet et de la procédure concernée.",
   },
   {
-    question: "Peut-on échanger directement sur WhatsApp ?",
+    question: "Comment contacter PieAgency ?",
     answer:
-      "Oui. PieAgency met à disposition un contact WhatsApp Togo et un contact WhatsApp France pour faciliter les échanges.",
+      "Le formulaire du site et le chat PieAgency sont les deux canaux prévus pour démarrer et poser vos questions.",
   },
   {
     question: "Aidez-vous pour la préparation à l’entretien Campus France ?",
@@ -493,7 +483,7 @@ export const faqItems = [
   {
     question: "Comment démarrer un accompagnement ?",
     answer:
-      "Il suffit de contacter l’équipe sur WhatsApp ou via le formulaire de contact du site. Un premier échange permet d’analyser le profil et d’identifier l’accompagnement adapté.",
+      "Il suffit de remplir le formulaire du site ou d’utiliser le chat PieAgency. Un premier échange permet d’analyser le profil et d’identifier l’accompagnement adapté.",
   },
 ] as const;
 
@@ -531,3 +521,5 @@ export const projectOptions = [
 export function getServicePage(slug: string) {
   return servicePages.find((page) => page.slug === slug);
 }
+
+
