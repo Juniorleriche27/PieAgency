@@ -53,6 +53,44 @@ def _extract_string(payload: dict[str, Any], key: str) -> str | None:
     return None
 
 
+def _extract_text(value: Any) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, list):
+        parts = [part.strip() for part in value if isinstance(part, str) and part.strip()]
+        if parts:
+            return " ".join(parts)
+    if isinstance(value, dict):
+        parts: list[str] = []
+        for nested in value.values():
+            extracted = _extract_text(nested)
+            if extracted:
+                parts.append(extracted)
+        if parts:
+            return " ".join(parts)
+    return None
+
+
+def _extract_error_message(payload: dict[str, Any], fallback: str) -> str:
+    code = _extract_string(payload, "code")
+    message = (
+        _extract_text(payload.get("message"))
+        or _extract_text(payload.get("detail"))
+        or _extract_text(payload.get("error"))
+        or _extract_text(payload.get("errors"))
+    )
+
+    if code and message:
+        return f"{code}: {message}"
+    if code:
+        return code
+    if message:
+        return message
+    return fallback
+
+
 def _split_full_name(full_name: str) -> tuple[str, str]:
     parts = [item for item in full_name.strip().split() if item]
     if not parts:
@@ -175,7 +213,15 @@ def initiate_payment(payload: PaymentIntentCreateRequest) -> PaymentIntentCreate
 
     data = _safe_json(response)
     if response.status_code >= 400:
-        message = _extract_string(data, "message") or "MakeTou a refuse la creation du panier."
+        logger.warning(
+            "MakeTou checkout refused: status=%s body=%s",
+            response.status_code,
+            response.text[:500],
+        )
+        message = _extract_error_message(
+            data,
+            "MakeTou a refuse la creation du panier.",
+        )
         raise MaketouRequestError(message)
 
     cart = data.get("cart")
@@ -222,7 +268,15 @@ def fetch_payment_status(cart_id: str) -> PaymentStatusResponse:
 
     data = _safe_json(response)
     if response.status_code >= 400:
-        message = _extract_string(data, "message") or "MakeTou a refuse la verification du panier."
+        logger.warning(
+            "MakeTou cart status refused: status=%s body=%s",
+            response.status_code,
+            response.text[:500],
+        )
+        message = _extract_error_message(
+            data,
+            "MakeTou a refuse la verification du panier.",
+        )
         raise MaketouRequestError(message)
 
     raw_status = _extract_string(data, "status")
