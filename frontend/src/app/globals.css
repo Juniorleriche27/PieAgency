@@ -1929,7 +1929,10 @@ textarea.form-input {
 .payment-page-section {
   padding-top: 132px;
   padding-bottom: 72px;
-  background: linear-gradient(180deg, #faf8f3 0, #fff 260px);
+  background:
+    radial-gradient(circle at top left, rgba(200, 169, 107, 0.16), transparent 24%),
+    radial-gradient(circle at top right, rgba(42, 64, 112, 0.12), transparent 30%),
+    linear-gradient(180deg, #f7f1e4 0, #fcfaf5 210px, #fffdf9 100%);
 }
 
 .payment-shell {
@@ -1968,13 +1971,15 @@ textarea.form-input {
 }
 
 .payment-badge.is-live {
-  background: rgba(41, 199, 104, 0.12);
-  color: #13794a;
+  background: rgba(200, 169, 107, 0.18);
+  color: var(--navy);
+  border: 1px solid rgba(200, 169, 107, 0.28);
 }
 
 .payment-badge.is-disabled {
-  background: rgba(13, 27, 56, 0.08);
+  background: rgba(13, 27, 56, 0.06);
   color: var(--navy);
+  border: 1px solid rgba(13, 27, 56, 0.08);
 }
 
 .payment-progress {
@@ -1989,9 +1994,10 @@ textarea.form-input {
   gap: 12px;
   min-width: 0;
   padding: 14px 16px;
-  border-radius: 18px;
-  border: 1px solid var(--gray-100);
-  background: #fff;
+  border-radius: 20px;
+  border: 1px solid rgba(200, 169, 107, 0.2);
+  background: rgba(255, 252, 246, 0.96);
+  box-shadow: 0 12px 28px rgba(13, 27, 56, 0.04);
 }
 
 .payment-progress-circle {
@@ -2014,41 +2020,41 @@ textarea.form-input {
 }
 
 .payment-progress-step.is-complete {
-  border-color: rgba(41, 199, 104, 0.18);
-  background: rgba(41, 199, 104, 0.06);
+  border-color: rgba(200, 169, 107, 0.3);
+  background: linear-gradient(135deg, rgba(200, 169, 107, 0.14), rgba(232, 212, 168, 0.16));
 }
 
 .payment-progress-step.is-complete .payment-progress-circle {
-  background: linear-gradient(135deg, #29c768, #1ea45d);
-  color: #fff;
-}
-
-.payment-progress-step.is-complete .payment-progress-label {
-  color: #13794a;
-}
-
-.payment-progress-step.is-active {
-  border-color: rgba(13, 27, 56, 0.14);
-  background: #fff;
-  box-shadow: 0 12px 28px rgba(13, 27, 56, 0.07);
-}
-
-.payment-progress-step.is-active .payment-progress-circle {
-  background: #0d1b38;
-  color: #fff;
-}
-
-.payment-progress-step.is-active .payment-progress-label {
+  background: linear-gradient(135deg, var(--gold), #b78d45);
   color: var(--navy);
 }
 
+.payment-progress-step.is-complete .payment-progress-label {
+  color: var(--navy);
+}
+
+.payment-progress-step.is-active {
+  border-color: rgba(13, 27, 56, 0.18);
+  background: linear-gradient(135deg, var(--navy), var(--navy-mid));
+  box-shadow: 0 18px 36px rgba(13, 27, 56, 0.16);
+}
+
+.payment-progress-step.is-active .payment-progress-circle {
+  background: linear-gradient(135deg, var(--gold), var(--gold-light));
+  color: var(--navy);
+}
+
+.payment-progress-step.is-active .payment-progress-label {
+  color: #fff9ef;
+}
+
 .payment-progress-step.is-pending .payment-progress-circle {
-  background: rgba(13, 27, 56, 0.06);
-  color: var(--gray-500);
+  background: rgba(200, 169, 107, 0.14);
+  color: var(--navy);
 }
 
 .payment-progress-step.is-pending .payment-progress-label {
-  color: var(--gray-500);
+  color: var(--gray-600);
 }
 
 .payment-main-grid {
@@ -2067,9 +2073,22 @@ textarea.form-input {
 .payment-form-card {
   padding: 28px;
   border-radius: 28px;
-  border: 1px solid var(--gray-100);
-  background: #fff;
-  box-shadow: 0 24px 70px rgba(13, 27, 56, 0.08);
+  border: 1px solid rgba(200, 169, 107, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(255, 249, 239, 0.98));
+  box-shadow:
+    0 30px 70px rgba(13, 27, 56, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  position: relative;
+}
+
+.payment-form-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  border-radius: 28px 28px 0 0;
+  background: linear-gradient(90deg, var(--navy), var(--gold), var(--navy-light));
 }
 
 .payment-form-intro {
@@ -2090,6 +2109,20 @@ textarea.form-input {
   line-height: 1.6;
 }
 
+.payment-form-card .form-label {
+  color: var(--navy);
+}
+
+.payment-form-card .form-input {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(200, 169, 107, 0.24);
+}
+
+.payment-form-card .form-input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(200, 169, 107, 0.14);
+}
+
 .payment-card-section {
   display: flex;
   flex-direction: column;
@@ -2108,7 +2141,7 @@ textarea.form-input {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--gray-400);
+  color: var(--gold);
   margin-bottom: 0;
 }
 
@@ -2122,7 +2155,7 @@ textarea.form-input {
 .payment-card-divider {
   height: 1px;
   margin: 22px 0;
-  background: var(--gray-100);
+  background: linear-gradient(90deg, rgba(200, 169, 107, 0), rgba(200, 169, 107, 0.42), rgba(13, 27, 56, 0.08), rgba(200, 169, 107, 0));
 }
 
 .payment-grid {
@@ -2164,9 +2197,29 @@ textarea.form-input {
 .payment-side-card {
   padding: 24px;
   border-radius: 24px;
-  border: 1px solid var(--gray-100);
-  background: #fff;
+  border: 1px solid rgba(200, 169, 107, 0.18);
+  background: rgba(255, 252, 246, 0.94);
   box-shadow: 0 18px 48px rgba(13, 27, 56, 0.06);
+}
+
+.payment-sidebar .payment-side-card:first-child {
+  background: linear-gradient(180deg, var(--navy), var(--navy-mid));
+  border-color: rgba(200, 169, 107, 0.22);
+}
+
+.payment-sidebar .payment-side-card:first-child .payment-side-title,
+.payment-sidebar .payment-side-card:first-child .payment-side-item strong {
+  color: #fff8ec;
+}
+
+.payment-sidebar .payment-side-card:first-child .payment-side-item p {
+  color: rgba(255, 248, 236, 0.76);
+}
+
+.payment-sidebar .payment-side-card:first-child .payment-side-item-index {
+  background: rgba(200, 169, 107, 0.18);
+  border-color: rgba(200, 169, 107, 0.22);
+  color: #fff8ec;
 }
 
 .payment-side-title {
@@ -2228,8 +2281,8 @@ textarea.form-input {
   align-items: flex-start;
   padding: 12px 14px;
   border-radius: 16px;
-  border: 1px solid var(--gray-100);
-  background: var(--gray-50);
+  border: 1px solid rgba(200, 169, 107, 0.18);
+  background: linear-gradient(135deg, rgba(255, 249, 239, 0.94), rgba(245, 246, 248, 0.92));
   color: var(--gray-700);
   font-size: 0.88rem;
   line-height: 1.55;
@@ -2243,8 +2296,8 @@ textarea.form-input {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(41, 199, 104, 0.14);
-  color: #13794a;
+  background: linear-gradient(135deg, var(--gold), var(--gold-light));
+  color: var(--navy);
   font-size: 0.62rem;
   font-weight: 800;
 }
@@ -2252,8 +2305,8 @@ textarea.form-input {
 .payment-return-banner {
   padding: 12px 14px;
   border-radius: 16px;
-  background: rgba(13, 27, 56, 0.05);
-  border: 1px solid rgba(13, 27, 56, 0.08);
+  background: linear-gradient(90deg, rgba(13, 27, 56, 0.05), rgba(200, 169, 107, 0.1));
+  border: 1px solid rgba(200, 169, 107, 0.18);
   color: var(--navy);
   font-size: 0.88rem;
 }
@@ -2267,12 +2320,12 @@ textarea.form-input {
 .payment-status-card {
   padding: 22px;
   border-radius: 24px;
-  border: 1px solid var(--gray-100);
-  background: linear-gradient(180deg, rgba(13, 27, 56, 0.03), rgba(200, 169, 107, 0.05));
+  border: 1px solid rgba(200, 169, 107, 0.18);
+  background: linear-gradient(180deg, rgba(255, 250, 242, 0.96), rgba(247, 241, 228, 0.9));
 }
 
 .payment-status-card.is-secondary {
-  background: #fff;
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .payment-status-head {
@@ -2333,8 +2386,8 @@ textarea.form-input {
   min-width: 0;
   padding: 14px 16px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.76);
-  border: 1px solid var(--gray-100);
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(200, 169, 107, 0.16);
 }
 
 .payment-status-grid span {
