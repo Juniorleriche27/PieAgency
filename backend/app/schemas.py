@@ -236,6 +236,18 @@ class PaymentIntentCreateRequest(BaseModel):
         value = value.strip()
         return value or None
 
+    @field_validator("phone")
+    @classmethod
+    def validate_payment_phone(cls, value: str) -> str:
+        normalized = value.replace(" ", "").replace("-", "").replace("(", "").replace(")", "").replace(".", "")
+        if normalized.startswith("00"):
+            normalized = f"+{normalized[2:]}"
+        if not normalized.startswith("+") or not normalized[1:].isdigit() or len(normalized) < 9:
+            raise ValueError(
+                "Le numero doit etre renseigne au format international, par exemple +22899159953.",
+            )
+        return normalized
+
 
 class PaymentIntentCreateResponse(BaseModel):
     provider: Literal["maketou"]

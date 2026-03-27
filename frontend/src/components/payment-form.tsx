@@ -68,6 +68,23 @@ function getServiceReason(serviceSlug: string) {
   return service ? `Acompte convenu pour ${service.label}` : "Acompte convenu avec PieAgency";
 }
 
+function normalizePhone(phone: string) {
+  const trimmed = phone.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const compact = trimmed.replace(/[\s().-]+/g, "");
+  if (compact.startsWith("00")) {
+    return `+${compact.slice(2)}`;
+  }
+  return compact;
+}
+
+function isInternationalPhone(phone: string) {
+  return /^\+[1-9]\d{7,14}$/.test(phone);
+}
+
 export function PaymentForm() {
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
   const searchParams = useSearchParams();
@@ -161,6 +178,7 @@ export function PaymentForm() {
 
   function validate(current: PaymentFormState): PaymentFormErrors {
     const nextErrors: PaymentFormErrors = {};
+    const normalizedPhone = normalizePhone(current.phone);
 
     if (current.fullName.trim().length < 3) {
       nextErrors.fullName = "Entrez votre nom complet.";
@@ -168,8 +186,11 @@ export function PaymentForm() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(current.email.trim())) {
       nextErrors.email = "L'email n'est pas valide.";
     }
-    if (current.phone.trim().length < 6) {
+    if (!normalizedPhone) {
       nextErrors.phone = "Indiquez votre numero principal.";
+    } else if (!isInternationalPhone(normalizedPhone)) {
+      nextErrors.phone =
+        "Utilisez un numero au format international, par exemple +22899159953.";
     }
 
     const amountValue = Number(current.amount);
@@ -271,6 +292,8 @@ export function PaymentForm() {
     setPaymentResult(null);
     setStatusResult(null);
 
+    const normalizedPhone = normalizePhone(form.phone);
+
     try {
       const response = await fetch(`${apiBaseUrl}/api/payments/maketou/checkout`, {
         method: "POST",
@@ -280,7 +303,7 @@ export function PaymentForm() {
         body: JSON.stringify({
           full_name: form.fullName.trim(),
           email: form.email.trim(),
-          phone: form.phone.trim(),
+          phone: normalizedPhone,
           amount: Number(form.amount),
           service_slug: form.serviceSlug || null,
           dossier_reference: form.dossierReference.trim() || null,
@@ -441,12 +464,19 @@ export function PaymentForm() {
               aria-invalid={Boolean(errors.phone)}
               className="form-input"
               id="payment-phone"
+              inputMode="tel"
+              onBlur={(event) => updateField("phone", normalizePhone(event.target.value))}
               onChange={(event) => updateField("phone", event.target.value)}
-              placeholder="+228 90 00 00 00"
+              placeholder="+22899159953"
               type="tel"
               value={form.phone}
             />
             {errors.phone ? <div className="form-error">{errors.phone}</div> : null}
+            <div className="form-help">
+              Saisissez toujours le numero avec l&apos;indicatif pays, par exemple
+              {" "}
+              <code>+22899159953</code>.
+            </div>
           </div>
 
           <div className="form-group">
