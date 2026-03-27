@@ -1909,6 +1909,274 @@ textarea.form-input {
   font-weight: 600;
 }
 
+.payment-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.92fr) minmax(0, 1.08fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.payment-info-card,
+.payment-form-card,
+.payment-status-card {
+  min-width: 0;
+}
+
+.payment-info-card {
+  padding: 32px;
+  border-radius: 28px;
+  background: linear-gradient(180deg, #0d1b38 0%, #132a52 100%);
+  color: #f5f7fc;
+  box-shadow: 0 24px 70px rgba(13, 27, 56, 0.18);
+}
+
+.payment-info-card .section-label,
+.payment-info-card .section-title,
+.payment-info-card .section-lead {
+  color: #f5f7fc;
+}
+
+.payment-info-card .section-lead {
+  color: rgba(245, 247, 252, 0.72);
+}
+
+.payment-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.payment-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.payment-step-item span {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #29c768, #1ea45d);
+  color: #fff;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.payment-step-item strong {
+  display: block;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.payment-step-item p {
+  color: rgba(245, 247, 252, 0.72);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.payment-note-card {
+  margin-top: 24px;
+  padding: 18px 20px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.payment-note-kicker {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(245, 247, 252, 0.52);
+  margin-bottom: 8px;
+}
+
+.payment-note-card p {
+  color: rgba(245, 247, 252, 0.76);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.payment-service-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(41, 199, 104, 0.12);
+  color: #9ff0bf;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.payment-form-card {
+  padding: 32px;
+  border-radius: 28px;
+  border: 1px solid var(--gray-100);
+  box-shadow: 0 24px 70px rgba(13, 27, 56, 0.08);
+}
+
+.payment-form-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.payment-form-head h3 {
+  margin-bottom: 0;
+}
+
+.payment-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.payment-badge.is-live {
+  background: rgba(41, 199, 104, 0.12);
+  color: #13794a;
+}
+
+.payment-badge.is-disabled {
+  background: rgba(13, 27, 56, 0.08);
+  color: var(--navy);
+}
+
+.payment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 14px;
+}
+
+.payment-operator-field,
+.payment-reason-field {
+  grid-column: 1 / -1;
+}
+
+.payment-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--gray-100);
+}
+
+.payment-footnote {
+  max-width: 420px;
+  color: var(--gray-500);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.payment-status-card {
+  margin-top: 20px;
+  padding: 22px;
+  border-radius: 24px;
+  border: 1px solid var(--gray-100);
+  background: linear-gradient(180deg, rgba(13, 27, 56, 0.03), rgba(200, 169, 107, 0.05));
+}
+
+.payment-status-card.is-secondary {
+  background: #fff;
+}
+
+.payment-status-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.payment-status-head h4 {
+  color: var(--navy);
+  margin-bottom: 0;
+}
+
+.payment-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.payment-status-pill.is-pending,
+.payment-status-pill.is-initiated {
+  background: rgba(200, 169, 107, 0.18);
+  color: #88621d;
+}
+
+.payment-status-pill.is-success {
+  background: rgba(41, 199, 104, 0.14);
+  color: #13794a;
+}
+
+.payment-status-pill.is-failed {
+  background: rgba(180, 35, 24, 0.12);
+  color: #912018;
+}
+
+.payment-status-pill.is-unknown {
+  background: rgba(13, 27, 56, 0.08);
+  color: var(--navy);
+}
+
+.payment-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.payment-status-grid div {
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid var(--gray-100);
+}
+
+.payment-status-grid span {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gray-400);
+  margin-bottom: 6px;
+}
+
+.payment-status-grid strong {
+  display: block;
+  color: var(--navy);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .cta-section {
   background: linear-gradient(135deg, var(--navy), var(--navy-mid));
   padding: 96px 0;
@@ -6386,6 +6654,36 @@ body.chat-open .wa-float {
   .form-funnel-card {
     padding: 20px 16px;
     border-radius: 16px;
+  }
+  .payment-layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .payment-info-card,
+  .payment-form-card,
+  .payment-status-card {
+    padding: 20px 16px;
+    border-radius: 22px;
+  }
+  .payment-form-head,
+  .payment-form-footer,
+  .payment-status-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .payment-grid,
+  .payment-status-grid {
+    grid-template-columns: 1fr;
+  }
+  .payment-footnote {
+    max-width: none;
+  }
+  .payment-form-footer .btn,
+  .payment-status-card .btn {
+    width: 100%;
+  }
+  .payment-step-item {
+    padding: 14px;
   }
   .form-compact-funnel {
     padding: 18px 16px;

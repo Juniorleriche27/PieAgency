@@ -98,6 +98,7 @@ export const navigation = [
   { label: "Parcoursup", href: "/parcoursup" },
   { label: "Écoles privées", href: "/ecoles" },
   { label: "Communauté", href: "/communaute" },
+  { label: "Paiement", href: "/paiement" },
   { label: "FAQ", href: "/faq" },
   { label: "À propos", href: "/about" },
   { label: "Contact", href: "/contact" },
@@ -484,6 +485,11 @@ export const faqItems = [
     question: "Comment démarrer un accompagnement ?",
     answer:
       "Il suffit de remplir le formulaire du site ou d’utiliser le chat PieAgency. Un premier échange permet d’analyser le profil et d’identifier l’accompagnement adapté.",
+  },
+  {
+    question: "Comment payer un acompte ou un montant validé ?",
+    answer:
+      "PieAgency met à disposition une page paiement sur le site. Elle doit être utilisée uniquement après validation du montant avec un conseiller.",
   },
 ] as const;
 

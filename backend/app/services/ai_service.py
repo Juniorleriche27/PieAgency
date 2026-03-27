@@ -93,10 +93,15 @@ def _chat_fallback(request: AIChatRequest) -> AIChatResponse:
             "notamment les lettres, l'hebergement et les justificatifs financiers. "
             "Le depot final reste toutefois effectue par l'etudiant."
         )
+    if any(keyword in last_user_message.lower() for keyword in ("paiement", "payer", "acompte")):
+        answer = (
+            "PieAgency dispose d'une page paiement pour regler un montant deja valide avec un conseiller. "
+            "Si votre dossier n'est pas encore cadre, commencez d'abord par le formulaire ou le chat du site."
+        )
     return AIChatResponse(
         answer=answer,
         suggested_actions=[
-            str(page["cta_label"]),
+            "Ouvrir la page paiement" if "paiement" in last_user_message.lower() else str(page["cta_label"]),
             "Ouvrir le formulaire",
             "Remplir le formulaire de contact",
         ],

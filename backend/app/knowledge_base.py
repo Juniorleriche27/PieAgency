@@ -9,6 +9,7 @@ SITE_KNOWLEDGE = dedent(
     Contacts officiels :
     - Formulaire principal : https://pieagency.fr/contact
     - Chat du site : disponible sur les pages publiques pour les premieres questions
+    - Paiement en ligne : https://pieagency.fr/paiement (uniquement pour un montant deja valide avec un conseiller)
     - Presence France : Ibrahim B. - (+33) 6 35 32 04 40
     - Presence Togo : Junior L. - +228 92 09 25 72
 
@@ -164,6 +165,17 @@ PAGE_CONTEXTS = {
         ],
         "cta_label": "Envoyer ma demande",
         "cta_href": "/contact",
+    },
+    "/paiement": {
+        "title": "Assistant Paiement",
+        "summary": "Aider le visiteur a regler un montant deja valide avec PieAgency via Makuta.",
+        "bullets": [
+            "Rappeler qu'il ne s'agit pas d'un paiement a prix automatique.",
+            "Verifier qu'un conseiller a deja valide le montant.",
+            "Rediriger vers le formulaire si le dossier n'est pas encore qualifie.",
+        ],
+        "cta_label": "Ouvrir la page paiement",
+        "cta_href": "/paiement",
     },
 }
 

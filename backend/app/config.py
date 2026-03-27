@@ -18,6 +18,24 @@ class Settings(BaseSettings):
     supabase_service_role_key: str = ""
     supabase_contact_table: str = "contact_requests"
     admin_emails: str = ""
+    makuta_base_url: str = ""
+    makuta_api_version: str = "v1"
+    makuta_app_token: str = ""
+    makuta_user_token: str = ""
+    makuta_login_url: str = ""
+    makuta_login_identity: str = ""
+    makuta_login_password: str = ""
+    makuta_login_identity_field: str = "login"
+    makuta_login_password_field: str = "password"
+    makuta_wallet_id: str = ""
+    makuta_wallet_operation: str = "CREDIT"
+    makuta_transaction_url: str = ""
+    makuta_status_url_template: str = ""
+    makuta_status_http_method: str = "GET"
+    makuta_supported_currencies: str = "XOF"
+    makuta_operator_options: str = ""
+    makuta_request_timeout_seconds: float = 20.0
+    makuta_merchant_label: str = "PieAgency"
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
@@ -53,6 +71,54 @@ class Settings(BaseSettings):
             for email in self.admin_emails.split(",")
             if email.strip()
         }
+
+    @property
+    def makuta_enabled(self) -> bool:
+        return bool(
+            self.makuta_wallet_id
+            and self.makuta_app_token
+            and self.makuta_transaction_endpoint
+        )
+
+    @property
+    def makuta_transaction_endpoint(self) -> str:
+        if self.makuta_transaction_url.strip():
+            return self.makuta_transaction_url.strip()
+
+        base_url = self.makuta_base_url.rstrip("/")
+        api_version = self.makuta_api_version.strip().strip("/")
+        if not base_url or not api_version:
+            return ""
+
+        return f"{base_url}/{api_version}/financial-transactions/0"
+
+    @property
+    def makuta_supported_currency_list(self) -> list[str]:
+        return [
+            currency.strip().upper()
+            for currency in self.makuta_supported_currencies.split(",")
+            if currency.strip()
+        ] or ["XOF"]
+
+    @property
+    def makuta_operator_option_list(self) -> list[tuple[str, str]]:
+        options: list[tuple[str, str]] = []
+        for item in self.makuta_operator_options.split(","):
+            raw_item = item.strip()
+            if not raw_item:
+                continue
+
+            if ":" in raw_item:
+                code, label = raw_item.split(":", 1)
+            else:
+                code, label = raw_item, raw_item
+
+            normalized_code = code.strip()
+            normalized_label = label.strip()
+            if normalized_code and normalized_label:
+                options.append((normalized_code, normalized_label))
+
+        return options
 
 
 settings = Settings()

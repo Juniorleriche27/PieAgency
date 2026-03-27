@@ -203,6 +203,75 @@ class ContactRequestResponse(BaseModel):
     message: str
 
 
+class PaymentOperatorItem(BaseModel):
+    code: str
+    label: str
+
+
+class PaymentConfigResponse(BaseModel):
+    enabled: bool
+    provider: Literal["makuta"]
+    merchant_label: str
+    currency_options: list[str] = Field(default_factory=list)
+    operator_options: list[PaymentOperatorItem] = Field(default_factory=list)
+    instructions: str
+    status_check_enabled: bool = False
+
+
+class PaymentIntentCreateRequest(BaseModel):
+    full_name: str = Field(min_length=2, max_length=120)
+    email: EmailStr
+    phone: str = Field(min_length=6, max_length=32)
+    account_number: str = Field(min_length=6, max_length=32)
+    operator_code: str = Field(min_length=2, max_length=80)
+    amount: float = Field(gt=0, le=100_000_000)
+    currency: str = Field(min_length=3, max_length=3)
+    service_slug: str | None = Field(default=None, max_length=60)
+    dossier_reference: str | None = Field(default=None, max_length=120)
+    reason: str = Field(min_length=4, max_length=240)
+
+    @field_validator(
+        "full_name",
+        "phone",
+        "account_number",
+        "operator_code",
+        "service_slug",
+        "dossier_reference",
+        "reason",
+        mode="before",
+    )
+    @classmethod
+    def strip_payment_strings(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
+
+    @field_validator("currency", mode="before")
+    @classmethod
+    def normalize_payment_currency(cls, value: str) -> str:
+        return value.strip().upper()
+
+
+class PaymentIntentCreateResponse(BaseModel):
+    provider: Literal["makuta"]
+    status: Literal["initiated", "pending", "success", "failed", "unknown"]
+    message: str
+    transaction_id: str | None = None
+    reference: str | None = None
+    provider_status: str | None = None
+    status_check_enabled: bool = False
+
+
+class PaymentStatusResponse(BaseModel):
+    provider: Literal["makuta"]
+    transaction_id: str
+    status: Literal["pending", "success", "failed", "unknown"]
+    message: str
+    provider_status: str | None = None
+    reference: str | None = None
+
+
 class PartnershipRequestCreate(BaseModel):
     organization_name: str = Field(min_length=2, max_length=160)
     organization_type: PartnershipOrganizationType

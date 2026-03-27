@@ -110,6 +110,13 @@ export default async function ServicePage({ params }: ServicePageProps) {
             >
               {servicePage.secondaryCta.label}
             </ActionLink>
+            <ActionLink
+              href={`/paiement?service=${servicePage.slug}`}
+              variant="green"
+              size="lg"
+            >
+              Payer un acompte
+            </ActionLink>
           </div>
         </div>
       </section>

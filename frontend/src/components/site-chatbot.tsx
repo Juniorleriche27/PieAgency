@@ -250,6 +250,16 @@ export function SiteChatbot() {
       };
     }
 
+    if (normalized.includes("paiement") || normalized.includes("acompte")) {
+      return {
+        kind: "link" as const,
+        label: "Ouvrir la page paiement",
+        href: "/paiement",
+        external: false,
+        tone: "primary",
+      };
+    }
+
     if (normalized.includes("conseiller")) {
       return {
         kind: "link" as const,
