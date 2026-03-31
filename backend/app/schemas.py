@@ -374,8 +374,27 @@ class AuthSignInRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
+class AuthForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
 class AuthRefreshRequest(BaseModel):
     refresh_token: str = Field(min_length=20, max_length=2048)
+
+
+class AuthResetPasswordRequest(BaseModel):
+    access_token: str = Field(min_length=20, max_length=4096)
+    refresh_token: str = Field(min_length=20, max_length=4096)
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("access_token", "refresh_token", mode="before")
+    @classmethod
+    def strip_reset_tokens(cls, value: str) -> str:
+        return value.strip()
+
+
+class AuthMessageResponse(BaseModel):
+    message: str
 
 
 class AIMessage(BaseModel):

@@ -2,7 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..dependencies.auth import get_current_user
 from ..schemas import (
+    AuthForgotPasswordRequest,
+    AuthMessageResponse,
     AuthRefreshRequest,
+    AuthResetPasswordRequest,
     AuthSessionResponse,
     AuthSignInRequest,
     AuthSignUpRequest,
@@ -14,7 +17,9 @@ from ..services.auth_service import (
     InactiveProfileError,
     InvalidCredentialsError,
     InvalidTokenError,
+    request_password_reset,
     refresh_user_session,
+    reset_user_password,
     sign_in_user,
     sign_up_user,
 )
@@ -50,6 +55,22 @@ def sign_up(payload: AuthSignUpRequest) -> AuthSignUpResponse:
 def sign_in(payload: AuthSignInRequest) -> AuthSessionResponse:
     try:
         return sign_in_user(payload)
+    except (AuthServiceError, SupabaseConfigurationError) as exc:
+        raise _handle_auth_error(exc) from exc
+
+
+@router.post("/auth/forgot-password", response_model=AuthMessageResponse)
+def forgot_password(payload: AuthForgotPasswordRequest) -> AuthMessageResponse:
+    try:
+        return request_password_reset(payload)
+    except (AuthServiceError, SupabaseConfigurationError) as exc:
+        raise _handle_auth_error(exc) from exc
+
+
+@router.post("/auth/reset-password", response_model=AuthMessageResponse)
+def reset_password(payload: AuthResetPasswordRequest) -> AuthMessageResponse:
+    try:
+        return reset_user_password(payload)
     except (AuthServiceError, SupabaseConfigurationError) as exc:
         raise _handle_auth_error(exc) from exc
 

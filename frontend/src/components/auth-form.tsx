@@ -3,16 +3,27 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  clearStoredSession,
   getApiBaseUrl,
   saveStoredSession,
   type AuthSession,
   type AuthSignUpResponse,
 } from "@/lib/auth";
 
-type AuthMode = "sign-in" | "sign-up";
+type AuthMode =
+  | "sign-in"
+  | "sign-up"
+  | "forgot-password"
+  | "reset-password";
+
+type AuthTab = "sign-in" | "sign-up" | "forgot-password";
 
 type ErrorPayload = {
   detail?: string;
+};
+
+type MessagePayload = {
+  message: string;
 };
 
 function PasswordToggleIcon({ visible }: { visible: boolean }) {
@@ -68,13 +79,38 @@ function getRedirectPath(session: AuthSession, nextPath: string) {
   return nextPath || "/espace-etudiant";
 }
 
+function decodeAuthUrlValue(value: string | null) {
+  if (!value) {
+    return "";
+  }
+  return decodeURIComponent(value.replace(/\+/g, " "));
+}
+
+function getRequestedMode(modeParam: string | null): AuthMode {
+  if (modeParam === "signup") {
+    return "sign-up";
+  }
+  if (modeParam === "forgot-password") {
+    return "forgot-password";
+  }
+  if (modeParam === "recovery") {
+    return "forgot-password";
+  }
+  return "sign-in";
+}
+
+function getActiveTab(mode: AuthMode): AuthTab {
+  if (mode === "reset-password") {
+    return "forgot-password";
+  }
+  return mode;
+}
+
 export function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
-  const [mode, setMode] = useState<AuthMode>(
-    searchParams.get("mode") === "signup" ? "sign-up" : "sign-in",
-  );
+  const [mode, setMode] = useState<AuthMode>(getRequestedMode(searchParams.get("mode")));
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -86,10 +122,20 @@ export function AuthForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [infoMessage, setInfoMessage] = useState("");
+  const [resetAccessToken, setResetAccessToken] = useState("");
+  const [resetRefreshToken, setResetRefreshToken] = useState("");
 
   const nextPathParam = searchParams.get("next") ?? "/espace-etudiant";
   const nextPath = nextPathParam.startsWith("/") ? nextPathParam : "/espace-etudiant";
   const confirmedParam = searchParams.get("confirmed");
+
+  useEffect(() => {
+    if (resetAccessToken && resetRefreshToken) {
+      return;
+    }
+
+    setMode(getRequestedMode(searchParams.get("mode")));
+  }, [resetAccessToken, resetRefreshToken, searchParams]);
 
   useEffect(() => {
     if (confirmedParam === "1") {
@@ -100,6 +146,69 @@ export function AuthForm() {
     }
   }, [confirmedParam]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const queryParams = new URLSearchParams(window.location.search);
+    const recoveryType =
+      hashParams.get("type") || queryParams.get("type") || queryParams.get("mode");
+    const accessToken =
+      hashParams.get("access_token") || queryParams.get("access_token") || "";
+    const refreshToken =
+      hashParams.get("refresh_token") || queryParams.get("refresh_token") || "";
+    const errorDescription = decodeAuthUrlValue(
+      hashParams.get("error_description") || queryParams.get("error_description"),
+    );
+
+    if (errorDescription) {
+      setMode("forgot-password");
+      setErrorMessage(errorDescription);
+      setInfoMessage("");
+      return;
+    }
+
+    if (recoveryType === "recovery" && accessToken && refreshToken) {
+      setResetAccessToken(accessToken);
+      setResetRefreshToken(refreshToken);
+      setMode("reset-password");
+      setErrorMessage("");
+      setInfoMessage(
+        "Lien valide. Choisissez maintenant un nouveau mot de passe.",
+      );
+    }
+  }, [searchParams]);
+
+  function updateBrowserMode(nextMode: AuthMode) {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    params.delete("confirmed");
+    params.delete("access_token");
+    params.delete("refresh_token");
+    params.delete("type");
+    params.delete("error_description");
+
+    if (nextMode === "sign-up") {
+      params.set("mode", "signup");
+    } else if (nextMode === "forgot-password") {
+      params.set("mode", "forgot-password");
+    } else if (nextMode === "reset-password") {
+      params.set("mode", "recovery");
+    } else {
+      params.delete("mode");
+    }
+
+    const nextUrl = params.toString()
+      ? `${window.location.pathname}?${params.toString()}`
+      : window.location.pathname;
+    window.history.replaceState({}, "", nextUrl);
+  }
+
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
     setErrorMessage("");
@@ -108,6 +217,13 @@ export function AuthForm() {
     setConfirmPassword("");
     setShowPassword(false);
     setShowConfirmPassword(false);
+
+    if (nextMode !== "reset-password") {
+      setResetAccessToken("");
+      setResetRefreshToken("");
+    }
+
+    updateBrowserMode(nextMode);
   }
 
   async function readErrorMessage(response: Response) {
@@ -117,6 +233,11 @@ export function AuthForm() {
     } catch {
       return "Une erreur est survenue.";
     }
+  }
+
+  async function readInfoMessage(response: Response) {
+    const payload = (await response.json()) as MessagePayload;
+    return payload.message;
   }
 
   async function handleSignIn() {
@@ -168,9 +289,63 @@ export function AuthForm() {
       return;
     }
 
-    setMode("sign-in");
+    switchMode("sign-in");
     setPassword("");
     setConfirmPassword("");
+    setInfoMessage(payload.message);
+  }
+
+  async function handleForgotPassword() {
+    const response = await fetch(`${apiBaseUrl}/api/auth/forgot-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response));
+    }
+
+    setInfoMessage(await readInfoMessage(response));
+  }
+
+  async function handleResetPassword() {
+    if (!resetAccessToken || !resetRefreshToken) {
+      throw new Error("Le lien de reinitialisation est invalide ou expire.");
+    }
+
+    if (password !== confirmPassword) {
+      throw new Error("Les deux mots de passe ne correspondent pas.");
+    }
+
+    const response = await fetch(`${apiBaseUrl}/api/auth/reset-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        access_token: resetAccessToken,
+        refresh_token: resetRefreshToken,
+        password,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response));
+    }
+
+    clearStoredSession();
+    setResetAccessToken("");
+    setResetRefreshToken("");
+    setPassword("");
+    setConfirmPassword("");
+    setEmail("");
+    switchMode("sign-in");
+    setInfoMessage(await readInfoMessage(response));
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -188,6 +363,16 @@ export function AuthForm() {
         return;
       }
 
+      if (mode === "forgot-password") {
+        await handleForgotPassword();
+        return;
+      }
+
+      if (mode === "reset-password") {
+        await handleResetPassword();
+        return;
+      }
+
       await handleSignIn();
     } catch (error) {
       setErrorMessage(
@@ -198,19 +383,29 @@ export function AuthForm() {
     }
   }
 
+  const activeTab = getActiveTab(mode);
+  const isPasswordMode = mode === "sign-in" || mode === "sign-up" || mode === "reset-password";
+
   return (
     <div className="auth-shell">
       <div className="auth-card">
         <div className="auth-tabs" role="tablist" aria-label="Mode de connexion">
           <button
-            className={`auth-tab ${mode === "sign-in" ? "active" : ""}`}
+            className={`auth-tab ${activeTab === "sign-in" ? "active" : ""}`}
             onClick={() => switchMode("sign-in")}
             type="button"
           >
             Connexion
           </button>
           <button
-            className={`auth-tab ${mode === "sign-up" ? "active" : ""}`}
+            className={`auth-tab ${activeTab === "forgot-password" ? "active" : ""}`}
+            onClick={() => switchMode("forgot-password")}
+            type="button"
+          >
+            Mot de passe oublie
+          </button>
+          <button
+            className={`auth-tab ${activeTab === "sign-up" ? "active" : ""}`}
             onClick={() => switchMode("sign-up")}
             type="button"
           >
@@ -220,13 +415,31 @@ export function AuthForm() {
 
         <div className="auth-copy">
           <div className="portal-card-kicker">
-            {mode === "sign-in" ? "Acces plateforme" : "Nouveau compte"}
+            {mode === "sign-in"
+              ? "Acces plateforme"
+              : mode === "sign-up"
+                ? "Nouveau compte"
+                : mode === "forgot-password"
+                  ? "Reinitialisation"
+                  : "Nouveau mot de passe"}
           </div>
-          <h2>{mode === "sign-in" ? "Se connecter" : "Creer son acces"}</h2>
+          <h2>
+            {mode === "sign-in"
+              ? "Se connecter"
+              : mode === "sign-up"
+                ? "Creer son acces"
+                : mode === "forgot-password"
+                  ? "Mot de passe oublie"
+                  : "Definir un nouveau mot de passe"}
+          </h2>
           <p>
             {mode === "sign-in"
               ? "Connectez-vous pour acceder a votre espace etudiant ou admin."
-              : "Le compte est rattache a Supabase Auth. Un email de confirmation sera envoye avant la premiere connexion."}
+              : mode === "sign-up"
+                ? "Le compte est rattache a Supabase Auth. Un email de confirmation sera envoye avant la premiere connexion."
+                : mode === "forgot-password"
+                  ? "Entrez votre email pour recevoir un lien de reinitialisation sur la page de connexion."
+                  : "Choisissez un nouveau mot de passe pour finaliser la reinitialisation."}
           </p>
         </div>
 
@@ -244,42 +457,48 @@ export function AuthForm() {
             </div>
           ) : null}
 
-          <div className="auth-field">
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="vous@example.com"
-              required
-              type="email"
-              value={email}
-            />
-          </div>
-
-          <div className="auth-field">
-            <label htmlFor="password">Mot de passe</label>
-            <div className="auth-password-wrap">
+          {mode !== "reset-password" ? (
+            <div className="auth-field">
+              <label htmlFor="email">Email</label>
               <input
-                id="password"
-                minLength={8}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Au moins 8 caracteres"
+                id="email"
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="vous@example.com"
                 required
-                type={showPassword ? "text" : "password"}
-                value={password}
+                type="email"
+                value={email}
               />
-              <button
-                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                className="auth-password-toggle"
-                onClick={() => setShowPassword((current) => !current)}
-                type="button"
-              >
-                <PasswordToggleIcon visible={showPassword} />
-              </button>
             </div>
-          </div>
+          ) : null}
 
-          {mode === "sign-up" ? (
+          {isPasswordMode ? (
+            <div className="auth-field">
+              <label htmlFor="password">
+                {mode === "reset-password" ? "Nouveau mot de passe" : "Mot de passe"}
+              </label>
+              <div className="auth-password-wrap">
+                <input
+                  id="password"
+                  minLength={8}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Au moins 8 caracteres"
+                  required
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                />
+                <button
+                  aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  className="auth-password-toggle"
+                  onClick={() => setShowPassword((current) => !current)}
+                  type="button"
+                >
+                  <PasswordToggleIcon visible={showPassword} />
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {mode === "sign-up" || mode === "reset-password" ? (
             <div className="auth-field">
               <label htmlFor="confirm-password">Confirmer le mot de passe</label>
               <div className="auth-password-wrap">
@@ -331,6 +550,13 @@ export function AuthForm() {
             </div>
           ) : null}
 
+          {mode === "forgot-password" ? (
+            <div className="auth-form-note">
+              L&apos;email ouvrira un lien vers <strong>/connexion</strong> pour definir le
+              nouveau mot de passe.
+            </div>
+          ) : null}
+
           {errorMessage ? <div className="auth-alert error">{errorMessage}</div> : null}
           {infoMessage ? <div className="auth-alert">{infoMessage}</div> : null}
 
@@ -339,7 +565,11 @@ export function AuthForm() {
               ? "Traitement..."
               : mode === "sign-in"
                 ? "Se connecter"
-                : "Creer le compte"}
+                : mode === "sign-up"
+                  ? "Creer le compte"
+                  : mode === "forgot-password"
+                    ? "Envoyer le lien"
+                    : "Mettre a jour le mot de passe"}
           </button>
         </form>
       </div>

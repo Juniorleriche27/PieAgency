@@ -4,6 +4,9 @@ from supabase_auth.types import Session, User
 
 from ..config import settings
 from ..schemas import (
+    AuthForgotPasswordRequest,
+    AuthMessageResponse,
+    AuthResetPasswordRequest,
     AuthSessionResponse,
     AuthSignInRequest,
     AuthSignUpRequest,
@@ -46,6 +49,10 @@ def _normalize_optional_text(value: str | None) -> str | None:
 
 def _email_confirmation_redirect_url() -> str:
     return f"{settings.frontend_origin.rstrip('/')}/connexion?mode=signin&confirmed=1"
+
+
+def _password_recovery_redirect_url() -> str:
+    return f"{settings.frontend_origin.rstrip('/')}/connexion?mode=recovery"
 
 
 def _determine_role(email: str | None, existing_role: str | None = None) -> PlatformRole:
@@ -252,6 +259,54 @@ def refresh_user_session(refresh_token: str) -> AuthSessionResponse:
         raise InactiveProfileError("Ce compte est desactive.")
 
     return _build_session_response(auth_response.session, profile)
+
+
+def request_password_reset(payload: AuthForgotPasswordRequest) -> AuthMessageResponse:
+    auth_client = get_supabase_client()
+
+    try:
+        auth_client.auth.reset_password_for_email(
+            payload.email,
+            {
+                "redirect_to": _password_recovery_redirect_url(),
+            },
+        )
+    except Exception as exc:
+        raise InvalidCredentialsError(
+            _public_error_message(
+                exc,
+                "Impossible d'envoyer l'email de reinitialisation pour le moment.",
+            ),
+        ) from exc
+
+    return AuthMessageResponse(
+        message=(
+            "Si cette adresse existe, un email de reinitialisation vient d'etre envoye."
+        ),
+    )
+
+
+def reset_user_password(payload: AuthResetPasswordRequest) -> AuthMessageResponse:
+    auth_client = get_supabase_client()
+
+    try:
+        auth_client.auth.set_session(payload.access_token, payload.refresh_token)
+        auth_client.auth.update_user(
+            {
+                "password": payload.password,
+            },
+        )
+    except Exception as exc:
+        raise InvalidTokenError(
+            _public_error_message(
+                exc,
+                "Le lien de reinitialisation est invalide ou expire.",
+            ),
+        ) from exc
+
+    return AuthMessageResponse(
+        message="Mot de passe mis a jour. Vous pouvez maintenant vous connecter.",
+    )
 
 
 def get_current_user_profile(access_token: str) -> AuthUserProfile:
