@@ -20,6 +20,10 @@ class SupabaseNotConfiguredError(ContactStoreNotConfiguredError):
     pass
 
 
+class ContactStoreIntegrationError(RuntimeError):
+    pass
+
+
 AIRTABLE_CONTACT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     "primary_name": (
         "Nom et prénom",
@@ -148,6 +152,39 @@ def _get_airtable_base_url() -> str:
     return settings.airtable_api_base_url.rstrip("/")
 
 
+def _extract_airtable_error_message(response: httpx.Response) -> str:
+    try:
+        payload = response.json()
+    except Exception:
+        return response.text.strip() or f"Erreur Airtable HTTP {response.status_code}."
+
+    if isinstance(payload, dict):
+        error = payload.get("error")
+        if isinstance(error, dict):
+            error_type = str(error.get("type", "")).strip()
+            error_message = str(error.get("message", "")).strip()
+            if error_type and error_message:
+                return f"{error_type}: {error_message}"
+            if error_message:
+                return error_message
+            if error_type:
+                return error_type
+
+        detail = str(payload.get("message", "")).strip() or str(payload.get("detail", "")).strip()
+        if detail:
+            return detail
+
+    return response.text.strip() or f"Erreur Airtable HTTP {response.status_code}."
+
+
+def _raise_for_airtable_response(response: httpx.Response, fallback: str) -> None:
+    try:
+        response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        detail = _extract_airtable_error_message(exc.response)
+        raise ContactStoreIntegrationError(f"{fallback} {detail}".strip()) from exc
+
+
 def _list_airtable_tables() -> list[dict]:
     if not settings.airtable_enabled:
         raise ContactStoreNotConfiguredError(
@@ -155,12 +192,21 @@ def _list_airtable_tables() -> list[dict]:
         )
 
     schema_url = f"{_get_airtable_base_url()}/meta/bases/{settings.airtable_base_id.strip()}/tables"
-    response = httpx.get(
-        schema_url,
-        headers=_get_airtable_headers(),
-        timeout=settings.airtable_request_timeout_seconds,
+    try:
+        response = httpx.get(
+            schema_url,
+            headers=_get_airtable_headers(),
+            timeout=settings.airtable_request_timeout_seconds,
+        )
+    except httpx.RequestError as exc:
+        raise ContactStoreIntegrationError(
+            "Impossible de contacter Airtable pour lire la structure de la base.",
+        ) from exc
+
+    _raise_for_airtable_response(
+        response,
+        "Impossible de lire la structure Airtable.",
     )
-    response.raise_for_status()
     payload = response.json()
     return payload.get("tables", [])
 
@@ -255,16 +301,25 @@ def _store_contact_request_in_airtable(payload: ContactRequestCreate) -> str:
 
     encoded_table_name = quote(table_name, safe="")
     records_url = f"{_get_airtable_base_url()}/{settings.airtable_base_id.strip()}/{encoded_table_name}"
-    response = httpx.post(
-        records_url,
-        headers=_get_airtable_headers(),
-        json={
-            "records": [{"fields": fields}],
-            "typecast": True,
-        },
-        timeout=settings.airtable_request_timeout_seconds,
+    try:
+        response = httpx.post(
+            records_url,
+            headers=_get_airtable_headers(),
+            json={
+                "records": [{"fields": fields}],
+                "typecast": True,
+            },
+            timeout=settings.airtable_request_timeout_seconds,
+        )
+    except httpx.RequestError as exc:
+        raise ContactStoreIntegrationError(
+            "Impossible de contacter Airtable pour creer la ligne du formulaire.",
+        ) from exc
+
+    _raise_for_airtable_response(
+        response,
+        "Airtable a refuse la creation de la ligne.",
     )
-    response.raise_for_status()
     payload_json = response.json()
     records = payload_json.get("records", [])
     if not records:

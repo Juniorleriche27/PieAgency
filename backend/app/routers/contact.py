@@ -9,6 +9,7 @@ from ..schemas import (
     PartnershipRequestResponse,
 )
 from ..services.contact_store import (
+    ContactStoreIntegrationError,
     ContactStoreNotConfiguredError,
     SupabaseNotConfiguredError,
     store_contact_request,
@@ -29,6 +30,8 @@ def create_contact_request(payload: ContactRequestCreate) -> ContactRequestRespo
         contact_id = store_contact_request(payload)
     except (ContactStoreNotConfiguredError, SupabaseNotConfiguredError) as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except ContactStoreIntegrationError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Unable to store contact request")
         raise HTTPException(
@@ -55,6 +58,8 @@ def create_partnership_request(
         request_id = store_partnership_request(payload)
     except (ContactStoreNotConfiguredError, SupabaseNotConfiguredError) as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except ContactStoreIntegrationError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Unable to store partnership request")
         raise HTTPException(
