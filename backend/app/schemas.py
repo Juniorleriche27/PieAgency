@@ -66,6 +66,9 @@ class ContactRequestCreate(BaseModel):
     phone_country_code: str = Field(min_length=2, max_length=8)
     phone: str = Field(min_length=6, max_length=32)
     country: str = Field(min_length=2, max_length=80)
+    respondent_type: Literal["Etudiant", "Parent"] | None = None
+    respondent_full_name: str | None = Field(default=None, max_length=160)
+    student_full_name: str | None = Field(default=None, max_length=160)
     has_baccalaureate: bool
     baccalaureate_year: int | None = Field(default=None, ge=1950, le=2100)
     high_school_year_count: int | None = Field(default=None, ge=1, le=10)
@@ -87,6 +90,9 @@ class ContactRequestCreate(BaseModel):
     france_motivation: str = Field(min_length=20, max_length=4000)
     funding_source: str = Field(min_length=2, max_length=160)
     assistance_preference: AssistancePreference
+    guarantor_informed: bool | None = None
+    guarantor_full_name: str | None = Field(default=None, max_length=160)
+    guarantor_phone: str | None = Field(default=None, max_length=32)
     consultation_date: date
     consultation_time: time
     referrer_name: str = Field(min_length=2, max_length=160)
@@ -100,6 +106,8 @@ class ContactRequestCreate(BaseModel):
         "phone_country_code",
         "phone",
         "country",
+        "respondent_full_name",
+        "student_full_name",
         "baccalaureate_average",
         "baccalaureate_track",
         "licence_average",
@@ -107,6 +115,8 @@ class ContactRequestCreate(BaseModel):
         "current_activity",
         "france_motivation",
         "funding_source",
+        "guarantor_full_name",
+        "guarantor_phone",
         "referrer_name",
         "message",
         mode="before",

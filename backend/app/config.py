@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     supabase_secret_key: str = ""
     supabase_service_role_key: str = ""
     supabase_contact_table: str = "contact_requests"
+    airtable_api_token: str = ""
+    airtable_base_id: str = ""
+    airtable_table_name: str = ""
+    airtable_api_base_url: str = "https://api.airtable.com/v0"
+    airtable_request_timeout_seconds: float = 20.0
     admin_emails: str = ""
     maketou_base_url: str = "https://api.maketou.net"
     maketou_api_key: str = ""
@@ -51,6 +56,14 @@ class Settings(BaseSettings):
         # Prefer the legacy service_role key when both are present because it is
         # the most compatible option with the current backend setup.
         return self.supabase_service_role_key or self.supabase_secret_key
+
+    @property
+    def airtable_enabled(self) -> bool:
+        return bool(
+            self.airtable_api_token.strip()
+            and self.airtable_base_id.strip()
+            and self.airtable_table_name.strip()
+        )
 
     @property
     def cohere_enabled(self) -> bool:

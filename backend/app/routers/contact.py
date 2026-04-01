@@ -9,6 +9,7 @@ from ..schemas import (
     PartnershipRequestResponse,
 )
 from ..services.contact_store import (
+    ContactStoreNotConfiguredError,
     SupabaseNotConfiguredError,
     store_contact_request,
     store_partnership_request,
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 def create_contact_request(payload: ContactRequestCreate) -> ContactRequestResponse:
     try:
         contact_id = store_contact_request(payload)
-    except SupabaseNotConfiguredError as exc:
+    except (ContactStoreNotConfiguredError, SupabaseNotConfiguredError) as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Unable to store contact request")
@@ -52,7 +53,7 @@ def create_partnership_request(
 ) -> PartnershipRequestResponse:
     try:
         request_id = store_partnership_request(payload)
-    except SupabaseNotConfiguredError as exc:
+    except (ContactStoreNotConfiguredError, SupabaseNotConfiguredError) as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Unable to store partnership request")

@@ -351,6 +351,9 @@ export function ContactForm() {
           phone_country_code: derivePhoneCountryCode(form.phone),
           phone: form.phone.trim(),
           country: form.country.trim(),
+          respondent_type: form.respondentType,
+          respondent_full_name: form.respondentFullName.trim(),
+          student_full_name: form.studentFullName.trim() || null,
           has_baccalaureate: false,
           baccalaureate_year: null,
           high_school_year_count: null,
@@ -379,6 +382,9 @@ export function ContactForm() {
           assistance_preference: isBelgiumProject
             ? "Accompagnement Belgique"
             : "Accompagnement Campus France",
+          guarantor_informed: form.guarantorInformed === "yes",
+          guarantor_full_name: form.guarantorFullName.trim(),
+          guarantor_phone: form.guarantorPhone.trim(),
           consultation_date: form.consultationDate,
           consultation_time: form.consultationTime,
           referrer_name: `Formulaire web - ${form.respondentType}`,
