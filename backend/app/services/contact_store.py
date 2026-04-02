@@ -27,8 +27,6 @@ class ContactStoreIntegrationError(RuntimeError):
 AIRTABLE_CONTACT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     "primary_name": (
         "Nom et prenom",
-        "Nom complet de l'etudiant concerne",
-        "Nom complet du repondant",
         "Nom complet",
     ),
     "respondent_type": (
@@ -77,6 +75,7 @@ AIRTABLE_CONTACT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     ),
     "school_type": (
         "Quel type d'ecole visez-vous ?",
+        "Quelle type d'ecole visez-vous ?",
         "Type d'ecole vise",
         "Type d'ecole",
     ),
@@ -256,12 +255,24 @@ def _resolve_airtable_field_names(table_schema: dict) -> dict[str, str]:
 
     resolved: dict[str, str] = {}
     for internal_key, aliases in AIRTABLE_CONTACT_FIELD_ALIASES.items():
+        normalized_aliases = [_normalize_field_name(alias) for alias in aliases]
+
+        for alias_normalized in normalized_aliases:
+            for field_normalized, field_name in available_fields:
+                if field_normalized == alias_normalized:
+                    resolved[internal_key] = field_name
+                    break
+            if internal_key in resolved:
+                break
+
+        if internal_key in resolved:
+            continue
+
         for alias in aliases:
             alias_normalized = _normalize_field_name(alias)
             for field_normalized, field_name in available_fields:
                 if (
-                    field_normalized == alias_normalized
-                    or field_normalized.startswith(alias_normalized)
+                    field_normalized.startswith(alias_normalized)
                     or alias_normalized.startswith(field_normalized)
                 ):
                     resolved[internal_key] = field_name

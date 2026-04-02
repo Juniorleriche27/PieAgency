@@ -349,10 +349,11 @@ export function ContactForm() {
     setFeedback(null);
 
     try {
-      const studentName =
+      const normalizedStudentFullName =
         form.respondentType === "Parent"
-          ? form.studentFullName.trim() || form.respondentFullName.trim()
+          ? form.studentFullName.trim()
           : form.studentFullName.trim() || form.respondentFullName.trim();
+      const studentName = normalizedStudentFullName || form.respondentFullName.trim();
       const { firstName, lastName } = splitFullName(studentName);
 
       const response = await fetch(`${apiBaseUrl}/api/contact-requests`, {
@@ -369,7 +370,7 @@ export function ContactForm() {
           country: form.country.trim(),
           respondent_type: form.respondentType,
           respondent_full_name: form.respondentFullName.trim(),
-          student_full_name: form.studentFullName.trim() || null,
+          student_full_name: normalizedStudentFullName || null,
           study_level: form.lastDegree,
           school_type: form.schoolType,
           target_project: form.targetProject.trim(),
