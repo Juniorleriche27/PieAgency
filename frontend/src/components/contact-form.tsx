@@ -11,7 +11,20 @@ type StudyLevelValue =
   | "Master"
   | "Doctorat"
   | "Autre";
-type TargetProjectValue = "Campus France" | "Campus Belgique";
+type SchoolTypeValue =
+  | "Ecole de commerce"
+  | "Ecole d'ingenieur"
+  | "Universite privee"
+  | "Universite publique"
+  | "Je reflechis pour le moment";
+type AssistancePreferenceValue =
+  | "Diagnostic complet du projet"
+  | "Accompagnement Campus France"
+  | "Accompagnement procedure visa"
+  | "Accompagnement Belgique"
+  | "Accompagnement Parcoursup"
+  | "Accompagnement ecoles privees"
+  | "Coaching et relecture de dossier";
 
 type ContactFormState = {
   respondentType: RespondentTypeValue | "";
@@ -21,14 +34,18 @@ type ContactFormState = {
   email: string;
   country: string;
   lastDegree: StudyLevelValue | "";
+  schoolType: SchoolTypeValue | "";
+  targetProject: string;
+  assistancePreference: AssistancePreferenceValue | "";
   fundingSource: string;
-  targetProject: TargetProjectValue | "";
+  financialSituation: string;
   guarantorInformed: ChoiceValue;
   guarantorFullName: string;
   guarantorPhone: string;
+  referrerName: string;
   consultationDate: string;
   consultationTime: string;
-  consentResources: boolean;
+  consentContact: boolean;
 };
 
 type FormErrors = Partial<Record<keyof ContactFormState, string>>;
@@ -57,9 +74,22 @@ const degreeOptions: ChoiceOption<StudyLevelValue>[] = [
   { value: "Autre", label: "Autre" },
 ];
 
-const projectOptions: ChoiceOption<TargetProjectValue>[] = [
-  { value: "Campus France", label: "Campus France" },
-  { value: "Campus Belgique", label: "Campus Belgique" },
+const schoolTypeOptions: ChoiceOption<SchoolTypeValue>[] = [
+  { value: "Ecole de commerce", label: "Ecole de commerce" },
+  { value: "Ecole d'ingenieur", label: "Ecole d'ingenieur" },
+  { value: "Universite privee", label: "Universite privee" },
+  { value: "Universite publique", label: "Universite publique" },
+  { value: "Je reflechis pour le moment", label: "Je reflechis pour le moment" },
+];
+
+const assistanceOptions: ChoiceOption<AssistancePreferenceValue>[] = [
+  { value: "Diagnostic complet du projet", label: "Diagnostic complet du projet" },
+  { value: "Accompagnement Campus France", label: "Accompagnement Campus France" },
+  { value: "Accompagnement procedure visa", label: "Accompagnement procedure visa" },
+  { value: "Accompagnement Belgique", label: "Accompagnement Belgique" },
+  { value: "Accompagnement Parcoursup", label: "Accompagnement Parcoursup" },
+  { value: "Accompagnement ecoles privees", label: "Accompagnement ecoles privees" },
+  { value: "Coaching et relecture de dossier", label: "Coaching et relecture de dossier" },
 ];
 
 const binaryOptions: ChoiceOption<Exclude<ChoiceValue, "">>[] = [
@@ -70,7 +100,8 @@ const binaryOptions: ChoiceOption<Exclude<ChoiceValue, "">>[] = [
 const steps: StepDefinition[] = [
   {
     title: "Coordonnees",
-    description: "Qui remplit ce formulaire et comment pouvons-nous vous recontacter ?",
+    description:
+      "Identifiez le repondant, l'etudiant concerne et les coordonnees de contact.",
     fields: [
       "respondentType",
       "respondentFullName",
@@ -81,29 +112,33 @@ const steps: StepDefinition[] = [
     ],
   },
   {
-    title: "Dernier diplome",
-    description: "Quel est le dernier diplome obtenu par l'etudiant concerne ?",
-    fields: ["lastDegree"],
+    title: "Parcours",
+    description:
+      "Precisez le dernier diplome obtenu, le type d'ecole vise et la formation recherchee.",
+    fields: ["lastDegree", "schoolType", "targetProject"],
   },
   {
-    title: "Financement",
-    description: "Qui financera les etudes et le projet d'accompagnement ?",
-    fields: ["fundingSource"],
-  },
-  {
-    title: "Projet vise",
-    description: "L'etudiant vise-t-il Campus France ou Campus Belgique ?",
-    fields: ["targetProject"],
+    title: "Assistance",
+    description:
+      "Indiquez le type d'assistance souhaite, le financement et la situation financiere actuelle.",
+    fields: ["assistancePreference", "fundingSource", "financialSituation"],
   },
   {
     title: "Garant",
-    description: "Nous avons besoin du statut du garant et de ses coordonnees.",
-    fields: ["guarantorInformed", "guarantorFullName", "guarantorPhone"],
+    description:
+      "Renseignez le statut du garant, ses coordonnees et l'origine du lien du formulaire.",
+    fields: ["guarantorInformed", "guarantorFullName", "guarantorPhone", "referrerName"],
   },
   {
     title: "Consultation",
-    description: "Choisissez une disponibilite pour une consultation gratuite a distance.",
-    fields: ["consultationDate", "consultationTime", "consentResources"],
+    description: "Choisissez la date et l'heure souhaitees pour le RDV a distance.",
+    fields: ["consultationDate", "consultationTime"],
+  },
+  {
+    title: "Validation",
+    description:
+      "Validez le consentement de contact. Le resume du formulaire sera genere automatiquement.",
+    fields: ["consentContact"],
   },
 ];
 
@@ -115,14 +150,18 @@ const initialState: ContactFormState = {
   email: "",
   country: "",
   lastDegree: "",
-  fundingSource: "",
+  schoolType: "",
   targetProject: "",
+  assistancePreference: "",
+  fundingSource: "",
+  financialSituation: "",
   guarantorInformed: "",
   guarantorFullName: "",
   guarantorPhone: "",
+  referrerName: "",
   consultationDate: "",
   consultationTime: "",
-  consentResources: false,
+  consentContact: false,
 };
 
 function splitFullName(fullName: string) {
@@ -133,38 +172,9 @@ function splitFullName(fullName: string) {
 }
 
 function derivePhoneCountryCode(phone: string) {
-  const match = phone.trim().match(/^(\+\d{1,4})/);
+  const normalized = phone.trim().replace(/\s+/g, "");
+  const match = normalized.match(/^(\+\d{1,4})/);
   return match?.[1] ?? "+228";
-}
-
-function buildStructuredMessage(form: ContactFormState) {
-  const studentName =
-    form.respondentType === "Parent" ? form.studentFullName.trim() : form.respondentFullName.trim();
-
-  return [
-    "Formulaire simplifie PieAgency",
-    "",
-    "Coordonnees",
-    `- Formulaire renseigne par: ${form.respondentType}`,
-    `- Nom du repondant: ${form.respondentFullName.trim()}`,
-    `- Nom de l'etudiant concerne: ${studentName || "Non renseigne"}`,
-    `- Telephone: ${form.phone.trim()}`,
-    `- Email: ${form.email.trim()}`,
-    `- Pays: ${form.country.trim()}`,
-    "",
-    "Projet",
-    `- Dernier diplome: ${form.lastDegree}`,
-    `- Financement des etudes: ${form.fundingSource.trim()}`,
-    `- Projet vise: ${form.targetProject}`,
-    "",
-    "Garant financier",
-    `- Garant deja informe: ${form.guarantorInformed === "yes" ? "Oui" : "Non"}`,
-    `- Nom du garant: ${form.guarantorFullName.trim()}`,
-    `- Numero du garant: ${form.guarantorPhone.trim()}`,
-    "",
-    "Consultation",
-    `- Disponibilite: ${form.consultationDate} a ${form.consultationTime}`,
-  ].join("\n");
 }
 
 type CompactChoiceGroupProps<Value extends string> = {
@@ -223,29 +233,35 @@ export function ContactForm() {
     if (current.respondentFullName.trim().length < 3) {
       nextErrors.respondentFullName = "Entrez le nom complet du repondant.";
     }
-    if (
-      current.respondentType === "Parent" &&
-      current.studentFullName.trim().length < 3
-    ) {
-      nextErrors.studentFullName = "Indiquez le nom de l'etudiant concerne.";
+    if (current.respondentType === "Parent" && current.studentFullName.trim().length < 3) {
+      nextErrors.studentFullName = "Entrez le nom complet de l'etudiant concerne.";
     }
     if (current.phone.trim().length < 6) {
-      nextErrors.phone = "Le telephone est requis.";
+      nextErrors.phone = "Entrez le numero de telephone / WhatsApp.";
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(current.email.trim())) {
-      nextErrors.email = "L'email n'est pas valide.";
+      nextErrors.email = "L'adresse e-mail n'est pas valide.";
     }
     if (current.country.trim().length < 2) {
-      nextErrors.country = "Indiquez votre pays.";
+      nextErrors.country = "Entrez le pays de residence.";
     }
     if (!current.lastDegree) {
       nextErrors.lastDegree = "Selectionnez le dernier diplome obtenu.";
     }
-    if (current.fundingSource.trim().length < 2) {
-      nextErrors.fundingSource = "Indiquez qui financera les etudes.";
+    if (!current.schoolType) {
+      nextErrors.schoolType = "Selectionnez le type d'ecole vise.";
     }
-    if (!current.targetProject) {
-      nextErrors.targetProject = "Choisissez Campus France ou Campus Belgique.";
+    if (current.targetProject.trim().length < 4) {
+      nextErrors.targetProject = "Precisez le projet vise ou la formation recherchee.";
+    }
+    if (!current.assistancePreference) {
+      nextErrors.assistancePreference = "Choisissez le type d'assistance souhaite.";
+    }
+    if (current.fundingSource.trim().length < 2) {
+      nextErrors.fundingSource = "Indiquez qui financera les etudes en France.";
+    }
+    if (current.financialSituation.trim().length < 4) {
+      nextErrors.financialSituation = "Precisez la situation financiere actuelle.";
     }
     if (!binaryOptions.some((option) => option.value === current.guarantorInformed)) {
       nextErrors.guarantorInformed = "Precisez si le garant est deja informe.";
@@ -256,14 +272,17 @@ export function ContactForm() {
     if (current.guarantorPhone.trim().length < 6) {
       nextErrors.guarantorPhone = "Indiquez le numero du garant.";
     }
+    if (current.referrerName.trim().length < 2) {
+      nextErrors.referrerName = "Indiquez qui vous a envoye le lien du formulaire.";
+    }
     if (!current.consultationDate) {
-      nextErrors.consultationDate = "Choisissez un jour de consultation.";
+      nextErrors.consultationDate = "Choisissez la date de consultation / RDV.";
     }
     if (!current.consultationTime) {
-      nextErrors.consultationTime = "Choisissez une heure de consultation.";
+      nextErrors.consultationTime = "Choisissez l'heure de consultation.";
     }
-    if (!current.consentResources) {
-      nextErrors.consentResources = "Autorisez PieAgency a vous recontacter.";
+    if (!current.consentContact) {
+      nextErrors.consentContact = "Le consentement de contact est requis.";
     }
 
     return nextErrors;
@@ -334,10 +353,8 @@ export function ContactForm() {
       const studentName =
         form.respondentType === "Parent"
           ? form.studentFullName.trim() || form.respondentFullName.trim()
-          : form.respondentFullName.trim();
+          : form.studentFullName.trim() || form.respondentFullName.trim();
       const { firstName, lastName } = splitFullName(studentName);
-      const summaryMessage = buildStructuredMessage(form);
-      const isBelgiumProject = form.targetProject === "Campus Belgique";
 
       const response = await fetch(`${apiBaseUrl}/api/contact-requests`, {
         method: "POST",
@@ -354,43 +371,19 @@ export function ContactForm() {
           respondent_type: form.respondentType,
           respondent_full_name: form.respondentFullName.trim(),
           student_full_name: form.studentFullName.trim() || null,
-          has_baccalaureate: false,
-          baccalaureate_year: null,
-          high_school_year_count: null,
-          repeated_high_school_class: null,
-          baccalaureate_average: null,
-          baccalaureate_track: null,
-          has_licence: false,
-          licence_year: null,
-          repeated_licence_class: null,
-          licence_year_count: null,
-          licence_average: null,
-          licence_field: null,
-          has_master: false,
           study_level: form.lastDegree,
-          target_project: form.targetProject,
-          immigration_attempt_count: 0,
-          school_type: "Je reflechis pour le moment",
-          current_activity:
-            form.respondentType === "Parent"
-              ? `Formulaire renseigne par un parent pour ${studentName}.`
-              : "Formulaire renseigne directement par l'etudiant.",
-          france_motivation: isBelgiumProject
-            ? "Le prospect vise un accompagnement Campus Belgique. Les motivations detaillees seront precisees pendant la consultation."
-            : "Le prospect vise un accompagnement Campus France. Les motivations detaillees seront precisees pendant la consultation.",
+          school_type: form.schoolType,
+          target_project: form.targetProject.trim(),
+          assistance_preference: form.assistancePreference,
           funding_source: form.fundingSource.trim(),
-          assistance_preference: isBelgiumProject
-            ? "Accompagnement Belgique"
-            : "Accompagnement Campus France",
+          financial_situation: form.financialSituation.trim(),
           guarantor_informed: form.guarantorInformed === "yes",
           guarantor_full_name: form.guarantorFullName.trim(),
           guarantor_phone: form.guarantorPhone.trim(),
+          referrer_name: form.referrerName.trim(),
           consultation_date: form.consultationDate,
           consultation_time: form.consultationTime,
-          referrer_name: `Formulaire web - ${form.respondentType}`,
-          can_invest: form.guarantorInformed === "yes",
-          consent_resources: form.consentResources,
-          message: summaryMessage,
+          consent_contact: form.consentContact,
         }),
       });
 
@@ -476,14 +469,14 @@ export function ContactForm() {
 
             <div className="form-group">
               <label className="form-label" htmlFor="respondentFullName">
-                Nom & Prenom du repondant
+                Nom complet du r&eacute;pondant
               </label>
               <input
                 aria-invalid={Boolean(errors.respondentFullName)}
                 className="form-input"
                 id="respondentFullName"
                 onChange={(event) => updateField("respondentFullName", event.target.value)}
-                placeholder="Nom & Prenom"
+                placeholder="Nom complet du repondant"
                 type="text"
                 value={form.respondentFullName}
               />
@@ -495,14 +488,14 @@ export function ContactForm() {
             {form.respondentType === "Parent" ? (
               <div className="form-group">
                 <label className="form-label" htmlFor="studentFullName">
-                  Nom de l&apos;etudiant concerne
+                  Nom complet de l&apos;&eacute;tudiant concern&eacute;
                 </label>
                 <input
                   aria-invalid={Boolean(errors.studentFullName)}
                   className="form-input"
                   id="studentFullName"
                   onChange={(event) => updateField("studentFullName", event.target.value)}
-                placeholder="Nom & Prenom de l&apos;etudiant"
+                  placeholder="Nom complet de l'etudiant"
                   type="text"
                   value={form.studentFullName}
                 />
@@ -514,14 +507,14 @@ export function ContactForm() {
 
             <div className="form-group">
               <label className="form-label" htmlFor="phone">
-                Telephone
+                T&eacute;l&eacute;phone / WhatsApp
               </label>
               <input
                 aria-invalid={Boolean(errors.phone)}
                 className="form-input"
                 id="phone"
                 onChange={(event) => updateField("phone", event.target.value)}
-                placeholder="+228 92 00 00 00"
+                placeholder="+22899159953"
                 type="tel"
                 value={form.phone}
               />
@@ -530,7 +523,7 @@ export function ContactForm() {
 
             <div className="form-group">
               <label className="form-label" htmlFor="email">
-                Email
+                Adresse e-mail
               </label>
               <input
                 aria-invalid={Boolean(errors.email)}
@@ -546,7 +539,7 @@ export function ContactForm() {
 
             <div className="form-group">
               <label className="form-label" htmlFor="country">
-                Pays
+                Pays de r&eacute;sidence
               </label>
               <input
                 aria-invalid={Boolean(errors.country)}
@@ -563,57 +556,132 @@ export function ContactForm() {
         ) : null}
 
         {currentStep === 1 ? (
-          <div className="form-group">
-            <label className="form-label">Quel est le dernier diplome obtenu ?</label>
-            <CompactChoiceGroup
-              error={errors.lastDegree}
-              onSelect={(value) => updateField("lastDegree", value)}
-              options={degreeOptions}
-              value={form.lastDegree}
-            />
+          <div className="form-compact-fields">
+            <div className="form-group">
+              <label className="form-label">Dernier dipl&ocirc;me obtenu</label>
+              <CompactChoiceGroup
+                error={errors.lastDegree}
+                onSelect={(value) => updateField("lastDegree", value)}
+                options={degreeOptions}
+                value={form.lastDegree}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="schoolType">
+                Quel type d&apos;&eacute;cole visez-vous ?
+              </label>
+              <select
+                aria-invalid={Boolean(errors.schoolType)}
+                className="form-input"
+                id="schoolType"
+                onChange={(event) =>
+                  updateField("schoolType", event.target.value as SchoolTypeValue | "")
+                }
+                value={form.schoolType}
+              >
+                <option value="">Selectionner...</option>
+                {schoolTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              {errors.schoolType ? <div className="form-error">{errors.schoolType}</div> : null}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="targetProject">
+                Projet vis&eacute; / formation recherch&eacute;e
+              </label>
+              <textarea
+                aria-invalid={Boolean(errors.targetProject)}
+                className="form-input"
+                id="targetProject"
+                onChange={(event) => updateField("targetProject", event.target.value)}
+                placeholder="Ex: Master en data science, ecole d'ingenieur, Campus France..."
+                rows={3}
+                value={form.targetProject}
+              />
+              {errors.targetProject ? (
+                <div className="form-error">{errors.targetProject}</div>
+              ) : null}
+            </div>
           </div>
         ) : null}
 
         {currentStep === 2 ? (
-          <div className="form-group">
-            <label className="form-label" htmlFor="fundingSource">
-              Qui financera les etudes ?
-            </label>
-            <input
-              aria-invalid={Boolean(errors.fundingSource)}
-              className="form-input"
-              id="fundingSource"
-              onChange={(event) => updateField("fundingSource", event.target.value)}
-              placeholder="Parents, garant, moi-meme..."
-              type="text"
-              value={form.fundingSource}
-            />
-            {errors.fundingSource ? (
-              <div className="form-error">{errors.fundingSource}</div>
-            ) : null}
+          <div className="form-compact-fields">
+            <div className="form-group">
+              <label className="form-label" htmlFor="assistancePreference">
+                Quel type d&apos;assistance souhaitez-vous ?
+              </label>
+              <select
+                aria-invalid={Boolean(errors.assistancePreference)}
+                className="form-input"
+                id="assistancePreference"
+                onChange={(event) =>
+                  updateField(
+                    "assistancePreference",
+                    event.target.value as AssistancePreferenceValue | "",
+                  )
+                }
+                value={form.assistancePreference}
+              >
+                <option value="">Selectionner...</option>
+                {assistanceOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              {errors.assistancePreference ? (
+                <div className="form-error">{errors.assistancePreference}</div>
+              ) : null}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="fundingSource">
+                Qui financera les &eacute;tudes en France ?
+              </label>
+              <input
+                aria-invalid={Boolean(errors.fundingSource)}
+                className="form-input"
+                id="fundingSource"
+                onChange={(event) => updateField("fundingSource", event.target.value)}
+                placeholder="Parents, garant, moi-meme..."
+                type="text"
+                value={form.fundingSource}
+              />
+              {errors.fundingSource ? (
+                <div className="form-error">{errors.fundingSource}</div>
+              ) : null}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="financialSituation">
+                Situation financi&egrave;re actuelle
+              </label>
+              <textarea
+                aria-invalid={Boolean(errors.financialSituation)}
+                className="form-input"
+                id="financialSituation"
+                onChange={(event) => updateField("financialSituation", event.target.value)}
+                placeholder="Precisez votre situation financiere actuelle en quelques mots."
+                rows={3}
+                value={form.financialSituation}
+              />
+              {errors.financialSituation ? (
+                <div className="form-error">{errors.financialSituation}</div>
+              ) : null}
+            </div>
           </div>
         ) : null}
 
         {currentStep === 3 ? (
-          <div className="form-group">
-            <label className="form-label">
-              L&apos;etudiant est-il interesse par Campus France ou Belgique ?
-            </label>
-            <CompactChoiceGroup
-              error={errors.targetProject}
-              onSelect={(value) => updateField("targetProject", value)}
-              options={projectOptions}
-              value={form.targetProject}
-            />
-          </div>
-        ) : null}
-
-        {currentStep === 4 ? (
           <div className="form-compact-fields">
             <div className="form-group">
-              <label className="form-label">
-                Le garant financier est-il deja informe du projet ?
-              </label>
+              <label className="form-label">Le garant est-il d&eacute;j&agrave; inform&eacute; ?</label>
               <CompactChoiceGroup
                 error={errors.guarantorInformed}
                 onSelect={(value) => updateField("guarantorInformed", value)}
@@ -631,7 +699,7 @@ export function ContactForm() {
                 className="form-input"
                 id="guarantorFullName"
                 onChange={(event) => updateField("guarantorFullName", event.target.value)}
-                placeholder="Nom & Prenom du garant"
+                placeholder="Nom complet du garant"
                 type="text"
                 value={form.guarantorFullName}
               />
@@ -642,14 +710,14 @@ export function ContactForm() {
 
             <div className="form-group">
               <label className="form-label" htmlFor="guarantorPhone">
-                Numero du garant
+                Num&eacute;ro du garant
               </label>
               <input
                 aria-invalid={Boolean(errors.guarantorPhone)}
                 className="form-input"
                 id="guarantorPhone"
                 onChange={(event) => updateField("guarantorPhone", event.target.value)}
-                placeholder="+228 90 00 00 00"
+                placeholder="+22890000000"
                 type="tel"
                 value={form.guarantorPhone}
               />
@@ -657,15 +725,31 @@ export function ContactForm() {
                 <div className="form-error">{errors.guarantorPhone}</div>
               ) : null}
             </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="referrerName">
+                Qui vous a envoy&eacute; le lien du formulaire ?
+              </label>
+              <input
+                aria-invalid={Boolean(errors.referrerName)}
+                className="form-input"
+                id="referrerName"
+                onChange={(event) => updateField("referrerName", event.target.value)}
+                placeholder="Nom, conseiller, ami, parent..."
+                type="text"
+                value={form.referrerName}
+              />
+              {errors.referrerName ? <div className="form-error">{errors.referrerName}</div> : null}
+            </div>
           </div>
         ) : null}
 
-        {currentStep === 5 ? (
+        {currentStep === 4 ? (
           <div className="form-compact-fields">
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label" htmlFor="consultationDate">
-                  Jour disponible
+                  Date de consultation / RDV
                 </label>
                 <input
                   aria-invalid={Boolean(errors.consultationDate)}
@@ -682,7 +766,7 @@ export function ContactForm() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="consultationTime">
-                  Heure disponible
+                  Heure de consultation
                 </label>
                 <input
                   aria-invalid={Boolean(errors.consultationTime)}
@@ -697,20 +781,32 @@ export function ContactForm() {
                 ) : null}
               </div>
             </div>
+          </div>
+        ) : null}
+
+        {currentStep === 5 ? (
+          <div className="form-compact-fields">
+            <div className="form-compact-summary">
+              <strong>R&eacute;sum&eacute; du formulaire</strong>
+              <p>
+                Ce champ ne se remplit pas manuellement. Il est g&eacute;n&eacute;r&eacute;
+                automatiquement par le site puis envoy&eacute; en interne dans Airtable.
+              </p>
+            </div>
 
             <label className="form-check form-compact-check">
               <input
-                checked={form.consentResources}
-                onChange={(event) => updateField("consentResources", event.target.checked)}
+                checked={form.consentContact}
+                onChange={(event) => updateField("consentContact", event.target.checked)}
                 type="checkbox"
               />
               <span>
-                J&apos;accepte d&apos;etre recontacte(e) par PieAgency pour cette
-                consultation gratuite a distance.
+                J&apos;accepte d&apos;&ecirc;tre recontact&eacute;(e) par PieAgency. Ceci
+                correspond au champ Consentement de contact.
               </span>
             </label>
-            {errors.consentResources ? (
-              <div className="form-error">{errors.consentResources}</div>
+            {errors.consentContact ? (
+              <div className="form-error">{errors.consentContact}</div>
             ) : null}
           </div>
         ) : null}
@@ -718,8 +814,8 @@ export function ContactForm() {
 
       <div className="form-compact-footer">
         <div className="form-compact-note">
-          Le formulaire est le canal principal. Vous pouvez aussi utiliser le chat du
-          site si vous avez une question immediate.
+          Le formulaire reste le canal principal. Le chat du site reste disponible pour
+          les questions immediates.
           <button
             className="form-compact-note-button"
             onClick={() => window.dispatchEvent(new CustomEvent("pieagency-chat-open"))}

@@ -26,11 +26,27 @@ class ContactStoreIntegrationError(RuntimeError):
 
 AIRTABLE_CONTACT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     "primary_name": (
-        "Nom et prénom",
         "Nom et prenom",
-        "Nom et prénom de l'étudiant",
-        "Nom et prenom de l'etudiant",
+        "Nom complet de l'etudiant concerne",
+        "Nom complet du repondant",
         "Nom complet",
+    ),
+    "respondent_type": (
+        "Qui remplit ce formulaire ?",
+        "Qui remplit le formulaire ?",
+        "Qui renseigne le formulaire ?",
+        "Type de repondant",
+        "Repondant",
+    ),
+    "respondent_full_name": (
+        "Nom complet du repondant",
+        "Nom du repondant",
+        "Nom et prenom du repondant",
+    ),
+    "student_full_name": (
+        "Nom complet de l'etudiant concerne",
+        "Nom de l'etudiant concerne",
+        "Nom de l'etudiant",
     ),
     "email": (
         "Adresse e-mail",
@@ -39,76 +55,70 @@ AIRTABLE_CONTACT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
         "E-mail",
     ),
     "phone_country_code": (
-        "Indicatif régional",
         "Indicatif regional",
         "Indicatif",
     ),
     "phone": (
-        "Numéro de téléphone",
+        "Telephone / WhatsApp",
+        "Telephone WhatsApp",
         "Numero de telephone",
-        "Téléphone",
         "Telephone",
         "Phone",
     ),
-    "respondent_type": (
-        "Qui remplit le formulaire ?",
-        "Qui renseigne le formulaire ?",
-        "Type de répondant",
-        "Type de repondant",
-        "Répondant",
-        "Repondant",
+    "country": (
+        "Pays de residence",
+        "Pays",
     ),
-    "respondent_full_name": (
-        "Nom du répondant",
-        "Nom du repondant",
-        "Nom & prénom du répondant",
-        "Nom & prenom du repondant",
-    ),
-    "student_full_name": (
-        "Nom de l'étudiant concerné",
-        "Nom de l'etudiant concerne",
-        "Nom de l'étudiant",
-        "Nom de l'etudiant",
-    ),
-    "country": ("Pays",),
     "study_level": (
-        "Quel est son dernier diplôme ?",
+        "Dernier diplome obtenu",
         "Quel est son dernier diplome ?",
-        "Dernier diplôme",
         "Dernier diplome",
-        "Niveau d'études",
         "Niveau d'etudes",
     ),
+    "school_type": (
+        "Quel type d'ecole visez-vous ?",
+        "Type d'ecole vise",
+        "Type d'ecole",
+    ),
+    "target_project": (
+        "Projet vise / formation recherchee",
+        "Projet vise",
+        "Formation recherchee",
+    ),
+    "assistance_preference": (
+        "Quel type d'assistance souhaitez-vous ?",
+        "Assistance souhaitee",
+        "Type d'assistance",
+    ),
     "funding_source": (
-        "Qui financera ses études ?",
+        "Qui financera les etudes en France ?",
         "Qui financera ses etudes ?",
         "Financement",
         "Source de financement",
     ),
-    "target_project": (
-        "Campus France ou Belgique",
-        "Projet visé",
-        "Projet vise",
-        "Intéressé par Campus France ou Belgique",
-        "Interesse par Campus France ou Belgique",
+    "financial_situation": (
+        "Situation financiere actuelle",
+        "Situation financiere",
     ),
     "guarantor_informed": (
-        "Le garant financier est déjà informé de son projet d'immigration ?",
+        "Le garant est-il deja informe ?",
         "Le garant financier est deja informe de son projet d'immigration ?",
-        "Garant déjà informé",
         "Garant deja informe",
     ),
     "guarantor_full_name": (
-        "Nom du garant",
         "Nom complet du garant",
+        "Nom du garant",
     ),
     "guarantor_phone": (
-        "Numéro du garant",
         "Numero du garant",
-        "Téléphone du garant",
         "Telephone du garant",
     ),
+    "referrer_name": (
+        "Qui vous a envoye le lien du formulaire ?",
+        "Qui vous a envoye le lien",
+    ),
     "consultation_date": (
+        "Date de consultation / RDV",
         "Date de consultation",
         "Jour disponible",
     ),
@@ -116,10 +126,14 @@ AIRTABLE_CONTACT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
         "Heure de consultation",
         "Heure disponible",
     ),
+    "consent_contact": (
+        "Consentement de contact",
+        "Consentement",
+    ),
     "message": (
-        "Message",
-        "Résumé",
+        "Resume du formulaire",
         "Resume",
+        "Message",
         "Notes",
     ),
 }
@@ -231,51 +245,63 @@ def _find_airtable_table_schema() -> dict:
 
 
 def _resolve_airtable_field_names(table_schema: dict) -> dict[str, str]:
-    available_fields = {
-        _normalize_field_name(str(field.get("name", ""))): str(field.get("name", "")).strip()
+    available_fields = [
+        (
+            _normalize_field_name(str(field.get("name", ""))),
+            str(field.get("name", "")).strip(),
+        )
         for field in table_schema.get("fields", [])
         if str(field.get("name", "")).strip()
-    }
+    ]
 
     resolved: dict[str, str] = {}
     for internal_key, aliases in AIRTABLE_CONTACT_FIELD_ALIASES.items():
         for alias in aliases:
-            match = available_fields.get(_normalize_field_name(alias))
-            if match:
-                resolved[internal_key] = match
+            alias_normalized = _normalize_field_name(alias)
+            for field_normalized, field_name in available_fields:
+                if (
+                    field_normalized == alias_normalized
+                    or field_normalized.startswith(alias_normalized)
+                    or alias_normalized.startswith(field_normalized)
+                ):
+                    resolved[internal_key] = field_name
+                    break
+            if internal_key in resolved:
                 break
 
     return resolved
 
 
-def _build_airtable_contact_fields(payload: ContactRequestCreate, field_names: dict[str, str]) -> dict[str, object]:
-    student_name = payload.full_name
-    respondent_name = payload.respondent_full_name or student_name
+def _build_airtable_contact_fields(
+    payload: ContactRequestCreate,
+    field_names: dict[str, str],
+) -> dict[str, object]:
+    student_name = payload.effective_student_full_name
+    respondent_name = payload.effective_respondent_full_name
 
     values_by_key: dict[str, object] = {
         "primary_name": student_name,
-        "email": str(payload.email),
+        "respondent_type": payload.respondent_type,
+        "respondent_full_name": respondent_name,
+        "student_full_name": student_name,
         "phone_country_code": payload.phone_country_code,
         "phone": payload.phone,
-        "respondent_type": payload.respondent_type or "Etudiant",
-        "respondent_full_name": respondent_name,
-        "student_full_name": payload.student_full_name or student_name,
+        "email": str(payload.email),
         "country": payload.country,
-        "study_level": payload.study_level.value,
+        "study_level": payload.study_level,
+        "school_type": payload.school_type,
+        "target_project": payload.target_project,
+        "assistance_preference": payload.assistance_preference,
         "funding_source": payload.funding_source,
-        "target_project": payload.target_project.value,
-        "guarantor_informed": (
-            "Oui"
-            if payload.guarantor_informed is True
-            else "Non"
-            if payload.guarantor_informed is False
-            else None
-        ),
+        "financial_situation": payload.financial_situation,
+        "guarantor_informed": "Oui" if payload.guarantor_informed else "Non",
         "guarantor_full_name": payload.guarantor_full_name,
         "guarantor_phone": payload.guarantor_phone,
+        "referrer_name": payload.referrer_name,
         "consultation_date": payload.consultation_date.isoformat(),
-        "consultation_time": payload.consultation_time.strftime("%H:%M:%S"),
-        "message": payload.message,
+        "consultation_time": payload.consultation_time.strftime("%H:%M"),
+        "consent_contact": payload.consent_contact,
+        "message": payload.summary_message,
     }
 
     fields: dict[str, object] = {}
@@ -295,12 +321,17 @@ def _build_airtable_contact_fields(payload: ContactRequestCreate, field_names: d
 
 def _store_contact_request_in_airtable(payload: ContactRequestCreate) -> str:
     table_schema = _find_airtable_table_schema()
-    table_name = str(table_schema.get("name", "")).strip() or settings.airtable_table_name.strip()
+    requested_table = settings.airtable_table_name.strip()
+    table_id = str(table_schema.get("id", "")).strip()
+    table_name = str(table_schema.get("name", "")).strip()
+    table_identifier = table_id if requested_table == table_id else table_name or requested_table
     field_names = _resolve_airtable_field_names(table_schema)
     fields = _build_airtable_contact_fields(payload, field_names)
 
-    encoded_table_name = quote(table_name, safe="")
-    records_url = f"{_get_airtable_base_url()}/{settings.airtable_base_id.strip()}/{encoded_table_name}"
+    encoded_table_identifier = quote(table_identifier, safe="")
+    records_url = (
+        f"{_get_airtable_base_url()}/{settings.airtable_base_id.strip()}/{encoded_table_identifier}"
+    )
     try:
         response = httpx.post(
             records_url,
@@ -340,18 +371,18 @@ def _store_contact_request_in_supabase(payload: ContactRequestCreate) -> str:
                 "phone_country_code": payload.phone_country_code,
                 "phone": payload.phone,
                 "country": payload.country,
-                "study_level": payload.study_level.value,
-                "target_project": payload.target_project.value,
-                "immigration_attempt_count": payload.immigration_attempt_count,
-                "school_type": payload.school_type.value,
+                "study_level": payload.study_level,
+                "target_project": payload.target_project,
+                "immigration_attempt_count": 0,
+                "school_type": payload.school_type,
                 "funding_source": payload.funding_source,
-                "assistance_preference": payload.assistance_preference.value,
+                "assistance_preference": payload.assistance_preference,
                 "consultation_date": payload.consultation_date.isoformat(),
                 "consultation_time": payload.consultation_time.isoformat(),
                 "referrer_name": payload.referrer_name,
-                "can_invest": payload.can_invest,
-                "consent_resources": payload.consent_resources,
-                "message": payload.message,
+                "can_invest": payload.guarantor_informed is True,
+                "consent_resources": payload.consent_contact,
+                "message": payload.summary_message,
             },
         )
         .execute()

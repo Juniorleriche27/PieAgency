@@ -1769,6 +1769,26 @@ nav {
   accent-color: #29c768;
 }
 
+.form-compact-summary {
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(7, 18, 12, 0.4);
+  border: 1px solid rgba(157, 196, 172, 0.14);
+  color: rgba(232, 243, 236, 0.86);
+}
+
+.form-compact-summary strong {
+  display: block;
+  color: #f6fbf7;
+  margin-bottom: 6px;
+}
+
+.form-compact-summary p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
 .form-compact-footer {
   display: flex;
   align-items: center;
