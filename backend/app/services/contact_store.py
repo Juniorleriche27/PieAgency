@@ -148,6 +148,7 @@ def _get_supabase_client():
 
 def _normalize_field_name(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", value)
+    normalized = re.sub(r"[\u0027\u2018\u2019\u0060\u00b4\u02bc]", " ", normalized)
     ascii_value = normalized.encode("ascii", "ignore").decode("ascii")
     ascii_value = ascii_value.lower().replace("&", " et ")
     ascii_value = re.sub(r"[^a-z0-9]+", " ", ascii_value)
