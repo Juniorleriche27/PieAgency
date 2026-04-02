@@ -136,8 +136,7 @@ const steps: StepDefinition[] = [
   },
   {
     title: "Validation",
-    description:
-      "Validez le consentement de contact. Le resume du formulaire sera genere automatiquement.",
+    description: "Validez simplement le consentement de contact avant l'envoi.",
     fields: ["consentContact"],
   },
 ];
@@ -786,14 +785,6 @@ export function ContactForm() {
 
         {currentStep === 5 ? (
           <div className="form-compact-fields">
-            <div className="form-compact-summary">
-              <strong>R&eacute;sum&eacute; du formulaire</strong>
-              <p>
-                Ce champ ne se remplit pas manuellement. Il est g&eacute;n&eacute;r&eacute;
-                automatiquement par le site puis envoy&eacute; en interne dans Airtable.
-              </p>
-            </div>
-
             <label className="form-check form-compact-check">
               <input
                 checked={form.consentContact}
@@ -801,8 +792,7 @@ export function ContactForm() {
                 type="checkbox"
               />
               <span>
-                J&apos;accepte d&apos;&ecirc;tre recontact&eacute;(e) par PieAgency. Ceci
-                correspond au champ Consentement de contact.
+                J&apos;accepte d&apos;&ecirc;tre recontact&eacute;(e) par PieAgency.
               </span>
             </label>
             {errors.consentContact ? (

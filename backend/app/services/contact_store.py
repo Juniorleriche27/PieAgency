@@ -275,9 +275,16 @@ def _resolve_airtable_field_names(table_schema: dict) -> dict[str, str]:
 def _build_airtable_contact_fields(
     payload: ContactRequestCreate,
     field_names: dict[str, str],
+    field_types: dict[str, str],
 ) -> dict[str, object]:
     student_name = payload.effective_student_full_name
     respondent_name = payload.effective_respondent_full_name
+    consent_field_name = field_names.get("consent_contact", "")
+    consent_field_type = field_types.get(consent_field_name, "")
+    consent_contact_value: object = payload.consent_contact
+
+    if consent_field_type != "checkbox":
+        consent_contact_value = "Oui" if payload.consent_contact else "Non"
 
     values_by_key: dict[str, object] = {
         "primary_name": student_name,
@@ -300,7 +307,7 @@ def _build_airtable_contact_fields(
         "referrer_name": payload.referrer_name,
         "consultation_date": payload.consultation_date.isoformat(),
         "consultation_time": payload.consultation_time.strftime("%H:%M"),
-        "consent_contact": payload.consent_contact,
+        "consent_contact": consent_contact_value,
         "message": payload.summary_message,
     }
 
@@ -326,7 +333,12 @@ def _store_contact_request_in_airtable(payload: ContactRequestCreate) -> str:
     table_name = str(table_schema.get("name", "")).strip()
     table_identifier = table_id if requested_table == table_id else table_name or requested_table
     field_names = _resolve_airtable_field_names(table_schema)
-    fields = _build_airtable_contact_fields(payload, field_names)
+    field_types = {
+        str(field.get("name", "")).strip(): str(field.get("type", "")).strip()
+        for field in table_schema.get("fields", [])
+        if str(field.get("name", "")).strip()
+    }
+    fields = _build_airtable_contact_fields(payload, field_names, field_types)
 
     encoded_table_identifier = quote(table_identifier, safe="")
     records_url = (
