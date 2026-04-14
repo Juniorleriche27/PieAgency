@@ -1351,6 +1351,59 @@ nav {
   margin-top: 24px;
 }
 
+.contact-rdv-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: linear-gradient(135deg, #0d1b38 0%, #1e3560 100%);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  width: min(100%, 640px);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.contact-rdv-text {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #fff;
+}
+
+.contact-rdv-emoji {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.contact-rdv-text div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.contact-rdv-text strong {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.contact-rdv-text span {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.7);
+}
+
+@media (max-width: 560px) {
+  .contact-rdv-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+  .contact-rdv-banner .btn { width: 100%; justify-content: center; }
+}
+
 .form-card {
   padding: 40px;
 }

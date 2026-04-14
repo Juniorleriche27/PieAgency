@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ensureActiveSession, getApiBaseUrl } from "@/lib/auth";
+import { CALENDLY_HREF } from "@/content/site";
 
 type ChatRole = "user" | "assistant";
 
@@ -260,12 +261,30 @@ export function SiteChatbot() {
       };
     }
 
+    if (
+      normalized.includes("rendez-vous") ||
+      normalized.includes("rendez vous") ||
+      normalized.includes("rdv") ||
+      normalized.includes("consultation") ||
+      normalized.includes("creneau") ||
+      normalized.includes("créneau") ||
+      normalized.includes("calendly")
+    ) {
+      return {
+        kind: "link" as const,
+        label: "Prendre un RDV gratuit",
+        href: CALENDLY_HREF,
+        external: true,
+        tone: "primary",
+      };
+    }
+
     if (normalized.includes("conseiller")) {
       return {
         kind: "link" as const,
         label: "Parler a un conseiller",
-        href: "/contact",
-        external: false,
+        href: CALENDLY_HREF,
+        external: true,
         tone: "primary",
       };
     }

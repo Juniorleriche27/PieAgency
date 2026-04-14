@@ -31,6 +31,8 @@ export type ServicePage = {
   };
 };
 
+export const CALENDLY_HREF = "https://calendly.com/contact-pieagency/15";
+
 export const company = {
   name: "PieAgency",
   tagline:
