@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     airtable_api_base_url: str = "https://api.airtable.com/v0"
     airtable_request_timeout_seconds: float = 20.0
     admin_emails: str = ""
+    resend_api_key: str = ""
+    receipt_from_email: str = "PieAgency <contact@pieagency.fr>"
     maketou_base_url: str = "https://api.maketou.net"
     maketou_api_key: str = ""
     maketou_checkout_url: str = ""
@@ -64,6 +66,10 @@ class Settings(BaseSettings):
             and self.airtable_base_id.strip()
             and self.airtable_table_name.strip()
         )
+
+    @property
+    def resend_enabled(self) -> bool:
+        return bool(self.resend_api_key.strip())
 
     @property
     def cohere_enabled(self) -> bool:

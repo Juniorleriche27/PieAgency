@@ -6,8 +6,10 @@ from ..schemas import (
     PaymentConfigResponse,
     PaymentIntentCreateRequest,
     PaymentIntentCreateResponse,
+    PaymentReceiptRequest,
     PaymentStatusResponse,
 )
+from ..services.email_service import send_payment_receipt
 from ..services.payment_service import (
     MaketouNotConfiguredError,
     MaketouRequestError,
@@ -67,3 +69,17 @@ def get_payment_cart_status(cart_id: str) -> PaymentStatusResponse:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Impossible de verifier le statut du paiement pour le moment.",
         ) from exc
+
+
+@router.post("/payments/receipt", status_code=status.HTTP_202_ACCEPTED)
+def send_receipt(payload: PaymentReceiptRequest) -> dict:
+    sent = send_payment_receipt(
+        to_email=payload.email,
+        full_name=payload.full_name,
+        amount=payload.amount,
+        currency=payload.currency,
+        service_label=payload.service_label,
+        reference=payload.reference,
+        payment_id=payload.payment_id,
+    )
+    return {"sent": sent}

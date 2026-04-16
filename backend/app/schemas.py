@@ -251,6 +251,16 @@ class PaymentStatusResponse(BaseModel):
     reference: str | None = None
 
 
+class PaymentReceiptRequest(BaseModel):
+    email: EmailStr
+    full_name: str = Field(min_length=1, max_length=120)
+    amount: float = Field(gt=0)
+    currency: str = Field(default="XOF", max_length=10)
+    service_label: str = Field(default="Accompagnement PieAgency", max_length=200)
+    reference: str | None = Field(default=None, max_length=100)
+    payment_id: str | None = Field(default=None, max_length=100)
+
+
 class PartnershipRequestCreate(BaseModel):
     organization_name: str = Field(min_length=2, max_length=160)
     organization_type: PartnershipOrganizationType

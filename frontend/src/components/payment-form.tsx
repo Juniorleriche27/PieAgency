@@ -234,6 +234,33 @@ export function PaymentForm() {
       ) {
         window.localStorage.removeItem(LAST_CHECKOUT_STORAGE_KEY);
       }
+
+      // Send receipt email when payment is confirmed
+      if (payload.status === "completed") {
+        const savedRaw = typeof window !== "undefined"
+          ? window.localStorage.getItem("pieagency.payment.lastForm")
+          : null;
+        const savedForm = savedRaw ? (JSON.parse(savedRaw) as PaymentFormState) : null;
+        if (savedForm?.email) {
+          const serviceLabel = savedForm.serviceSlug
+            ? (serviceOptions.find((s) => s.slug === savedForm.serviceSlug)?.label ?? savedForm.reason)
+            : savedForm.reason;
+          fetch(`${apiBaseUrl}/api/payments/receipt`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: savedForm.email,
+              full_name: savedForm.fullName,
+              amount: Number(savedForm.amount),
+              currency: config?.display_currency ?? "XOF",
+              service_label: serviceLabel,
+              reference: savedForm.dossierReference || null,
+              payment_id: payload.payment_id ?? null,
+            }),
+          }).catch(() => null);
+          window.localStorage.removeItem("pieagency.payment.lastForm");
+        }
+      }
     } catch (error) {
       setFeedback({
         type: "error",
@@ -327,6 +354,8 @@ export function PaymentForm() {
       setPaymentResult(payload);
       if (typeof window !== "undefined") {
         window.localStorage.setItem(LAST_CHECKOUT_STORAGE_KEY, JSON.stringify(payload));
+        // Save form data so receipt endpoint has name/email/amount after redirect
+        window.localStorage.setItem("pieagency.payment.lastForm", JSON.stringify(form));
       }
 
       setFeedback({
