@@ -6,3 +6,4 @@ email-validator==2.3.0
 cohere==5.20.7
 openpyxl==3.1.5
 httpx==0.28.1
+reportlab==4.4.0
