@@ -45,6 +45,41 @@ export function SiteChatbot() {
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // Progressive display queue
+  const chunkQueueRef = useRef<string[]>([]);
+  const flushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const streamDoneRef = useRef(false);
+
+  function stopFlushLoop() {
+    if (flushTimerRef.current !== null) {
+      clearInterval(flushTimerRef.current);
+      flushTimerRef.current = null;
+    }
+  }
+
+  function startFlushLoop() {
+    if (flushTimerRef.current !== null) return;
+    flushTimerRef.current = setInterval(() => {
+      const queue = chunkQueueRef.current;
+      if (queue.length === 0) {
+        if (streamDoneRef.current) stopFlushLoop();
+        return;
+      }
+      const chunk = queue[0];
+      const slice = chunk.slice(0, 4);
+      const rest = chunk.slice(4);
+      if (rest) {
+        queue[0] = rest;
+      } else {
+        queue.shift();
+      }
+      appendAssistantChunk(slice);
+    }, 15);
+  }
+
+  // Cleanup on unmount
+  useEffect(() => () => stopFlushLoop(), []);
+
   const isBusy = isSending;
 
   useEffect(() => {
@@ -321,11 +356,14 @@ export function SiteChatbot() {
     }
 
     if (eventName === "chunk" && payload.text) {
-      appendAssistantChunk(payload.text);
+      setHasStartedStreaming(true);
+      chunkQueueRef.current.push(payload.text);
+      startFlushLoop();
       return;
     }
 
     if (eventName === "done") {
+      streamDoneRef.current = true;
       setSuggestedActions(payload.suggested_actions);
     }
   }
@@ -341,6 +379,9 @@ export function SiteChatbot() {
     setInput("");
     setIsSending(true);
     setHasStartedStreaming(false);
+    stopFlushLoop();
+    chunkQueueRef.current = [];
+    streamDoneRef.current = false;
 
     try {
       const session = await ensureActiveSession(apiBaseUrl);
@@ -388,6 +429,8 @@ export function SiteChatbot() {
         handleStreamEvent(buffer);
       }
     } catch {
+      stopFlushLoop();
+      chunkQueueRef.current = [];
       setAssistantMessage(
         "Je ne peux pas repondre proprement pour le moment. Vous pouvez passer par le formulaire ou le chat du site pour parler a un conseiller PieAgency.",
       );
