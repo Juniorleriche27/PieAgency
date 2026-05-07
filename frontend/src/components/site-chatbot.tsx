@@ -432,7 +432,7 @@ export function SiteChatbot() {
       stopFlushLoop();
       chunkQueueRef.current = [];
       setAssistantMessage(
-        "Je ne peux pas repondre proprement pour le moment. Vous pouvez passer par le formulaire ou le chat du site pour parler a un conseiller PieAgency.",
+        "Je ne peux pas repondre proprement pour le moment. Vous pouvez remplir le formulaire de contact sur pieagency.fr/contact ou prendre un rendez-vous avec un conseiller PieAgency.",
       );
     } finally {
       setIsSending(false);

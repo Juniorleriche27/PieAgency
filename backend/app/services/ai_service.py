@@ -96,7 +96,7 @@ def _chat_fallback(request: AIChatRequest) -> AIChatResponse:
     if any(keyword in last_user_message.lower() for keyword in ("paiement", "payer", "acompte")):
         answer = (
             "PieAgency dispose d'une page paiement pour regler un montant deja valide avec un conseiller. "
-            "Si votre dossier n'est pas encore cadre, commencez d'abord par le formulaire ou le chat du site."
+            "Si votre dossier n'est pas encore cadre, commencez d'abord par le formulaire de contact sur pieagency.fr/contact."
         )
     return AIChatResponse(
         answer=answer,
@@ -117,7 +117,7 @@ def _community_reply_fallback(request: CommunityAIReplyRequest) -> CommunityAIRe
             "PieAgency commence par comprendre votre profil, votre projet d'etudes et votre destination, "
             "puis l'equipe vous oriente vers l'accompagnement adapte pour le dossier, les lettres, le visa "
             "ou la preparation de l'entretien. Le plus simple maintenant est de passer par le formulaire "
-            "ou le chat du site pour qu'on analyse votre situation concretement."
+            "ou le formulaire de contact sur pieagency.fr/contact pour qu'on analyse votre situation concretement."
         )
     elif "visa" in message:
         reply = (
@@ -129,7 +129,7 @@ def _community_reply_fallback(request: CommunityAIReplyRequest) -> CommunityAIRe
         reply = (
             "On peut vous aider a clarifier le processus, choisir le bon accompagnement et avancer avec une "
             "vraie methode. Si vous voulez un retour precis sur votre cas, le plus efficace est de nous ecrire "
-            "dans le chat du site ou de remplir le formulaire de contact pour qu'on vous oriente rapidement."
+            "de remplir le formulaire de contact sur pieagency.fr/contact pour qu'on vous oriente rapidement."
         )
 
     return CommunityAIReplyResponse(reply=reply, source="fallback")
@@ -288,7 +288,7 @@ Contraintes:
 - texte propre uniquement, sans markdown, sans **, sans listes markdown;
 - ne pas afficher d'URL brute dans la reponse;
 - suggested_actions: 2 ou 3 actions concretes;
-- si l'utilisateur veut demarrer, mentionner le formulaire ou le chat.
+- si l'utilisateur veut demarrer, mentionner le formulaire de contact (pieagency.fr/contact) ou la prise de rendez-vous.
 """.strip()
 
 
@@ -322,7 +322,7 @@ Contraintes:
 - maximum 220 mots;
 - texte propre uniquement, sans markdown, sans **, sans listes markdown;
 - ne pas afficher d'URL brute dans la reponse;
-- si l'utilisateur veut demarrer, mentionner le formulaire ou le chat.
+- si l'utilisateur veut demarrer, mentionner le formulaire de contact (pieagency.fr/contact) ou la prise de rendez-vous.
 """.strip()
 
 
@@ -429,7 +429,7 @@ Contexte global:
 Ta mission:
 - repondre comme un profil officiel utile, humain et clair dans une discussion communautaire;
 - expliquer concretement comment PieAgency aide;
-- orienter intelligemment vers le formulaire, le chat du site ou la communaute si pertinent;
+- orienter intelligemment vers le formulaire de contact (pieagency.fr/contact) ou la communaute si pertinent;
 - ne jamais inventer de prix, delais officiels, garanties ou promesses d'admission.
 
 Retourne uniquement un JSON valide:
