@@ -471,14 +471,14 @@ nav {
 
 .header-user-dropdown {
   position: absolute;
-  top: calc(100% + 10px);
+  top: 100%;
   right: 0;
   min-width: 170px;
   background: #fff;
   border: 1px solid var(--gray-100);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(13,27,56,0.13);
-  padding: 6px;
+  padding: 10px 6px 6px;
   display: flex;
   flex-direction: column;
   gap: 2px;
