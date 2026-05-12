@@ -2,24 +2,67 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { User } from "lucide-react";
 import { ActionLink } from "@/components/action-link";
-import { navigation } from "@/content/site";
 import { clearStoredSession, readStoredSession } from "@/lib/auth";
+
+const campusFranceItems = {
+  groups: [
+    {
+      label: "Admission",
+      items: [
+        { icon: "🎓", label: "Parcoursup", sub: "Universités françaises", href: "/parcoursup" },
+        { icon: "🔬", label: "Paris-Saclay", sub: "Grandes écoles & recherche", href: "/paris-saclay" },
+        { icon: "🏫", label: "Écoles privées", sub: "Business, Design, Ingénierie", href: "/ecoles" },
+      ],
+    },
+    {
+      label: "Visa",
+      items: [
+        { icon: "🇫🇷", label: "Visa étudiant France", sub: "Campus France & Ambassade", href: "/visa" },
+      ],
+    },
+  ],
+};
+
+const campusBelgiqueItems = {
+  groups: [
+    {
+      label: "Admission",
+      items: [
+        { icon: "🎓", label: "Universités belges", sub: "ULB, UCLouvain, ULiège...", href: "/belgique" },
+        { icon: "🏫", label: "Hautes écoles", sub: "BTS, Bachelor professionnalisant", href: "/belgique#hautes-ecoles" },
+      ],
+    },
+    {
+      label: "Visa",
+      items: [
+        { icon: "🇧🇪", label: "Visa étudiant Belgique", sub: "Titre de séjour & démarches", href: "/belgique#visa" },
+      ],
+    },
+  ],
+};
+
+const ressourcesItems = [
+  { icon: "❓", label: "FAQ", sub: "Questions fréquentes", href: "/faq" },
+  { icon: "💳", label: "Paiement", sub: "Régler votre accompagnement", href: "/paiement" },
+  { icon: "🏢", label: "À propos", sub: "Notre équipe et mission", href: "/about" },
+  { icon: "✉️", label: "Contact", sub: "Nous écrire directement", href: "/contact" },
+];
+
+type DropdownKey = "campus-france" | "belgique" | "ressources" | null;
 
 export function SiteHeader() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [sessionRole, setSessionRole] = useState<"student" | "admin" | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null);
+  const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isAdminRoute = pathname.startsWith("/admin");
-  const primaryNavigation = navigation.filter((item) =>
-    ["/", "/campus-france", "/visa", "/belgique", "/communaute"].includes(item.href),
-  );
-  const secondaryNavigation = navigation.filter(
-    (item) => !primaryNavigation.some((entry) => entry.href === item.href),
-  );
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 20);
@@ -33,7 +76,6 @@ export function SiteHeader() {
       const session = readStoredSession();
       setSessionRole(session?.user.role ?? null);
     }
-
     syncSession();
     window.addEventListener("pieagency-auth-changed", syncSession);
     window.addEventListener("storage", syncSession);
@@ -45,143 +87,206 @@ export function SiteHeader() {
 
   useEffect(() => {
     document.body.style.overflow = isMenuOpen ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
+    return () => { document.body.style.overflow = ""; };
   }, [isMenuOpen]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpenDropdown(null); };
+    const onClick = (e: MouseEvent) => {
+      if (!(e.target as Element).closest(".nav-dropdown-wrap")) setOpenDropdown(null);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("click", onClick, { capture: true });
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("click", onClick, { capture: true });
+    };
+  }, []);
+
+  function openMenu(key: DropdownKey) {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setOpenDropdown(key);
+  }
+
+  function scheduleClose() {
+    closeTimer.current = setTimeout(() => setOpenDropdown(null), 120);
+  }
+
   function isActive(href: string) {
-    return href === "/" ? pathname === "/" : pathname === href;
+    return href === "/" ? pathname === "/" : pathname.startsWith(href);
   }
 
   const accountHref = sessionRole === "admin" ? "/admin" : "/espace-etudiant";
-  const accountLabel =
-    sessionRole === "admin"
-      ? "Admin"
-      : sessionRole === "student"
-        ? "Mon espace"
-        : "Connexion";
+  const accountLabel = sessionRole === "admin" ? "Admin" : sessionRole === "student" ? "Mon espace" : "Connexion";
 
   function handleLogout() {
     clearStoredSession();
     setIsMenuOpen(false);
   }
 
-  const headerClassName = [isScrolled ? "scrolled" : "", isAdminRoute ? "header-admin" : ""]
-    .filter(Boolean)
-    .join(" ");
+  const headerClassName = [isScrolled ? "scrolled" : "", isAdminRoute ? "header-admin" : ""].filter(Boolean).join(" ");
 
   return (
     <>
       <header className={headerClassName}>
         <div className={`header-inner ${isAdminRoute ? "is-admin" : ""}`}>
-          <button
-            aria-expanded={isMenuOpen}
-            aria-label="Menu"
-            className={`hamburger ${isMenuOpen ? "open" : ""}`}
-            onClick={() => setIsMenuOpen((current) => !current)}
-            type="button"
-          >
-            <span />
-            <span />
-            <span />
-          </button>
+          <div className="header-left">
+            <button
+              aria-expanded={isMenuOpen}
+              aria-label="Menu"
+              className={`hamburger ${isMenuOpen ? "open" : ""}`}
+              onClick={() => setIsMenuOpen((v) => !v)}
+              type="button"
+            >
+              <span /><span /><span />
+            </button>
+            <Link className="logo" href="/">
+              <Image alt="PieAgency" className="brand-image" height={40} priority src="/pieagency-logo.jpg" width={40} />
+              <span className="logo-wordmark">Pie<span className="logo-wordmark-accent">Agency</span></span>
+              {isAdminRoute ? <span className="logo-context-chip">Admin</span> : null}
+            </Link>
+          </div>
 
-          <Link className="logo" href="/">
-            <Image
-              alt="PieAgency"
-              className="brand-image"
-              height={40}
-              priority
-              src="/pieagency-logo.jpg"
-              width={40}
-            />
-            <span className="logo-wordmark">
-              Pie<span className="logo-wordmark-accent">Agency</span>
-            </span>
-            {isAdminRoute ? <span className="logo-context-chip">Admin</span> : null}
-          </Link>
+          {!isAdminRoute && (
+            <nav aria-label="Navigation principale" className="site-header-nav">
+              <Link className={`nav-link ${isActive("/") ? "active" : ""}`} href="/">Accueil</Link>
 
-          <nav
-            aria-label="Navigation principale"
-            className={`site-header-nav ${isAdminRoute ? "header-nav-admin" : ""}`}
-          >
-            {primaryNavigation.map((item) => (
-              <Link
-                className={`nav-link ${isActive(item.href) ? "active" : ""}`}
-                href={item.href}
-                key={item.href}
+              {/* Campus France */}
+              <div
+                className={`nav-dropdown-wrap ${openDropdown === "campus-france" ? "open" : ""}`}
+                onMouseEnter={() => openMenu("campus-france")}
+                onMouseLeave={scheduleClose}
               >
-                {item.label}
-              </Link>
-            ))}
-            {secondaryNavigation.length ? (
-              <div className={`nav-more ${secondaryNavigation.some((item) => isActive(item.href)) ? "active" : ""}`}>
                 <button
-                  aria-expanded={secondaryNavigation.some((item) => isActive(item.href))}
-                  className="nav-link nav-more-trigger"
+                  className={`nav-link nav-dropdown-trigger ${["/campus-france", "/parcoursup", "/paris-saclay", "/ecoles", "/visa"].some(isActive) ? "active" : ""}`}
+                  onClick={() => setOpenDropdown(openDropdown === "campus-france" ? null : "campus-france")}
                   type="button"
                 >
-                  Plus
-                  <span className="nav-more-arrow">+</span>
+                  Campus France
+                  <svg className="nav-chevron" viewBox="0 0 12 8" fill="none" width="10" height="10">
+                    <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
                 </button>
-                <div className="nav-more-menu">
-                  {secondaryNavigation.map((item) => (
-                    <Link
-                      className={`nav-more-link ${isActive(item.href) ? "active" : ""}`}
-                      href={item.href}
-                      key={item.href}
-                    >
-                      {item.label}
+                <div className="nav-dropdown nav-dropdown-grouped" onMouseEnter={() => openMenu("campus-france")} onMouseLeave={scheduleClose}>
+                  {campusFranceItems.groups.map((group) => (
+                    <div className="nav-dropdown-group" key={group.label}>
+                      <div className="nav-dropdown-group-label">{group.label}</div>
+                      {group.items.map((item) => (
+                        <Link className="nav-dropdown-item" href={item.href} key={item.href} onClick={() => setOpenDropdown(null)}>
+                          <span className="nav-dropdown-icon">{item.icon}</span>
+                          <span>
+                            <span className="nav-dropdown-item-title">{item.label}</span>
+                            <span className="nav-dropdown-item-sub">{item.sub}</span>
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Campus Belgique */}
+              <div
+                className={`nav-dropdown-wrap ${openDropdown === "belgique" ? "open" : ""}`}
+                onMouseEnter={() => openMenu("belgique")}
+                onMouseLeave={scheduleClose}
+              >
+                <button
+                  className={`nav-link nav-dropdown-trigger ${isActive("/belgique") ? "active" : ""}`}
+                  onClick={() => setOpenDropdown(openDropdown === "belgique" ? null : "belgique")}
+                  type="button"
+                >
+                  Campus Belgique
+                  <svg className="nav-chevron" viewBox="0 0 12 8" fill="none" width="10" height="10">
+                    <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                <div className="nav-dropdown nav-dropdown-grouped" onMouseEnter={() => openMenu("belgique")} onMouseLeave={scheduleClose}>
+                  {campusBelgiqueItems.groups.map((group) => (
+                    <div className="nav-dropdown-group" key={group.label}>
+                      <div className="nav-dropdown-group-label">{group.label}</div>
+                      {group.items.map((item) => (
+                        <Link className="nav-dropdown-item" href={item.href} key={item.href} onClick={() => setOpenDropdown(null)}>
+                          <span className="nav-dropdown-icon">{item.icon}</span>
+                          <span>
+                            <span className="nav-dropdown-item-title">{item.label}</span>
+                            <span className="nav-dropdown-item-sub">{item.sub}</span>
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Link className={`nav-link ${isActive("/communaute") ? "active" : ""}`} href="/communaute">Communauté</Link>
+
+              {/* Ressources */}
+              <div
+                className={`nav-dropdown-wrap ${openDropdown === "ressources" ? "open" : ""}`}
+                onMouseEnter={() => openMenu("ressources")}
+                onMouseLeave={scheduleClose}
+              >
+                <button
+                  className={`nav-link nav-dropdown-trigger ${["/faq", "/paiement", "/about", "/contact"].some(isActive) ? "active" : ""}`}
+                  onClick={() => setOpenDropdown(openDropdown === "ressources" ? null : "ressources")}
+                  type="button"
+                >
+                  Ressources
+                  <svg className="nav-chevron" viewBox="0 0 12 8" fill="none" width="10" height="10">
+                    <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                <div className="nav-dropdown" onMouseEnter={() => openMenu("ressources")} onMouseLeave={scheduleClose}>
+                  {ressourcesItems.map((item) => (
+                    <Link className="nav-dropdown-item" href={item.href} key={item.href} onClick={() => setOpenDropdown(null)}>
+                      <span className="nav-dropdown-icon">{item.icon}</span>
+                      <span>
+                        <span className="nav-dropdown-item-title">{item.label}</span>
+                        <span className="nav-dropdown-item-sub">{item.sub}</span>
+                      </span>
                     </Link>
                   ))}
                 </div>
               </div>
-            ) : null}
-          </nav>
+            </nav>
+          )}
 
           <div className={`header-ctas ${isAdminRoute ? "is-admin" : ""}`}>
             {isAdminRoute ? (
               <>
-                <ActionLink href="/" variant="outline" size="sm" className="header-admin-link">
-                  Voir le site
-                </ActionLink>
-                <ActionLink href="/partenariat" variant="gold" size="sm">
-                  Partenariat
-                </ActionLink>
-                <button className="btn btn-outline btn-sm" onClick={handleLogout} type="button">
-                  Deconnexion
-                </button>
+                <ActionLink href="/" variant="outline" size="sm" className="header-admin-link">Voir le site</ActionLink>
+                <ActionLink href="/partenariat" variant="gold" size="sm">Partenariat</ActionLink>
+                <button className="btn btn-outline btn-sm" onClick={handleLogout} type="button">Déconnexion</button>
               </>
+            ) : sessionRole ? (
+              <div className="header-account">
+                <button className="btn btn-outline btn-sm header-account-trigger" type="button">
+                  {accountLabel}
+                  <span className="header-account-arrow">▾</span>
+                </button>
+                <div className="header-account-menu">
+                  <Link className="header-account-link" href={accountHref}>
+                    {sessionRole === "admin" ? "Accéder à l'admin" : "Ouvrir mon espace"}
+                  </Link>
+                  <button className="header-account-link header-account-action" onClick={handleLogout} type="button">
+                    Déconnexion
+                  </button>
+                </div>
+              </div>
             ) : (
               <>
-                {sessionRole ? (
-                  <div className="header-account">
-                    <button className="btn btn-outline btn-sm header-account-trigger" type="button">
-                      {accountLabel}
-                      <span className="header-account-arrow">+</span>
-                    </button>
-                    <div className="header-account-menu">
-                      <Link className="header-account-link" href={accountHref}>
-                        {sessionRole === "admin" ? "Acceder a l'admin" : "Ouvrir mon espace"}
-                      </Link>
-                      <button
-                        className="header-account-link header-account-action"
-                        onClick={handleLogout}
-                        type="button"
-                      >
-                        Deconnexion
-                      </button>
-                    </div>
+                <div className="header-user-wrap">
+                  <button className="header-user-icon" type="button" aria-label="Compte">
+                    <User size={20} strokeWidth={1.8} />
+                  </button>
+                  <div className="header-user-dropdown">
+                    <Link className="header-user-item" href="/connexion">Connexion</Link>
+                    <Link className="header-user-item" href="/inscription">Inscription</Link>
+                    <button className="header-user-item header-user-item--action" onClick={handleLogout} type="button">Déconnexion</button>
                   </div>
-                ) : (
-                  <ActionLink href="/connexion" variant="outline" size="sm">
-                    {accountLabel}
-                  </ActionLink>
-                )}
-                <ActionLink href="/partenariat" variant="gold" size="sm">
-                  Partenariat
-                </ActionLink>
+                </div>
+                <ActionLink href="/partenariat" variant="gold" size="sm">Partenariat</ActionLink>
                 <ActionLink href="/contact" variant="primary" size="sm" className="header-primary-cta">
                   Commencer mon dossier
                 </ActionLink>
@@ -191,14 +296,9 @@ export function SiteHeader() {
         </div>
       </header>
 
-      {isMenuOpen ? (
-        <button
-          aria-label="Fermer le menu"
-          className="mobile-menu-backdrop"
-          onClick={() => setIsMenuOpen(false)}
-          type="button"
-        />
-      ) : null}
+      {isMenuOpen && (
+        <button aria-label="Fermer le menu" className="mobile-menu-backdrop" onClick={() => setIsMenuOpen(false)} type="button" />
+      )}
 
       <div className={`mobile-menu ${isMenuOpen ? "open" : ""}`}>
         <div className="mobile-menu-panel">
@@ -207,59 +307,102 @@ export function SiteHeader() {
               <div className="mobile-menu-kicker">Navigation</div>
               <div className="mobile-menu-title">PieAgency</div>
             </div>
-            <button
-              aria-label="Fermer le menu"
-              className="mobile-menu-close"
-              onClick={() => setIsMenuOpen(false)}
-              type="button"
-            >
-              X
-            </button>
+            <button aria-label="Fermer le menu" className="mobile-menu-close" onClick={() => setIsMenuOpen(false)} type="button">✕</button>
           </div>
 
-          {navigation.map((item) => (
-            <Link
-              className={`mobile-nav-link ${isActive(item.href) ? "active" : ""}`}
-              href={item.href}
-              key={item.href}
-              onClick={() => setIsMenuOpen(false)}
+          <Link className={`mobile-nav-link ${isActive("/") ? "active" : ""}`} href="/" onClick={() => setIsMenuOpen(false)}>Accueil</Link>
+
+          {/* Campus France mobile */}
+          <div className="mobile-nav-group">
+            <button
+              className={`mobile-nav-link mobile-nav-expander ${mobileExpanded === "campus-france" ? "expanded" : ""}`}
+              onClick={() => setMobileExpanded(mobileExpanded === "campus-france" ? null : "campus-france")}
+              type="button"
             >
-              {item.label}
-            </Link>
-          ))}
+              Campus France
+              <svg className="mobile-nav-chevron" viewBox="0 0 12 8" fill="none" width="10" height="10">
+                <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            {mobileExpanded === "campus-france" && (
+              <div className="mobile-nav-sub">
+                {campusFranceItems.groups.map((group) => (
+                  <div key={group.label}>
+                    <div className="mobile-nav-sub-label">{group.label}</div>
+                    {group.items.map((item) => (
+                      <Link className="mobile-nav-sub-link" href={item.href} key={item.href} onClick={() => setIsMenuOpen(false)}>
+                        {item.icon} {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Campus Belgique mobile */}
+          <div className="mobile-nav-group">
+            <button
+              className={`mobile-nav-link mobile-nav-expander ${mobileExpanded === "belgique" ? "expanded" : ""}`}
+              onClick={() => setMobileExpanded(mobileExpanded === "belgique" ? null : "belgique")}
+              type="button"
+            >
+              Campus Belgique
+              <svg className="mobile-nav-chevron" viewBox="0 0 12 8" fill="none" width="10" height="10">
+                <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            {mobileExpanded === "belgique" && (
+              <div className="mobile-nav-sub">
+                {campusBelgiqueItems.groups.map((group) => (
+                  <div key={group.label}>
+                    <div className="mobile-nav-sub-label">{group.label}</div>
+                    {group.items.map((item) => (
+                      <Link className="mobile-nav-sub-link" href={item.href} key={item.href} onClick={() => setIsMenuOpen(false)}>
+                        {item.icon} {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Link className={`mobile-nav-link ${isActive("/communaute") ? "active" : ""}`} href="/communaute" onClick={() => setIsMenuOpen(false)}>Communauté</Link>
+
+          {/* Ressources mobile */}
+          <div className="mobile-nav-group">
+            <button
+              className={`mobile-nav-link mobile-nav-expander ${mobileExpanded === "ressources" ? "expanded" : ""}`}
+              onClick={() => setMobileExpanded(mobileExpanded === "ressources" ? null : "ressources")}
+              type="button"
+            >
+              Ressources
+              <svg className="mobile-nav-chevron" viewBox="0 0 12 8" fill="none" width="10" height="10">
+                <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            {mobileExpanded === "ressources" && (
+              <div className="mobile-nav-sub">
+                {ressourcesItems.map((item) => (
+                  <Link className="mobile-nav-sub-link" href={item.href} key={item.href} onClick={() => setIsMenuOpen(false)}>
+                    {item.icon} {item.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="mobile-ctas">
-            {isAdminRoute ? (
-              <ActionLink href="/" onClick={() => setIsMenuOpen(false)} variant="outline">
-                Voir le site
-              </ActionLink>
-            ) : (
-              <ActionLink
-                href={sessionRole ? accountHref : "/connexion"}
-                onClick={() => setIsMenuOpen(false)}
-                variant="outline"
-              >
-                {accountLabel}
-              </ActionLink>
-            )}
-            <ActionLink
-              href="/partenariat"
-              onClick={() => setIsMenuOpen(false)}
-              variant="gold"
-            >
-              Partenariat
+            <ActionLink href={sessionRole ? accountHref : "/connexion"} onClick={() => setIsMenuOpen(false)} variant="outline">
+              {accountLabel}
             </ActionLink>
-            {sessionRole ? (
-              <button className="btn btn-outline" onClick={handleLogout} type="button">
-                Deconnexion
-              </button>
-            ) : null}
-            <ActionLink
-              href="/contact"
-              onClick={() => setIsMenuOpen(false)}
-              variant="primary"
-            >
-              {isAdminRoute ? "Formulaire contact" : "Commencer mon dossier"}
+            <ActionLink href="/partenariat" onClick={() => setIsMenuOpen(false)} variant="gold">Partenariat</ActionLink>
+            {sessionRole && (
+              <button className="btn btn-outline" onClick={handleLogout} type="button">Déconnexion</button>
+            )}
+            <ActionLink href="/contact" onClick={() => setIsMenuOpen(false)} variant="primary">
+              Commencer mon dossier
             </ActionLink>
           </div>
         </div>
