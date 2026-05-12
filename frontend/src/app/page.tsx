@@ -1,13 +1,16 @@
 import { ActionLink } from "@/components/action-link";
 import { FAQAccordion } from "@/components/faq-accordion";
+import { AnimatedProgressBar, CountUp } from "@/components/hero-animated";
 import { Reveal } from "@/components/reveal";
 import { SectionHeader } from "@/components/section-header";
+import { Typewriter } from "@/components/typewriter";
 import {
   company,
   faqItems,
   homeApproach,
   homeMethodSteps,
   homeStudentSpaceFeatures,
+  homeTestimonials,
   serviceCards,
   servicePages,
 } from "@/content/site";
@@ -30,11 +33,18 @@ export default function HomePage() {
           <div className="hero-content animate">
             <div className="hero-badge">
               <div className="hero-dot" />
-              <span>Cabinet d&apos;accompagnement étudiant</span>
+              <Typewriter
+                phrases={[
+                  "Cabinet d'accompagnement étudiant",
+                  "Campus France · Visa · Belgique",
+                  "Dossiers traités avec méthode",
+                  "Votre réussite, notre mission",
+                ]}
+              />
             </div>
             <h1>
               Étudiez en France ou en Belgique avec un accompagnement{" "}
-              <em>clair, humain</em> et structuré
+              <em>précis, complet</em> et structuré
             </h1>
             <p>
               Analyse du dossier, choix des formations, rédaction des documents,
@@ -49,59 +59,116 @@ export default function HomePage() {
                 Comprendre le processus
               </ActionLink>
             </div>
-            <div className="hero-trust">
-              <div className="hero-trust-title">Nos contacts directs</div>
-              <div className="hero-trust-item">
-                <span>📍</span>
-                France : {company.contacts.france.person}{" "}
-                {company.contacts.france.phoneDisplay}
-              </div>
-              <div className="hero-trust-item">
-                <span>📍</span>
-                Togo : {company.contacts.togo.person} {company.contacts.togo.phoneDisplay}
-              </div>
-              <div className="hero-trust-item">
-                <span>✉️</span>
-                {company.emails.primary}
+
+            {/* Témoignage client */}
+            <div className="hero-testimonial">
+              <p className="hero-testimonial-quote">
+                &ldquo;Mon visa a été accepté en 3 semaines. Le suivi était vraiment
+                rassurant à chaque étape.&rdquo;
+              </p>
+              <div className="hero-testimonial-author">
+                <div className="hero-testimonial-avatar">KD</div>
+                <div>
+                  <div className="hero-testimonial-name">Kofi D.</div>
+                  <div className="hero-testimonial-meta">
+                    Dakar → Lyon · Master Informatique
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           <div className="hero-visual animate delay-2">
-            <div className="dashboard-card">
-              <div className="dash-header">
-                <div className="dash-title">Suivi de dossier — Campus France</div>
-                <div className="dash-badge">● En cours</div>
-              </div>
-              <div className="dash-progress">
-                <div className="dash-progress-label">
-                  <span>Progression</span>
-                  <span>4 / 7 étapes</span>
+            {/* Stats 2×2 */}
+            <div className="hero-stats-grid">
+              <div className="hero-stat-block">
+                <div className="hero-stat-number">
+                  <CountUp target={350} prefix="+" duration={1600} />
                 </div>
-                <div className="dash-bar">
-                  <div className="dash-bar-fill" style={{ width: "57%" }} />
-                </div>
+                <div className="hero-stat-desc">Dossiers traités</div>
               </div>
-              <div className="dash-steps">
+              <div className="hero-stat-block">
+                <div className="hero-stat-number">
+                  <CountUp target={70} prefix="+" suffix="%" duration={1400} />
+                </div>
+                <div className="hero-stat-desc">Taux d&apos;admission</div>
+              </div>
+              <div className="hero-stat-block">
+                <div className="hero-stat-number">
+                  <CountUp target={98} prefix="+" suffix="%" duration={1200} />
+                </div>
+                <div className="hero-stat-desc">Taux de visa réussi</div>
+              </div>
+              <div className="hero-stat-block">
+                <div className="hero-stat-number">
+                  <CountUp target={20} prefix="+" duration={1000} />
+                </div>
+                <div className="hero-stat-desc">Pays représentés</div>
+              </div>
+            </div>
+
+            {/* Card suivi */}
+            <div className="hero-card hero-card-top">
+              <div className="hero-card-header">
+                <div className="hero-card-title">Suivi dossier — Campus France</div>
+                <div className="hero-card-badge">● En cours</div>
+              </div>
+              <div className="hero-stat-row">
+                <span className="hero-stat-label">Progression</span>
+                <span className="hero-stat-val">4 / 7 étapes</span>
+              </div>
+              <AnimatedProgressBar width={57} />
+              <div className="hero-tags">
+                <span className="hero-tag">Campus France</span>
+                <span className="hero-tag green">Suivi actif</span>
+                <span className="hero-tag">France 🇫🇷</span>
+              </div>
+            </div>
+
+            {/* Card étapes */}
+            <div className="hero-card hero-card-bottom">
+              <div className="hero-steps-label">Vos 7 étapes</div>
+              <div className="hero-steps">
                 {campusFrancePage.timeline?.slice(0, 4).map((step) => (
-                  <div className="dash-step done" key={step.title}>
-                    <div className="dash-step-icon">✓</div>
-                    <div className="dash-step-text">{step.title}</div>
+                  <div className="hero-step done" key={step.title}>
+                    <div className="hero-step-icon">✓</div>
+                    <div className="hero-step-text">{step.title}</div>
                   </div>
                 ))}
                 {campusFrancePage.timeline?.slice(4).map((step, index) => (
-                  <div className="dash-step pending" key={step.title}>
-                    <div className="dash-step-icon">{index + 5}</div>
-                    <div className="dash-step-text">{step.title}</div>
+                  <div className="hero-step pending" key={step.title}>
+                    <div className="hero-step-icon">{index + 5}</div>
+                    <div className="hero-step-text">{step.title}</div>
                   </div>
                 ))}
               </div>
-              <div className="dash-mini-badges">
-                <span className="dash-mini-badge a">Campus France</span>
-                <span className="dash-mini-badge b">Suivi actif</span>
-                <span className="dash-mini-badge a">France 🇫🇷</span>
-              </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="testimonials-marquee-section">
+        <div className="testimonials-marquee-track">
+          <div className="testimonials-marquee-inner">
+            {[...homeTestimonials, ...homeTestimonials].map((t, i) => (
+              <div className="testimonial-card" key={i}>
+                <p className="testimonial-quote">&ldquo;{t.quote}&rdquo;</p>
+                <div className="testimonial-author">
+                  <div
+                    className="testimonial-avatar"
+                    style={{ background: t.color }}
+                  >
+                    {t.initials}
+                  </div>
+                  <div>
+                    <div className="testimonial-name">{t.name}</div>
+                    <div className="testimonial-meta">
+                      {t.origin} → {t.destination} · {t.program}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

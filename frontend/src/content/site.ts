@@ -164,6 +164,109 @@ export const homeStudentSpaceFeatures = [
   "Historique des échanges",
 ] as const;
 
+export type Testimonial = {
+  name: string;
+  initials: string;
+  origin: string;
+  destination: string;
+  program: string;
+  quote: string;
+  color: string;
+};
+
+export const homeTestimonials: Testimonial[] = [
+  {
+    name: "Kofi D.",
+    initials: "KD",
+    origin: "Dakar",
+    destination: "Lyon",
+    program: "Master Informatique",
+    quote: "Mon visa a été accepté en 3 semaines. Le suivi était vraiment rassurant à chaque étape.",
+    color: "#c8a96b",
+  },
+  {
+    name: "Aminata S.",
+    initials: "AS",
+    origin: "Abidjan",
+    destination: "Paris",
+    program: "Licence Gestion",
+    quote: "PieAgency m'a aidée à structurer mon dossier Campus France du début jusqu'à l'entretien. J'ai été acceptée du premier coup.",
+    color: "#3d7a68",
+  },
+  {
+    name: "Moussa B.",
+    initials: "MB",
+    origin: "Bamako",
+    destination: "Bruxelles",
+    program: "Master Finance",
+    quote: "Je ne savais pas par où commencer pour la Belgique. L'équipe m'a tout expliqué et accompagné jusqu'à l'inscription.",
+    color: "#1a6e8a",
+  },
+  {
+    name: "Fatou N.",
+    initials: "FN",
+    origin: "Conakry",
+    destination: "Toulouse",
+    program: "BUT Génie Civil",
+    quote: "La lettre de motivation que j'ai rédigée avec mon conseiller a vraiment fait la différence. Toulouse m'a acceptée en 15 jours.",
+    color: "#8a3d6e",
+  },
+  {
+    name: "Yves-Patrick M.",
+    initials: "YM",
+    origin: "Douala",
+    destination: "Bordeaux",
+    program: "Master Marketing Digital",
+    quote: "L'entretien Campus France était ma plus grande peur. Grâce à la préparation avec PieAgency, je l'ai passé avec confiance.",
+    color: "#c8a96b",
+  },
+  {
+    name: "Rokhaya T.",
+    initials: "RT",
+    origin: "Lomé",
+    destination: "Liège",
+    program: "Licence Sciences Po",
+    quote: "Le suivi en temps réel de mon dossier m'a vraiment aidé à rester organisée. Je savais toujours où j'en étais.",
+    color: "#3d7a68",
+  },
+  {
+    name: "Ibrahim K.",
+    initials: "IK",
+    origin: "Cotonou",
+    destination: "Montpellier",
+    program: "Master Santé Publique",
+    quote: "En moins de 4 mois, mon dossier était complet, mon visa obtenu et ma chambre réservée. Un accompagnement efficace et humain.",
+    color: "#6e5a1a",
+  },
+  {
+    name: "Nadia R.",
+    initials: "NR",
+    origin: "Casablanca",
+    destination: "Strasbourg",
+    program: "Master Droit Européen",
+    quote: "Ce qui m'a plu, c'est que tout était expliqué clairement, sans jargon. Je me suis sentie guidée, pas perdue.",
+    color: "#1a6e8a",
+  },
+  {
+    name: "Jean-Marie O.",
+    initials: "JO",
+    origin: "Brazzaville",
+    destination: "Nantes",
+    program: "Licence Informatique",
+    quote: "Après deux refus seul, j'ai fait appel à PieAgency. Mon dossier a été refait, et cette fois mon admission est arrivée en 10 jours.",
+    color: "#8a3d6e",
+  },
+  {
+    name: "Hawa D.",
+    initials: "HD",
+    origin: "Antananarivo",
+    destination: "Grenoble",
+    program: "Master Intelligence Artificielle",
+    quote: "PieAgency a su valoriser mon parcours atypique. Mon conseiller a compris mon profil et m'a aidée à le présenter avec force.",
+    color: "#c8a96b",
+  },
+];
+
 export const servicePages: ServicePage[] = [
   {
     slug: "campus-france",
