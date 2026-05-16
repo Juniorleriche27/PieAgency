@@ -8420,9 +8420,13 @@ body.chat-open .wa-float {
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
+  transition: background var(--ps-transition), color var(--ps-transition), transform 150ms ease;
+}
+
+.private-nav-item span {
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: background var(--ps-transition), color var(--ps-transition), transform 150ms ease;
+  min-width: 0;
 }
 
 .private-nav-item svg {
