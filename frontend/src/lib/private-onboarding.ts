@@ -87,6 +87,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
 //   headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
 //   body: JSON.stringify(data),
 // });
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function submitOnboarding(_data: OnboardingData): Promise<void> {
   // noop — backend POST not yet available
 }
