@@ -15,13 +15,15 @@ import {
   LogOut,
   Menu,
   MessageCircle,
+  Moon,
   Settings,
   ShieldCheck,
+  Sun,
   Users,
   X,
 } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PortalAccessPanel } from "@/components/portal-access-panel";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { clearStoredSession, getApiBaseUrl, type PlatformRole } from "@/lib/auth";
@@ -76,6 +78,30 @@ export function PrivatePortalShell({
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
   const { session, isReady } = useAuthSession(apiBaseUrl);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDark, setIsDark] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem("pie-theme") === "dark",
+  );
+  const [isScrolled, setIsScrolled] = useState(false);
+  const mainRef = useRef<HTMLDivElement>(null);
+
+  function toggleDark() {
+    setIsDark((prev) => {
+      const next = !prev;
+      localStorage.setItem("pie-theme", next ? "dark" : "light");
+      return next;
+    });
+  }
+
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    function onScroll() {
+      setIsScrolled((el?.scrollTop ?? 0) > 12);
+    }
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
   const navItems = requiredRole === "admin" ? adminNav : studentNav;
   const title = requiredRole === "admin" ? "Admin PieAgency" : "Espace candidat";
   const oppositeHref = requiredRole === "admin" ? "/espace-etudiant" : "/admin";
@@ -137,7 +163,7 @@ export function PrivatePortalShell({
   }
 
   return (
-    <div className="private-app-shell">
+    <div className="private-app-shell" data-theme={isDark ? "dark" : "light"}>
       <aside className={`private-sidebar ${isSidebarOpen ? "open" : ""}`}>
         <div className="private-sidebar-head">
           <Link className="private-brand" href="/">
@@ -198,14 +224,24 @@ export function PrivatePortalShell({
             <strong>{session.user.full_name || session.user.email || "Compte PieAgency"}</strong>
             <span>{session.user.role === "admin" ? "Administrateur" : "Etudiant"}</span>
           </div>
-          <button
-            aria-label="Se deconnecter"
-            className="private-icon-button"
-            onClick={handleLogout}
-            type="button"
-          >
-            <LogOut size={18} />
-          </button>
+          <div className="private-sidebar-foot-actions">
+            <button
+              aria-label={isDark ? "Mode clair" : "Mode sombre"}
+              className="private-icon-button"
+              onClick={toggleDark}
+              type="button"
+            >
+              {isDark ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
+            <button
+              aria-label="Se deconnecter"
+              className="private-icon-button"
+              onClick={handleLogout}
+              type="button"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -218,8 +254,8 @@ export function PrivatePortalShell({
         />
       ) : null}
 
-      <div className="private-main">
-        <header className="private-topbar">
+      <div className={`private-main${isScrolled ? " scrolled" : ""}`} ref={mainRef}>
+        <header className={`private-topbar${isScrolled ? " scrolled" : ""}`}>
           <button
             aria-label="Ouvrir le menu"
             className="private-icon-button mobile-only"
@@ -232,13 +268,23 @@ export function PrivatePortalShell({
             <span>{title}</span>
             <strong>{session.user.full_name || session.user.email}</strong>
           </div>
-          <button
-            aria-label="Notifications"
-            className="private-icon-button"
-            type="button"
-          >
-            <Bell size={18} />
-          </button>
+          <div className="private-topbar-actions">
+            <button
+              aria-label={isDark ? "Mode clair" : "Mode sombre"}
+              className="private-icon-button"
+              onClick={toggleDark}
+              type="button"
+            >
+              {isDark ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
+            <button
+              aria-label="Notifications"
+              className="private-icon-button"
+              type="button"
+            >
+              <Bell size={18} />
+            </button>
+          </div>
         </header>
 
         <div className="private-content">{children}</div>
