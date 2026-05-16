@@ -73,6 +73,8 @@ const emptyStudentDashboard: StudentDashboardResponse = {
 export function StudentSpaceView() {
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
   const { session, isReady } = useAuthSession(apiBaseUrl);
+  const canViewStudentSpace =
+    session?.user.role === "student" || session?.user.role === "admin";
   const [dashboard, setDashboard] = useState<StudentDashboardResponse>(
     emptyStudentDashboard,
   );
@@ -84,7 +86,7 @@ export function StudentSpaceView() {
       return;
     }
 
-    if (!session || session.user.role !== "student") {
+    if (!session || !canViewStudentSpace) {
       setDashboard(emptyStudentDashboard);
       setIsLoading(false);
       return;
@@ -132,7 +134,7 @@ export function StudentSpaceView() {
     return () => {
       active = false;
     };
-  }, [apiBaseUrl, isReady, session]);
+  }, [apiBaseUrl, canViewStudentSpace, isReady, session]);
 
   if (!isReady) {
     return (
@@ -160,10 +162,10 @@ export function StudentSpaceView() {
     );
   }
 
-  if (session.user.role !== "student") {
+  if (!canViewStudentSpace) {
     return (
       <PortalAccessPanel
-        description="Votre session actuelle est admin. Utilisez plutot le cockpit interne pour piloter la plateforme."
+        description="Votre session actuelle ne permet pas d'ouvrir cet espace."
         kicker="Role incompatible"
         primaryHref="/admin"
         primaryLabel="Ouvrir l'admin"
