@@ -8307,6 +8307,23 @@ body.chat-open .wa-float {
   overflow-y: auto;
 }
 
+.private-nav-section {
+  display: grid;
+  gap: 6px;
+  margin: 0 12px 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.private-nav-section > span {
+  padding: 0 12px 4px;
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .private-nav-item {
   min-height: 44px;
   display: flex;
@@ -8324,6 +8341,13 @@ body.chat-open .wa-float {
 .private-nav-item.active {
   background: #eef7f0;
   color: #14532d;
+}
+
+.private-nav-item-secondary {
+  min-height: 40px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 0.88rem;
 }
 
 .private-sidebar-foot {

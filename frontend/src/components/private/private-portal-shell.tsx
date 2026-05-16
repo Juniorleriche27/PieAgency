@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   CreditCard,
   FileText,
+  Globe2,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -76,8 +77,19 @@ export function PrivatePortalShell({
   const { session, isReady } = useAuthSession(apiBaseUrl);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navItems = requiredRole === "admin" ? adminNav : studentNav;
-  const title = requiredRole === "admin" ? "Admin PieAgency" : "Espace etudiant";
+  const title = requiredRole === "admin" ? "Admin PieAgency" : "Espace candidat";
   const oppositeHref = requiredRole === "admin" ? "/espace-etudiant" : "/admin";
+  const canAccess =
+    session?.user.role === requiredRole ||
+    (session?.user.role === "admin" && requiredRole === "student");
+  const quickLinks: NavItem[] = session?.user.role === "admin"
+    ? [
+        { href: "/", label: "Site public", icon: Globe2 },
+        requiredRole === "admin"
+          ? { href: "/espace-etudiant", label: "Espace candidat", icon: LayoutDashboard }
+          : { href: "/admin", label: "Admin", icon: Settings },
+      ]
+    : [{ href: "/", label: "Site public", icon: Globe2 }];
 
   function handleLogout() {
     clearStoredSession();
@@ -110,7 +122,7 @@ export function PrivatePortalShell({
     );
   }
 
-  if (session.user.role !== requiredRole) {
+  if (!canAccess) {
     return (
       <PortalAccessPanel
         description="Votre compte est actif, mais il ne correspond pas au role attendu pour cette zone."
@@ -160,6 +172,26 @@ export function PrivatePortalShell({
             );
           })}
         </nav>
+
+        <div className="private-nav-section" aria-label="Acces rapides">
+          <span>Acces rapides</span>
+          {quickLinks.map((item) => {
+            const Icon = item.icon;
+            const active = isActivePath(pathname, item.href);
+
+            return (
+              <Link
+                className={`private-nav-item private-nav-item-secondary ${active ? "active" : ""}`}
+                href={item.href}
+                key={item.href}
+                onClick={() => setIsSidebarOpen(false)}
+              >
+                <Icon size={18} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
 
         <div className="private-sidebar-foot">
           <div>
