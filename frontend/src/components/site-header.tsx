@@ -52,7 +52,7 @@ const ressourcesItems = [
   { icon: "✉️", label: "Contact", sub: "Nous écrire directement", href: "/contact" },
 ];
 
-type DropdownKey = "campus-france" | "belgique" | "ressources" | null;
+type DropdownKey = "campus-france" | "belgique" | "ressources" | "procedure" | null;
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -287,9 +287,38 @@ export function SiteHeader() {
                   </div>
                 </div>
                 <ActionLink href="/partenariat" variant="gold" size="sm">Partenariat</ActionLink>
-                <ActionLink href="/contact" variant="primary" size="sm" className="header-primary-cta">
-                  Commencer mon dossier
-                </ActionLink>
+                <div
+                  className={`nav-dropdown-wrap header-procedure-wrap ${openDropdown === "procedure" ? "open" : ""}`}
+                  onMouseEnter={() => openMenu("procedure")}
+                  onMouseLeave={scheduleClose}
+                >
+                  <button
+                    className={`btn btn-primary btn-sm header-procedure-trigger ${["/contact", "/espace-etudiant"].some(isActive) ? "active" : ""}`}
+                    onClick={() => setOpenDropdown(openDropdown === "procedure" ? null : "procedure")}
+                    type="button"
+                  >
+                    Ma procédure
+                    <svg className="nav-chevron" viewBox="0 0 12 8" fill="none" width="10" height="10">
+                      <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  <div className="nav-dropdown header-procedure-dropdown" onMouseEnter={() => openMenu("procedure")} onMouseLeave={scheduleClose}>
+                    <Link className="nav-dropdown-item" href="/espace-etudiant/produits" onClick={() => setOpenDropdown(null)}>
+                      <span className="nav-dropdown-icon">📚</span>
+                      <span>
+                        <span className="nav-dropdown-item-title">Espace candidat / Produits</span>
+                        <span className="nav-dropdown-item-sub">Accéder aux outils privés</span>
+                      </span>
+                    </Link>
+                    <Link className="nav-dropdown-item" href="/contact" onClick={() => setOpenDropdown(null)}>
+                      <span className="nav-dropdown-icon">📝</span>
+                      <span>
+                        <span className="nav-dropdown-item-title">Commencer mon dossier</span>
+                        <span className="nav-dropdown-item-sub">Lancer votre accompagnement</span>
+                      </span>
+                    </Link>
+                  </div>
+                </div>
               </>
             )}
           </div>
@@ -401,6 +430,9 @@ export function SiteHeader() {
             {sessionRole && (
               <button className="btn btn-outline" onClick={handleLogout} type="button">Déconnexion</button>
             )}
+            <ActionLink href="/espace-etudiant/produits" onClick={() => setIsMenuOpen(false)} variant="outline">
+              Espace candidat / Produits
+            </ActionLink>
             <ActionLink href="/contact" onClick={() => setIsMenuOpen(false)} variant="primary">
               Commencer mon dossier
             </ActionLink>

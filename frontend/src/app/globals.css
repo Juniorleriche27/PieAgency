@@ -288,9 +288,33 @@ nav {
   min-width: 260px;
 }
 
+.header-procedure-wrap .nav-dropdown {
+  left: auto;
+  right: 0;
+  min-width: 280px;
+  transform: translateY(6px);
+}
+
+.header-procedure-wrap.open .nav-dropdown {
+  transform: translateY(0);
+}
+
+.header-procedure-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 10px 28px rgba(13, 27, 56, 0.14);
+}
+
 .nav-dropdown-wrap.open .nav-dropdown {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.header-procedure-wrap.open .nav-dropdown {
+  opacity: 1;
+  transform: translateY(0);
   pointer-events: auto;
 }
 
