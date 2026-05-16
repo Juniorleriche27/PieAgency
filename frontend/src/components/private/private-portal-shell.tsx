@@ -5,22 +5,24 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   BookOpen,
-  Bot,
-  Boxes,
-  ClipboardCheck,
+  ChevronDown,
   CreditCard,
   FileText,
   Globe2,
+  HelpCircle,
   LayoutDashboard,
   LogOut,
   Menu,
   MessageCircle,
   Moon,
+  Package,
   Settings,
   ShieldCheck,
   Sun,
+  User,
   Users,
   X,
+  Zap,
 } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -41,20 +43,21 @@ type NavItem = {
 
 const studentNav: NavItem[] = [
   { href: "/espace-etudiant", label: "Tableau de bord", icon: LayoutDashboard },
-  { href: "/espace-etudiant/onboarding", label: "Onboarding", icon: ClipboardCheck },
+  { href: "/espace-etudiant/onboarding", label: "Embarquement", icon: Zap },
   { href: "/espace-etudiant/diagnostic", label: "Diagnostic", icon: ShieldCheck },
-  { href: "/espace-etudiant/produits", label: "Produits", icon: Boxes },
-  { href: "/espace-etudiant/ressources", label: "Ressources", icon: BookOpen },
-  { href: "/espace-etudiant/documents", label: "Documents", icon: FileText },
-  { href: "/espace-etudiant/assistant", label: "Assistant", icon: Bot },
+  { href: "/espace-etudiant/produits", label: "Produits digitaux", icon: Package },
+  { href: "/espace-etudiant/ressources", label: "Mes ressources", icon: BookOpen },
+  { href: "/espace-etudiant/documents", label: "Mes documents", icon: FileText },
+  { href: "/espace-etudiant/assistant", label: "Assistant dossier", icon: MessageCircle },
   { href: "/espace-etudiant/abonnement", label: "Abonnement", icon: CreditCard },
-  { href: "/communaute", label: "PieHUB", icon: MessageCircle },
+  { href: "/communaute", label: "Communaute", icon: Users },
+  { href: "/espace-etudiant/aide", label: "Aide", icon: HelpCircle },
 ];
 
 const adminNav: NavItem[] = [
   { href: "/admin", label: "Pilotage", icon: LayoutDashboard },
   { href: "/admin/candidats", label: "Candidats", icon: Users },
-  { href: "/admin/produits", label: "Produits", icon: Boxes },
+  { href: "/admin/produits", label: "Produits", icon: Package },
   { href: "/admin/ressources", label: "Ressources", icon: BookOpen },
   { href: "/admin/abonnements", label: "Abonnements", icon: CreditCard },
   { href: "/admin/paiements", label: "Paiements", icon: FileText },
@@ -167,8 +170,11 @@ export function PrivatePortalShell({
       <aside className={`private-sidebar ${isSidebarOpen ? "open" : ""}`}>
         <div className="private-sidebar-head">
           <Link className="private-brand" href="/">
-            <span>PieAgency</span>
-            <small>{title}</small>
+            <div className="private-brand-avatar">PA</div>
+            <div>
+              <span>PieAgency</span>
+              <small>{title}</small>
+            </div>
           </Link>
           <button
             aria-label="Fermer le menu"
@@ -199,30 +205,38 @@ export function PrivatePortalShell({
           })}
         </nav>
 
-        <div className="private-nav-section" aria-label="Acces rapides">
-          <span>Acces rapides</span>
-          {quickLinks.map((item) => {
-            const Icon = item.icon;
-            const active = isActivePath(pathname, item.href);
+        {session?.user.role === "admin" ? (
+          <div className="private-nav-section" aria-label="Acces rapides">
+            <span>Acces rapides</span>
+            {quickLinks.map((item) => {
+              const Icon = item.icon;
+              const active = isActivePath(pathname, item.href);
 
-            return (
-              <Link
-                className={`private-nav-item private-nav-item-secondary ${active ? "active" : ""}`}
-                href={item.href}
-                key={item.href}
-                onClick={() => setIsSidebarOpen(false)}
-              >
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
+              return (
+                <Link
+                  className={`private-nav-item private-nav-item-secondary ${active ? "active" : ""}`}
+                  href={item.href}
+                  key={item.href}
+                  onClick={() => setIsSidebarOpen(false)}
+                >
+                  <Icon size={18} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
 
         <div className="private-sidebar-foot">
-          <div>
-            <strong>{session.user.full_name || session.user.email || "Compte PieAgency"}</strong>
-            <span>{session.user.role === "admin" ? "Administrateur" : "Etudiant"}</span>
+          <div className="private-sidebar-foot-profile">
+            <div className="private-sidebar-foot-avatar">
+              <User size={16} />
+            </div>
+            <div>
+              <strong>{session.user.full_name || session.user.email || "Compte PieAgency"}</strong>
+              <span>{session.user.role === "admin" ? "Administrateur" : "Candidat"}</span>
+            </div>
+            <ChevronDown size={14} className="private-sidebar-foot-chevron" />
           </div>
           <div className="private-sidebar-foot-actions">
             <button
@@ -235,11 +249,12 @@ export function PrivatePortalShell({
             </button>
             <button
               aria-label="Se deconnecter"
-              className="private-icon-button"
+              className="private-nav-item private-nav-logout"
               onClick={handleLogout}
               type="button"
             >
               <LogOut size={18} />
+              <span>Deconnexion</span>
             </button>
           </div>
         </div>

@@ -8334,18 +8334,43 @@ body.chat-open .wa-float {
 }
 
 .private-brand {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   color: inherit;
   text-decoration: none;
+  min-width: 0;
+}
+
+.private-brand-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(249,115,22,0.35);
+  letter-spacing: 0.02em;
+}
+
+.private-brand > div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
 }
 
 .private-brand span {
   font-family: var(--font-serif);
-  font-size: 1.3rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--ps-text);
   transition: color var(--ps-transition);
+  white-space: nowrap;
 }
 
 .private-brand small,
@@ -8485,20 +8510,71 @@ body.chat-open .wa-float {
 /* ─── Sidebar Footer ────────────────────────────────────────────── */
 .private-sidebar-foot {
   margin-top: auto;
-  padding: 12px 14px;
   border-top: 1px solid var(--ps-sidebar-border);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  gap: 0;
   transition: border-color var(--ps-transition);
+}
+
+.private-sidebar-foot-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 10px;
+}
+
+.private-sidebar-foot-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--ps-nav-hover-bg);
+  border: 1px solid var(--ps-sidebar-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--ps-text-muted);
+}
+
+.private-sidebar-foot-profile > div {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.private-sidebar-foot-chevron {
+  color: var(--ps-text-faint);
+  flex-shrink: 0;
 }
 
 .private-sidebar-foot-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
+  gap: 4px;
+  padding: 6px 8px 10px;
+  justify-content: space-between;
+}
+
+.private-nav-logout {
+  flex: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ps-nav-text);
+  justify-content: flex-start;
+}
+
+.private-nav-logout:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+  transform: translateX(2px);
+}
+
+.private-nav-logout:hover svg {
+  opacity: 1;
+  color: #ef4444;
 }
 
 .private-sidebar-foot div,
