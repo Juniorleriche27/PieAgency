@@ -235,8 +235,9 @@ export function ContactForm() {
     if (current.respondentType === "Parent" && current.studentFullName.trim().length < 3) {
       nextErrors.studentFullName = "Entrez le nom complet de l'etudiant concerne.";
     }
-    if (current.phone.trim().length < 6) {
-      nextErrors.phone = "Entrez le numero de telephone / WhatsApp.";
+    if (!/^\+\d{1,4}[\s\-]?\d/.test(current.phone.trim())) {
+      nextErrors.phone =
+        "Le numero doit commencer par un indicatif pays (ex: +225, +237, +228).";
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(current.email.trim())) {
       nextErrors.email = "L'adresse e-mail n'est pas valide.";
@@ -268,8 +269,9 @@ export function ContactForm() {
     if (current.guarantorFullName.trim().length < 3) {
       nextErrors.guarantorFullName = "Indiquez le nom complet du garant.";
     }
-    if (current.guarantorPhone.trim().length < 6) {
-      nextErrors.guarantorPhone = "Indiquez le numero du garant.";
+    if (!/^\+\d{1,4}[\s\-]?\d/.test(current.guarantorPhone.trim())) {
+      nextErrors.guarantorPhone =
+        "Le numero du garant doit commencer par un indicatif pays (ex: +225, +237, +228).";
     }
     if (current.referrerName.trim().length < 2) {
       nextErrors.referrerName = "Indiquez qui vous a envoye le lien du formulaire.";
