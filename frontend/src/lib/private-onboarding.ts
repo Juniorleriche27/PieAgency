@@ -1,3 +1,5 @@
+import { authenticatedFetch } from "@/lib/auth";
+
 export type QuestionType = "text" | "select" | "radio";
 
 export type OnboardingQuestion = {
@@ -81,13 +83,18 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
 ];
 
-// TODO: when backend is ready, replace with:
-// await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/private/onboarding`, {
-//   method: "POST",
-//   headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-//   body: JSON.stringify(data),
-// });
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function submitOnboarding(_data: OnboardingData): Promise<void> {
-  // noop — backend POST not yet available
+export async function submitOnboarding(data: OnboardingData): Promise<void> {
+  const response = await authenticatedFetch(
+    "/api/private/onboarding",
+    {
+      body: JSON.stringify({ data }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    },
+    { requireAuth: true },
+  );
+
+  if (!response.ok) {
+    throw new Error("Impossible d'enregistrer l'onboarding.");
+  }
 }

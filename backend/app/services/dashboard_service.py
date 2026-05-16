@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from ..config import settings
 from ..schemas import (
     AdminCaseItem,
+    AdminCandidateItem,
+    AdminCandidatesResponse,
     AdminCommunityCommentItem,
     AdminCommunityPostItem,
     AdminConversationItem,
@@ -886,3 +888,100 @@ def get_admin_dashboard(
         community_posts=community_posts,
         community_comments=community_comments,
     )
+
+
+def list_admin_candidates(
+    access_token: str | None = None,
+    limit: int = 80,
+) -> AdminCandidatesResponse:
+    client = _client_or_none(access_token)
+    if client is None:
+        return AdminCandidatesResponse(candidates=[])
+
+    candidates: list[AdminCandidateItem] = []
+
+    try:
+        case_response = (
+            client.table("student_cases")
+            .select(
+                "id,student_id,public_reference,target_project,status,progress_percent,created_at,updated_at",
+            )
+            .order("updated_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+    except Exception:
+        case_response = type("Response", (), {"data": []})()
+
+    case_rows = case_response.data or []
+    student_ids = [str(item.get("student_id")) for item in case_rows if item.get("student_id")]
+    students_map: dict[str, dict] = {}
+    if student_ids:
+        try:
+            student_response = (
+                client.table("students")
+                .select("id,full_name,email,phone,country")
+                .in_("id", student_ids)
+                .execute()
+            )
+            students_map = {
+                str(item.get("id", "")): item
+                for item in (student_response.data or [])
+            }
+        except Exception:
+            students_map = {}
+
+    for row in case_rows:
+        student = students_map.get(str(row.get("student_id")), {})
+        progress_percent = int(row.get("progress_percent") or 0)
+        candidates.append(
+            AdminCandidateItem(
+                id=str(row.get("id") or row.get("public_reference") or ""),
+                full_name=str(student.get("full_name") or "Etudiant rattache"),
+                email=student.get("email"),
+                phone=student.get("phone"),
+                country=str(student.get("country") or "Inconnu"),
+                procedure=str(row.get("target_project") or "Procedure"),
+                stage=_labelize_case_status(row.get("status")),
+                subscription="Suivi PieAgency",
+                status="Actif" if str(row.get("status") or "").lower() != "completed" else "Clos",
+                progress_percent=progress_percent,
+                created_at_label=_format_datetime_label(row.get("created_at")),
+                source="case",
+            ),
+        )
+
+    remaining_limit = max(limit - len(candidates), 0)
+    if remaining_limit:
+        try:
+            lead_response = (
+                client.table(settings.supabase_contact_table)
+                .select(
+                    "id,full_name,email,phone,country,study_level,target_project,created_at",
+                )
+                .order("created_at", desc=True)
+                .limit(remaining_limit)
+                .execute()
+            )
+        except Exception:
+            lead_response = type("Response", (), {"data": []})()
+
+        for item in (lead_response.data or []):
+            candidates.append(
+                AdminCandidateItem(
+                    id=str(item.get("id", "")),
+                    full_name=str(item.get("full_name") or "Lead sans nom"),
+                    email=item.get("email"),
+                    phone=item.get("phone"),
+                    country=str(item.get("country") or "Inconnu"),
+                    procedure=str(item.get("target_project") or "A qualifier"),
+                    stage=str(item.get("study_level") or "Lead entrant"),
+                    subscription="Non abonne",
+                    status="Lead",
+                    progress_percent=0,
+                    created_at_label=_format_datetime_label(item.get("created_at")),
+                    source="lead",
+                ),
+            )
+
+    return AdminCandidatesResponse(candidates=candidates)

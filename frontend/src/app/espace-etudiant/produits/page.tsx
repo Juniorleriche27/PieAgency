@@ -6,7 +6,6 @@ export const metadata = {
 };
 
 export default async function StudentProductsPage() {
-  // Swap getProducts() body for GET /api/private/products when backend is ready
   const products = await getProducts();
 
   return <ProductsCatalogue products={products} />;

@@ -1,0 +1,82 @@
+from fastapi import APIRouter, Depends, HTTPException
+
+from ..dependencies.auth import get_current_access_token, get_current_user
+from ..schemas import (
+    AuthMessageResponse,
+    AuthUserProfile,
+    PrivateDiagnosticResponse,
+    PrivateOnboardingSubmitRequest,
+    PrivateProductItem,
+    PrivateProductListResponse,
+    PrivateResourceListResponse,
+    PrivateSubscriptionListResponse,
+    StudentDocumentListResponse,
+)
+from ..services.private_catalog_service import (
+    get_private_diagnostic,
+    get_private_product,
+    list_private_products,
+    list_private_resources,
+    list_private_subscriptions,
+    list_student_documents,
+    save_private_onboarding,
+)
+
+router = APIRouter()
+
+
+@router.get("/private/products", response_model=PrivateProductListResponse)
+def private_products(
+    current_user: AuthUserProfile = Depends(get_current_user),
+) -> PrivateProductListResponse:
+    return list_private_products()
+
+
+@router.get("/private/products/{product_id}", response_model=PrivateProductItem)
+def private_product_detail(
+    product_id: str,
+    current_user: AuthUserProfile = Depends(get_current_user),
+) -> PrivateProductItem:
+    try:
+        return get_private_product(product_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/private/resources", response_model=PrivateResourceListResponse)
+def private_resources(
+    current_user: AuthUserProfile = Depends(get_current_user),
+) -> PrivateResourceListResponse:
+    return list_private_resources()
+
+
+@router.get("/private/subscriptions", response_model=PrivateSubscriptionListResponse)
+def private_subscriptions(
+    current_user: AuthUserProfile = Depends(get_current_user),
+) -> PrivateSubscriptionListResponse:
+    return list_private_subscriptions()
+
+
+@router.get("/private/documents", response_model=StudentDocumentListResponse)
+def private_documents(
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> StudentDocumentListResponse:
+    return list_student_documents(current_user.user_id, access_token)
+
+
+@router.post("/private/onboarding", response_model=AuthMessageResponse)
+def private_onboarding(
+    payload: PrivateOnboardingSubmitRequest,
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> AuthMessageResponse:
+    return save_private_onboarding(current_user.user_id, payload, access_token)
+
+
+@router.get("/private/diagnostic", response_model=PrivateDiagnosticResponse)
+def private_diagnostic(
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> PrivateDiagnosticResponse:
+    return get_private_diagnostic(current_user.user_id, access_token)

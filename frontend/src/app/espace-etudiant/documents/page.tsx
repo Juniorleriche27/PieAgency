@@ -6,7 +6,6 @@ export const metadata = {
 };
 
 export default async function StudentDocumentsPage() {
-  // Swap getDocuments() body for GET /api/private/documents when backend is ready
   const documents = await getDocuments();
   return <DocumentsView documents={documents} />;
 }

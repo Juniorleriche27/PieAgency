@@ -12,7 +12,6 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props) {
   const { id } = await params;
-  // Swap getProduct() body for GET /api/private/products/{id} when backend is ready
   const product = await getProduct(id);
   return {
     title: product

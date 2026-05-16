@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   PRODUCT_CATEGORIES,
+  getProducts,
   type Product,
   type ProductCategory,
 } from "@/lib/private-products";
@@ -21,12 +22,29 @@ function badgeLabel(badge: Product["badge"]) {
 }
 
 export function ProductsCatalogue({ products }: Props) {
+  const [liveProducts, setLiveProducts] = useState(products);
   const [category, setCategory] = useState<ProductCategory>("Tous");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadProducts() {
+      const nextProducts = await getProducts();
+      if (active) {
+        setLiveProducts(nextProducts);
+      }
+    }
+
+    void loadProducts();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filtered =
     category === "Tous"
-      ? products
-      : products.filter((p) => p.category === category);
+      ? liveProducts
+      : liveProducts.filter((p) => p.category === category);
 
   return (
     <div>

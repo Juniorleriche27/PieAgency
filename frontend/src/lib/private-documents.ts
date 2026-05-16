@@ -1,3 +1,5 @@
+import { authenticatedFetch } from "@/lib/auth";
+
 export type DocumentStatus = "not-started" | "in-progress" | "to-review" | "validated";
 export type DocumentPriority = "high" | "medium" | "low";
 
@@ -7,6 +9,16 @@ export type CandidateDocument = {
   status: DocumentStatus;
   lastUpdated?: string;
   priority?: DocumentPriority;
+};
+
+type StudentDocumentApiItem = {
+  name: string;
+  status: "approved" | "review" | "missing";
+  note: string;
+};
+
+type StudentDocumentListResponse = {
+  documents: StudentDocumentApiItem[];
 };
 
 const MOCK_DOCUMENTS: CandidateDocument[] = [
@@ -22,12 +34,44 @@ const MOCK_DOCUMENTS: CandidateDocument[] = [
   { id: "doc-010", title: "Documents visa", status: "not-started", priority: "medium" },
 ];
 
-// TODO: replace body with:
-// const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/private/documents`, {
-//   headers: { Authorization: `Bearer ${token}` },
-//   cache: "no-store",
-// });
-// return res.ok ? (await res.json()) as CandidateDocument[] : [];
+function mapDocumentStatus(status: StudentDocumentApiItem["status"]): DocumentStatus {
+  if (status === "approved") {
+    return "validated";
+  }
+  if (status === "review") {
+    return "to-review";
+  }
+  return "not-started";
+}
+
+function toCandidateDocument(
+  item: StudentDocumentApiItem,
+  index: number,
+): CandidateDocument {
+  return {
+    id: `doc-${index + 1}-${item.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+    title: item.name,
+    status: mapDocumentStatus(item.status),
+    lastUpdated: item.status === "missing" ? undefined : item.note,
+    priority: index < 4 ? "high" : "medium",
+  };
+}
+
 export async function getDocuments(): Promise<CandidateDocument[]> {
-  return MOCK_DOCUMENTS;
+  try {
+    const response = await authenticatedFetch(
+      "/api/private/documents",
+      { cache: "no-store" },
+      { requireAuth: true },
+    );
+
+    if (!response.ok) {
+      throw new Error("Impossible de charger les documents.");
+    }
+
+    const payload = (await response.json()) as StudentDocumentListResponse;
+    return payload.documents.map(toCandidateDocument);
+  } catch {
+    return MOCK_DOCUMENTS;
+  }
 }

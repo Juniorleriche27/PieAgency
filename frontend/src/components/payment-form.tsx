@@ -89,6 +89,8 @@ export function PaymentForm() {
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
   const searchParams = useSearchParams();
   const serviceFromQuery = searchParams.get("service") ?? "";
+  const amountFromQuery = searchParams.get("amount") ?? "";
+  const reasonFromQuery = searchParams.get("reason") ?? "";
   const checkoutReturn = searchParams.get("checkout") === "return";
   const [config, setConfig] = useState<PaymentConfig | null>(null);
   const [form, setForm] = useState<PaymentFormState>(initialState);
@@ -118,10 +120,24 @@ export function PaymentForm() {
       return {
         ...current,
         serviceSlug: matchedService.slug,
+        amount: amountFromQuery || current.amount,
         reason: shouldUpdateReason ? getServiceReason(matchedService.slug) : current.reason,
       };
     });
-  }, [serviceFromQuery]);
+  }, [amountFromQuery, serviceFromQuery]);
+
+  useEffect(() => {
+    const amountValue = Number(amountFromQuery);
+    setForm((current) => ({
+      ...current,
+      serviceSlug: serviceFromQuery || current.serviceSlug,
+      amount:
+        Number.isFinite(amountValue) && amountValue > 0
+          ? amountFromQuery
+          : current.amount,
+      reason: reasonFromQuery || current.reason,
+    }));
+  }, [amountFromQuery, reasonFromQuery, serviceFromQuery]);
 
   useEffect(() => {
     let isMounted = true;
@@ -165,7 +181,7 @@ export function PaymentForm() {
     return () => {
       isMounted = false;
     };
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, config?.display_currency]);
 
   function updateField<K extends keyof PaymentFormState>(
     field: K,
@@ -272,7 +288,7 @@ export function PaymentForm() {
     } finally {
       setIsCheckingStatus(false);
     }
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, config?.display_currency]);
 
   useEffect(() => {
     if (!checkoutReturn || typeof window === "undefined") {

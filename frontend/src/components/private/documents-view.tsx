@@ -1,7 +1,12 @@
 "use client";
 
 import { CheckCircle2, Clock, AlertCircle, Upload } from "lucide-react";
-import type { CandidateDocument, DocumentStatus } from "@/lib/private-documents";
+import { useEffect, useState } from "react";
+import {
+  getDocuments,
+  type CandidateDocument,
+  type DocumentStatus,
+} from "@/lib/private-documents";
 
 type Props = {
   documents: CandidateDocument[];
@@ -26,11 +31,29 @@ function StatusIcon({ status }: { status: DocumentStatus }) {
 }
 
 export function DocumentsView({ documents }: Props) {
-  const validated = documents.filter((d) => d.status === "validated").length;
-  const inProgress = documents.filter((d) => d.status === "in-progress").length;
-  const toReview = documents.filter((d) => d.status === "to-review").length;
-  const pct = documents.length ? Math.round((validated / documents.length) * 100) : 0;
-  const highPriority = documents.filter((d) => d.priority === "high");
+  const [liveDocuments, setLiveDocuments] = useState(documents);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadDocuments() {
+      const nextDocuments = await getDocuments();
+      if (active) {
+        setLiveDocuments(nextDocuments);
+      }
+    }
+
+    void loadDocuments();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const validated = liveDocuments.filter((d) => d.status === "validated").length;
+  const inProgress = liveDocuments.filter((d) => d.status === "in-progress").length;
+  const toReview = liveDocuments.filter((d) => d.status === "to-review").length;
+  const pct = liveDocuments.length ? Math.round((validated / liveDocuments.length) * 100) : 0;
+  const highPriority = liveDocuments.filter((d) => d.priority === "high");
 
   return (
     <div className="doc-page">
@@ -66,7 +89,7 @@ export function DocumentsView({ documents }: Props) {
         <div className="doc-progress-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
           <div className="doc-progress-fill" style={{ width: `${pct}%` }} />
         </div>
-        <p className="doc-progress-sub">{validated} sur {documents.length} documents validés</p>
+        <p className="doc-progress-sub">{validated} sur {liveDocuments.length} documents validés</p>
       </div>
 
       {/* High priority alert */}
@@ -105,7 +128,7 @@ export function DocumentsView({ documents }: Props) {
         </div>
 
         <ul className="doc-list">
-          {documents.map((doc) => (
+          {liveDocuments.map((doc) => (
             <li
               key={doc.id}
               className={`doc-row doc-priority-border-${doc.priority ?? "low"}`}

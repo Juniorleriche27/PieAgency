@@ -156,6 +156,16 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.student_onboarding (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists student_onboarding_updated_at_idx
+  on public.student_onboarding (updated_at desc);
+
 alter table if exists public.student_cases
   add column if not exists student_user_id uuid references auth.users (id) on delete set null;
 
@@ -465,6 +475,11 @@ create trigger set_profiles_updated_at
 before update on public.profiles
 for each row execute procedure public.touch_updated_at();
 
+drop trigger if exists set_student_onboarding_updated_at on public.student_onboarding;
+create trigger set_student_onboarding_updated_at
+before update on public.student_onboarding
+for each row execute procedure public.touch_updated_at();
+
 drop trigger if exists set_student_cases_updated_at on public.student_cases;
 create trigger set_student_cases_updated_at
 before update on public.student_cases
@@ -501,6 +516,7 @@ before update on public.community_comments
 for each row execute procedure public.touch_updated_at();
 
 alter table public.profiles enable row level security;
+alter table public.student_onboarding enable row level security;
 alter table public.student_cases enable row level security;
 alter table public.case_steps enable row level security;
 alter table public.case_documents enable row level security;
@@ -541,6 +557,21 @@ create policy "profiles_insert_own_or_admin"
 on public.profiles
 for insert
 to authenticated
+with check (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "student_onboarding_select_own_or_admin" on public.student_onboarding;
+create policy "student_onboarding_select_own_or_admin"
+on public.student_onboarding
+for select
+to authenticated
+using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "student_onboarding_upsert_own_or_admin" on public.student_onboarding;
+create policy "student_onboarding_upsert_own_or_admin"
+on public.student_onboarding
+for all
+to authenticated
+using (user_id = auth.uid() or public.is_admin())
 with check (user_id = auth.uid() or public.is_admin());
 
 drop policy if exists "student_cases_select_own_or_admin" on public.student_cases;

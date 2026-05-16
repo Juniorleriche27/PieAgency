@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, CreditCard, ShoppingCart } from "lucide-react";
-import type { Product } from "@/lib/private-products";
+import { useEffect, useState } from "react";
+import { getProduct, type Product } from "@/lib/private-products";
 
 type Props = {
   product: Product;
@@ -14,7 +17,29 @@ function badgeLabel(badge: Product["badge"]) {
 }
 
 export function ProductDetailView({ product }: Props) {
-  const label = badgeLabel(product.badge);
+  const [liveProduct, setLiveProduct] = useState(product);
+  const label = badgeLabel(liveProduct.badge);
+  const paymentHref = `/paiement?service=${encodeURIComponent(
+    liveProduct.serviceSlug ?? liveProduct.id,
+  )}&amount=${encodeURIComponent(String(liveProduct.price))}&reason=${encodeURIComponent(
+    `Paiement pour ${liveProduct.title}`,
+  )}`;
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadProduct() {
+      const nextProduct = await getProduct(product.id);
+      if (active && nextProduct) {
+        setLiveProduct(nextProduct);
+      }
+    }
+
+    void loadProduct();
+    return () => {
+      active = false;
+    };
+  }, [product.id]);
 
   return (
     <div>
@@ -26,12 +51,12 @@ export function ProductDetailView({ product }: Props) {
       <div className="prod-detail-head">
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h1>{product.title}</h1>
-            <p>{product.description}</p>
+            <h1>{liveProduct.title}</h1>
+            <p>{liveProduct.description}</p>
           </div>
-          {label && product.badge ? (
+          {label && liveProduct.badge ? (
             <div
-              className={`prod-card-badge ${product.badge}`}
+              className={`prod-card-badge ${liveProduct.badge}`}
               style={{ position: "static", flexShrink: 0 }}
             >
               {label}
@@ -40,7 +65,7 @@ export function ProductDetailView({ product }: Props) {
         </div>
 
         <div className="prod-detail-price">
-          <strong>{product.price.toFixed(2)}</strong>
+          <strong>{liveProduct.price.toFixed(2)}</strong>
           <span>€</span>
         </div>
       </div>
@@ -50,13 +75,13 @@ export function ProductDetailView({ product }: Props) {
         <div className="prod-detail-main">
           <section className="prod-detail-section">
             <h2>Présentation</h2>
-            <p>{product.longDescription}</p>
+            <p>{liveProduct.longDescription}</p>
           </section>
 
           <section className="prod-detail-section">
             <h2>Ce que vous allez trouver</h2>
             <ul className="prod-detail-list">
-              {product.whatYouGet.map((item, i) => (
+              {liveProduct.whatYouGet.map((item, i) => (
                 <li key={i}>
                   <CheckCircle2 size={18} aria-hidden />
                   {item}
@@ -67,7 +92,7 @@ export function ProductDetailView({ product }: Props) {
 
           <section className="prod-detail-section">
             <h2>À qui ce produit s&apos;adresse</h2>
-            <p>{product.targetAudience}</p>
+            <p>{liveProduct.targetAudience}</p>
           </section>
 
           <section className="prod-detail-section">
@@ -87,7 +112,7 @@ export function ProductDetailView({ product }: Props) {
         <aside className="prod-detail-sidebar" aria-label="Acheter ce produit">
           <div className="prod-cta-card">
             <div className="prod-cta-head">
-              <strong>{product.price.toFixed(2)} €</strong>
+              <strong>{liveProduct.price.toFixed(2)} €</strong>
               <span>Accès illimité à toutes les ressources</span>
             </div>
             <div className="prod-cta-body">
@@ -106,24 +131,23 @@ export function ProductDetailView({ product }: Props) {
                 </li>
               </ul>
 
-              {/* TODO: brancher sur POST /payments/maketou/checkout quand disponible */}
-              <button
+              <Link
                 className="btn btn-primary"
-                type="button"
                 style={{ width: "100%", gap: 8 }}
+                href={paymentHref}
               >
                 <ShoppingCart size={16} aria-hidden />
                 Acheter maintenant
-              </button>
+              </Link>
 
-              <button
+              <Link
                 className="btn btn-outline"
-                type="button"
                 style={{ width: "100%", gap: 8 }}
+                href="/espace-etudiant/abonnement"
               >
                 <CreditCard size={16} aria-hidden />
                 S&apos;abonner
-              </button>
+              </Link>
 
               <div className="prod-cta-tip">
                 <strong>💡 Conseil</strong>

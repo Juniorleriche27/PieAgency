@@ -6,6 +6,7 @@ from fastapi.responses import Response
 from ..dependencies.auth import get_current_access_token, get_current_user, require_admin_user
 from ..schemas import (
     AdminCommentModerationResponse,
+    AdminCandidatesResponse,
     AdminCommunityPostItem,
     AdminConversationDetailResponse,
     AdminDashboardResponse,
@@ -26,6 +27,7 @@ from ..services.admin_service import (
     update_admin_page,
 )
 from ..services.dashboard_service import get_admin_dashboard, get_student_dashboard
+from ..services.dashboard_service import list_admin_candidates
 
 router = APIRouter()
 
@@ -44,6 +46,14 @@ def admin_dashboard(
     access_token: str = Depends(get_current_access_token),
 ) -> AdminDashboardResponse:
     return get_admin_dashboard(current_user, access_token)
+
+
+@router.get("/admin/candidates", response_model=AdminCandidatesResponse)
+def admin_candidates(
+    current_user: AuthUserProfile = Depends(require_admin_user),
+    access_token: str = Depends(get_current_access_token),
+) -> AdminCandidatesResponse:
+    return list_admin_candidates(access_token)
 
 
 @router.get("/admin/pages", response_model=list[AdminPageItem])

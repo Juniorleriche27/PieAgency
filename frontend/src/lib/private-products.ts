@@ -1,14 +1,4 @@
-/**
- * Private products data layer.
- *
- * Mock data is used until the backend endpoints are live.
- * To switch to real API: replace the body of getProducts() and getProduct()
- * with fetch calls to:
- *   GET /api/private/products
- *   GET /api/private/products/{product_id}
- *
- * Both endpoints require a Bearer token (access_token from AuthSession).
- */
+import { authenticatedFetch } from "@/lib/auth";
 
 export type ProductBadge = "recommended" | "popular" | "included";
 
@@ -22,6 +12,24 @@ export type Product = {
   price: number;
   badge?: ProductBadge;
   category: string;
+  serviceSlug?: string;
+};
+
+type PrivateProductApiItem = {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  price: number;
+  currency?: string;
+  target_audience: string;
+  what_you_get: string[];
+  badge?: ProductBadge | null;
+  service_slug: string;
+};
+
+type PrivateProductListResponse = {
+  products: PrivateProductApiItem[];
 };
 
 export const PRODUCT_CATEGORIES = [
@@ -213,35 +221,59 @@ const MOCK_PRODUCTS: Product[] = [
 // Data access functions — swap bodies to fetch from API when ready
 // ---------------------------------------------------------------------------
 
-/**
- * Returns the full product list.
- *
- * TODO: replace with:
- *   const res = await fetch(`${apiBaseUrl}/api/private/products`, {
- *     headers: { Authorization: `Bearer ${accessToken}` },
- *     next: { revalidate: 60 },
- *   });
- *   if (!res.ok) throw new Error("Failed to load products");
- *   return res.json() as Promise<Product[]>;
- */
-export async function getProducts(): Promise<Product[]> {
-  return MOCK_PRODUCTS;
+function toProduct(item: PrivateProductApiItem): Product {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    longDescription: item.description,
+    targetAudience: item.target_audience,
+    whatYouGet: item.what_you_get,
+    price: item.price,
+    badge: item.badge ?? undefined,
+    category: item.category,
+    serviceSlug: item.service_slug,
+  };
 }
 
-/**
- * Returns a single product by id, or null if not found.
- *
- * TODO: replace with:
- *   const res = await fetch(`${apiBaseUrl}/api/private/products/${id}`, {
- *     headers: { Authorization: `Bearer ${accessToken}` },
- *     next: { revalidate: 60 },
- *   });
- *   if (res.status === 404) return null;
- *   if (!res.ok) throw new Error("Failed to load product");
- *   return res.json() as Promise<Product>;
- */
+export async function getProducts(): Promise<Product[]> {
+  try {
+    const response = await authenticatedFetch(
+      "/api/private/products",
+      { cache: "no-store" },
+      { requireAuth: true },
+    );
+
+    if (!response.ok) {
+      throw new Error("Impossible de charger les produits.");
+    }
+
+    const payload = (await response.json()) as PrivateProductListResponse;
+    return payload.products.map(toProduct);
+  } catch {
+    return MOCK_PRODUCTS;
+  }
+}
+
 export async function getProduct(id: string): Promise<Product | null> {
-  return MOCK_PRODUCTS.find((p) => p.id === id) ?? null;
+  try {
+    const response = await authenticatedFetch(
+      `/api/private/products/${id}`,
+      { cache: "no-store" },
+      { requireAuth: true },
+    );
+
+    if (response.status === 404) {
+      return null;
+    }
+    if (!response.ok) {
+      throw new Error("Impossible de charger ce produit.");
+    }
+
+    return toProduct((await response.json()) as PrivateProductApiItem);
+  } catch {
+    return MOCK_PRODUCTS.find((p) => p.id === id) ?? null;
+  }
 }
 
 /** Synchronous lookup — used only for generateStaticParams. */

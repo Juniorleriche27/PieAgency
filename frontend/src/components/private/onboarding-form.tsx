@@ -8,6 +8,7 @@ export function OnboardingForm() {
   const [step, setStep] = useState(1);
   const [data, setData] = useState<OnboardingData>({});
   const [done, setDone] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const total = ONBOARDING_STEPS.length;
   const current = ONBOARDING_STEPS[step - 1];
@@ -21,8 +22,17 @@ export function OnboardingForm() {
     if (step < total) {
       setStep((s) => s + 1);
     } else {
-      await submitOnboarding(data);
-      setDone(true);
+      setErrorMessage("");
+      try {
+        await submitOnboarding(data);
+        setDone(true);
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Impossible d'enregistrer l'onboarding.",
+        );
+      }
     }
   }
 
@@ -124,6 +134,8 @@ export function OnboardingForm() {
           ))}
         </div>
       </div>
+
+      {errorMessage ? <div className="portal-warning">{errorMessage}</div> : null}
 
       {/* Navigation */}
       <div className="ob-nav">

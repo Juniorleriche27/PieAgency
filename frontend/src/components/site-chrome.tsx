@@ -13,14 +13,20 @@ export function SiteChrome({
 }>) {
   const pathname = usePathname();
   const isCommunityRoute = pathname === "/communaute";
+  const isPrivateRoute =
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/") ||
+    pathname === "/espace-etudiant" ||
+    pathname.startsWith("/espace-etudiant/");
+  const useMinimalChrome = isCommunityRoute || isPrivateRoute;
 
   return (
     <>
-      {isCommunityRoute ? null : <SiteHeader />}
+      {useMinimalChrome ? null : <SiteHeader />}
       <main>{children}</main>
-      {isCommunityRoute ? null : <SiteAssistantSpotlight />}
-      {isCommunityRoute ? null : <SiteFooter />}
-      {isCommunityRoute ? null : <SiteChatbot />}
+      {useMinimalChrome ? null : <SiteAssistantSpotlight />}
+      {useMinimalChrome ? null : <SiteFooter />}
+      {useMinimalChrome ? null : <SiteChatbot />}
     </>
   );
 }

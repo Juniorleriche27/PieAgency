@@ -632,6 +632,82 @@ class StudentDashboardResponse(BaseModel):
     notes: list[StudentNoteItem]
 
 
+class PrivateProductItem(BaseModel):
+    id: str
+    title: str
+    description: str
+    category: str
+    price: float
+    currency: str = "EUR"
+    target_audience: str
+    what_you_get: list[str] = Field(default_factory=list)
+    badge: Literal["recommended", "popular", "included"] | None = None
+    service_slug: str
+
+
+class PrivateProductListResponse(BaseModel):
+    products: list[PrivateProductItem]
+
+
+class PrivateResourceItem(BaseModel):
+    id: str
+    title: str
+    description: str
+    category: str
+    resource_type: Literal["guide", "template", "video", "checklist", "link"]
+    format_label: str
+    access_level: Literal["free", "student", "premium"] = "student"
+    url: str | None = None
+
+
+class PrivateResourceListResponse(BaseModel):
+    resources: list[PrivateResourceItem]
+
+
+class PrivateSubscriptionPlanItem(BaseModel):
+    id: str
+    title: str
+    description: str
+    price: float
+    currency: str = "EUR"
+    billing_period: Literal["one_time", "monthly", "yearly"] = "monthly"
+    features: list[str] = Field(default_factory=list)
+    recommended: bool = False
+    service_slug: str
+
+
+class PrivateSubscriptionListResponse(BaseModel):
+    plans: list[PrivateSubscriptionPlanItem]
+
+
+class StudentDocumentListResponse(BaseModel):
+    documents: list[StudentDocumentItem]
+
+
+class PrivateOnboardingSubmitRequest(BaseModel):
+    data: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("data")
+    @classmethod
+    def validate_onboarding_data(cls, value: dict[str, str]) -> dict[str, str]:
+        cleaned = {
+            str(key).strip(): str(item).strip()
+            for key, item in value.items()
+            if str(key).strip() and str(item).strip()
+        }
+        if not cleaned:
+            raise ValueError("Les donnees d'onboarding sont requises.")
+        return cleaned
+
+
+class PrivateDiagnosticResponse(BaseModel):
+    current_priority: str
+    main_risk: str
+    next_action: str
+    recommended_products: list[str] = Field(default_factory=list)
+    adapted_checklist: list[str] = Field(default_factory=list)
+
+
 class AdminLeadItem(BaseModel):
     id: str
     full_name: str
@@ -761,6 +837,25 @@ class AdminDashboardResponse(BaseModel):
     managed_pages: list[AdminPageItem]
     community_posts: list[AdminCommunityPostItem] = Field(default_factory=list)
     community_comments: list[AdminCommunityCommentItem] = Field(default_factory=list)
+
+
+class AdminCandidateItem(BaseModel):
+    id: str
+    full_name: str
+    email: str | None = None
+    phone: str | None = None
+    country: str
+    procedure: str
+    stage: str
+    subscription: str
+    status: str
+    progress_percent: int = Field(ge=0, le=100)
+    created_at_label: str
+    source: Literal["case", "lead"]
+
+
+class AdminCandidatesResponse(BaseModel):
+    candidates: list[AdminCandidateItem]
 
 
 class CommunityGroupItem(BaseModel):

@@ -9,6 +9,7 @@ from .routers.contact import router as contact_router
 from .routers.dashboard import router as dashboard_router
 from .routers.health import router as health_router
 from .routers.payments import router as payments_router
+from .routers.private import router as private_router
 
 app = FastAPI(
     title=settings.app_name,
@@ -31,6 +32,7 @@ app.include_router(community_router, prefix=settings.api_prefix, tags=["communit
 app.include_router(dashboard_router, prefix=settings.api_prefix, tags=["dashboard"])
 app.include_router(contact_router, prefix=settings.api_prefix, tags=["contact"])
 app.include_router(payments_router, prefix=settings.api_prefix, tags=["payments"])
+app.include_router(private_router, prefix=settings.api_prefix, tags=["private"])
 
 
 @app.get("/")
