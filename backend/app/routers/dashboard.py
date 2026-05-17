@@ -16,9 +16,15 @@ from ..schemas import (
     AdminPageItem,
     AdminPageUpdateRequest,
     AuthUserProfile,
+    CurrentSubscriptionResponse,
+    PrivateSubscriptionListResponse,
+    PrivateSubscriptionPlanItem,
     StudentDashboardResponse,
     StudentDocumentItem,
     StudentDocumentListResponse,
+    SubscriptionPlanCreateRequest,
+    SubscriptionPlanSelectRequest,
+    SubscriptionPlanUpdateRequest,
 )
 from ..services.admin_service import (
     AdminDataUnavailableError,
@@ -34,8 +40,14 @@ from ..services.dashboard_service import get_admin_dashboard, get_student_dashbo
 from ..services.dashboard_service import list_admin_candidates
 from ..services.private_catalog_service import (
     add_candidate_document_admin,
+    create_admin_subscription_plan,
     delete_candidate_document_admin,
+    delete_admin_subscription_plan,
+    get_current_subscription,
     list_candidate_documents_admin,
+    list_admin_subscription_plans,
+    set_current_subscription,
+    update_admin_subscription_plan,
     update_candidate_document_admin,
 )
 
@@ -64,6 +76,66 @@ def admin_candidates(
     access_token: str = Depends(get_current_access_token),
 ) -> AdminCandidatesResponse:
     return list_admin_candidates(access_token)
+
+
+@router.get("/admin/subscription-plans", response_model=PrivateSubscriptionListResponse)
+def admin_subscription_plans(
+    current_user: AuthUserProfile = Depends(require_admin_user),
+    access_token: str = Depends(get_current_access_token),
+) -> PrivateSubscriptionListResponse:
+    return list_admin_subscription_plans(access_token)
+
+
+@router.post("/admin/subscription-plans", response_model=PrivateSubscriptionPlanItem)
+def admin_create_subscription_plan(
+    payload: SubscriptionPlanCreateRequest,
+    current_user: AuthUserProfile = Depends(require_admin_user),
+    access_token: str = Depends(get_current_access_token),
+) -> PrivateSubscriptionPlanItem:
+    try:
+        return create_admin_subscription_plan(payload, access_token)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.patch("/admin/subscription-plans/{plan_id}", response_model=PrivateSubscriptionPlanItem)
+def admin_update_subscription_plan(
+    plan_id: str,
+    payload: SubscriptionPlanUpdateRequest,
+    current_user: AuthUserProfile = Depends(require_admin_user),
+    access_token: str = Depends(get_current_access_token),
+) -> PrivateSubscriptionPlanItem:
+    try:
+        return update_admin_subscription_plan(plan_id, payload, access_token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.delete("/admin/subscription-plans/{plan_id}")
+def admin_delete_subscription_plan(
+    plan_id: str,
+    current_user: AuthUserProfile = Depends(require_admin_user),
+    access_token: str = Depends(get_current_access_token),
+) -> dict[str, bool]:
+    try:
+        return {"ok": delete_admin_subscription_plan(plan_id, access_token)}
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.patch(
+    "/admin/candidates/{user_id}/subscription",
+    response_model=CurrentSubscriptionResponse,
+)
+def admin_update_candidate_subscription(
+    user_id: str,
+    payload: SubscriptionPlanSelectRequest,
+    current_user: AuthUserProfile = Depends(require_admin_user),
+    access_token: str = Depends(get_current_access_token),
+) -> CurrentSubscriptionResponse:
+    return set_current_subscription(user_id, payload.plan_id, access_token)
 
 
 @router.get(

@@ -5,6 +5,7 @@ from ..schemas import (
     AddDocumentRequest,
     AuthMessageResponse,
     AuthUserProfile,
+    CurrentSubscriptionResponse,
     PrivateDiagnosticResponse,
     PrivateOnboardingSubmitRequest,
     PrivateProfileResponse,
@@ -13,6 +14,7 @@ from ..schemas import (
     PrivateProductListResponse,
     PrivateResourceListResponse,
     PrivateSubscriptionListResponse,
+    SubscriptionPlanSelectRequest,
     StudentDocumentItem,
     StudentDocumentListResponse,
 )
@@ -21,11 +23,13 @@ from ..services.private_catalog_service import (
     get_private_diagnostic,
     get_private_profile,
     get_private_product,
+    get_current_subscription,
     list_private_products,
     list_private_resources,
     list_private_subscriptions,
     list_student_documents,
     save_private_onboarding,
+    set_current_subscription,
     update_private_profile,
     upload_document_file,
 )
@@ -63,6 +67,23 @@ def private_subscriptions(
     current_user: AuthUserProfile = Depends(get_current_user),
 ) -> PrivateSubscriptionListResponse:
     return list_private_subscriptions()
+
+
+@router.get("/private/subscription/current", response_model=CurrentSubscriptionResponse)
+def private_current_subscription(
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> CurrentSubscriptionResponse:
+    return get_current_subscription(current_user.user_id, access_token)
+
+
+@router.patch("/private/subscription/current", response_model=CurrentSubscriptionResponse)
+def update_private_current_subscription(
+    payload: SubscriptionPlanSelectRequest,
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> CurrentSubscriptionResponse:
+    return set_current_subscription(current_user.user_id, payload.plan_id, access_token)
 
 
 @router.get("/private/profile", response_model=PrivateProfileResponse)

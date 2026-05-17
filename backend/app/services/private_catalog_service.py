@@ -1,5 +1,6 @@
 from ..schemas import (
     AuthMessageResponse,
+    CurrentSubscriptionResponse,
     PrivateProductItem,
     PrivateProductListResponse,
     PrivateDiagnosticResponse,
@@ -10,6 +11,8 @@ from ..schemas import (
     PrivateResourceListResponse,
     PrivateSubscriptionListResponse,
     PrivateSubscriptionPlanItem,
+    SubscriptionPlanCreateRequest,
+    SubscriptionPlanUpdateRequest,
     StudentDocumentItem,
     StudentDocumentListResponse,
 )
@@ -310,6 +313,30 @@ SUBSCRIPTION_PLANS = [
 ]
 
 
+def _subscription_plan_from_row(row: dict) -> PrivateSubscriptionPlanItem:
+    features = row.get("features") or []
+    if not isinstance(features, list):
+        features = []
+
+    return PrivateSubscriptionPlanItem(
+        id=str(row.get("id", "")),
+        title=str(row.get("title") or ""),
+        description=str(row.get("description") or ""),
+        price=float(row.get("price") or 0),
+        currency=str(row.get("currency") or "EUR"),
+        billing_period=row.get("billing_period") or "monthly",
+        features=[str(item) for item in features],
+        recommended=bool(row.get("recommended", False)),
+        service_slug=str(row.get("service_slug") or ""),
+        is_active=bool(row.get("is_active", True)),
+        sort_order=int(row.get("sort_order") or 0),
+    )
+
+
+def _subscription_select():
+    return "id,title,description,price,currency,billing_period,features,recommended,service_slug,is_active,sort_order"
+
+
 def list_private_products() -> PrivateProductListResponse:
     return PrivateProductListResponse(products=PRODUCTS)
 
@@ -326,7 +353,158 @@ def list_private_resources() -> PrivateResourceListResponse:
 
 
 def list_private_subscriptions() -> PrivateSubscriptionListResponse:
-    return PrivateSubscriptionListResponse(plans=SUBSCRIPTION_PLANS)
+    client = _client_or_none()
+    if client is None:
+        return PrivateSubscriptionListResponse(plans=SUBSCRIPTION_PLANS)
+
+    try:
+        response = (
+            client.table("subscription_plans")
+            .select(_subscription_select())
+            .eq("is_active", True)
+            .order("sort_order")
+            .execute()
+        )
+    except Exception:
+        return PrivateSubscriptionListResponse(plans=SUBSCRIPTION_PLANS)
+
+    return PrivateSubscriptionListResponse(
+        plans=[_subscription_plan_from_row(item) for item in (response.data or [])],
+    )
+
+
+def list_admin_subscription_plans(
+    access_token: str | None = None,
+) -> PrivateSubscriptionListResponse:
+    client = _client_or_none(access_token)
+    if client is None:
+        return PrivateSubscriptionListResponse(plans=SUBSCRIPTION_PLANS)
+
+    response = (
+        client.table("subscription_plans")
+        .select(_subscription_select())
+        .order("sort_order")
+        .execute()
+    )
+    return PrivateSubscriptionListResponse(
+        plans=[_subscription_plan_from_row(item) for item in (response.data or [])],
+    )
+
+
+def get_current_subscription(
+    user_id: str,
+    access_token: str | None = None,
+) -> CurrentSubscriptionResponse:
+    client = _client_or_none(access_token)
+    if client is None:
+        return CurrentSubscriptionResponse()
+
+    try:
+        profile_response = (
+            client.table("profiles")
+            .select("current_plan_id")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception:
+        return CurrentSubscriptionResponse()
+
+    profile_rows = profile_response.data or []
+    current_plan_id = (
+        str(profile_rows[0].get("current_plan_id"))
+        if profile_rows and profile_rows[0].get("current_plan_id")
+        else None
+    )
+    if not current_plan_id:
+        return CurrentSubscriptionResponse(current_plan_id=None, plan=None)
+
+    try:
+        plan_response = (
+            client.table("subscription_plans")
+            .select(_subscription_select())
+            .eq("id", current_plan_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception:
+        return CurrentSubscriptionResponse(current_plan_id=current_plan_id, plan=None)
+
+    plan_rows = plan_response.data or []
+    return CurrentSubscriptionResponse(
+        current_plan_id=current_plan_id,
+        plan=_subscription_plan_from_row(plan_rows[0]) if plan_rows else None,
+    )
+
+
+def set_current_subscription(
+    user_id: str,
+    plan_id: str | None,
+    access_token: str | None = None,
+) -> CurrentSubscriptionResponse:
+    client = _client_or_none(access_token)
+    if client is None:
+        return CurrentSubscriptionResponse(current_plan_id=plan_id, plan=None)
+
+    client.table("profiles").update({"current_plan_id": plan_id}).eq("user_id", user_id).execute()
+    return get_current_subscription(user_id, access_token)
+
+
+def create_admin_subscription_plan(
+    payload: SubscriptionPlanCreateRequest,
+    access_token: str | None = None,
+) -> PrivateSubscriptionPlanItem:
+    client = _client_or_none(access_token)
+    if client is None:
+        raise RuntimeError("Supabase indisponible.")
+
+    response = (
+        client.table("subscription_plans")
+        .insert(payload.model_dump(mode="json"))
+        .execute()
+    )
+    rows = response.data or []
+    if not rows:
+        raise RuntimeError("Plan non cree.")
+    return _subscription_plan_from_row(rows[0])
+
+
+def update_admin_subscription_plan(
+    plan_id: str,
+    payload: SubscriptionPlanUpdateRequest,
+    access_token: str | None = None,
+) -> PrivateSubscriptionPlanItem:
+    client = _client_or_none(access_token)
+    if client is None:
+        raise RuntimeError("Supabase indisponible.")
+
+    data = payload.model_dump(exclude_unset=True, mode="json")
+    if data:
+        client.table("subscription_plans").update(data).eq("id", plan_id).execute()
+
+    response = (
+        client.table("subscription_plans")
+        .select(_subscription_select())
+        .eq("id", plan_id)
+        .limit(1)
+        .execute()
+    )
+    rows = response.data or []
+    if not rows:
+        raise LookupError("Plan introuvable.")
+    return _subscription_plan_from_row(rows[0])
+
+
+def delete_admin_subscription_plan(
+    plan_id: str,
+    access_token: str | None = None,
+) -> bool:
+    client = _client_or_none(access_token)
+    if client is None:
+        raise RuntimeError("Supabase indisponible.")
+
+    client.table("subscription_plans").delete().eq("id", plan_id).execute()
+    return True
 
 
 def get_private_profile(

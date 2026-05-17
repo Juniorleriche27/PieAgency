@@ -723,10 +723,47 @@ class PrivateSubscriptionPlanItem(BaseModel):
     features: list[str] = Field(default_factory=list)
     recommended: bool = False
     service_slug: str
+    is_active: bool = True
+    sort_order: int = 0
 
 
 class PrivateSubscriptionListResponse(BaseModel):
     plans: list[PrivateSubscriptionPlanItem]
+
+
+class CurrentSubscriptionResponse(BaseModel):
+    current_plan_id: str | None = None
+    plan: PrivateSubscriptionPlanItem | None = None
+
+
+class SubscriptionPlanSelectRequest(BaseModel):
+    plan_id: str | None = None
+
+
+class SubscriptionPlanCreateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=160)
+    description: str = ""
+    price: float = Field(default=0, ge=0)
+    currency: str = "EUR"
+    billing_period: Literal["one_time", "monthly", "yearly"] = "monthly"
+    features: list[str] = Field(default_factory=list)
+    recommended: bool = False
+    service_slug: str = Field(min_length=1, max_length=160)
+    is_active: bool = True
+    sort_order: int = 0
+
+
+class SubscriptionPlanUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    description: str | None = None
+    price: float | None = Field(default=None, ge=0)
+    currency: str | None = None
+    billing_period: Literal["one_time", "monthly", "yearly"] | None = None
+    features: list[str] | None = None
+    recommended: bool | None = None
+    service_slug: str | None = Field(default=None, min_length=1, max_length=160)
+    is_active: bool | None = None
+    sort_order: int | None = None
 
 
 class StudentDocumentListResponse(BaseModel):
