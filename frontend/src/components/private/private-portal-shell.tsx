@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   BookOpen,
-  ChevronDown,
   CreditCard,
   FileText,
   Globe2,
@@ -19,7 +18,6 @@ import {
   Settings,
   ShieldCheck,
   Sun,
-  User,
   Users,
   X,
   Zap,
@@ -228,35 +226,15 @@ export function PrivatePortalShell({
         ) : null}
 
         <div className="private-sidebar-foot">
-          <div className="private-sidebar-foot-profile">
-            <div className="private-sidebar-foot-avatar">
-              <User size={16} />
-            </div>
-            <div>
-              <strong>{session.user.full_name || session.user.email || "Compte PieAgency"}</strong>
-              <span>{session.user.role === "admin" ? "Administrateur" : "Candidat"}</span>
-            </div>
-            <ChevronDown size={14} className="private-sidebar-foot-chevron" />
-          </div>
-          <div className="private-sidebar-foot-actions">
-            <button
-              aria-label={isDark ? "Mode clair" : "Mode sombre"}
-              className="private-icon-button"
-              onClick={toggleDark}
-              type="button"
-            >
-              {isDark ? <Sun size={17} /> : <Moon size={17} />}
-            </button>
-            <button
-              aria-label="Se deconnecter"
-              className="private-nav-item private-nav-logout"
-              onClick={handleLogout}
-              type="button"
-            >
-              <LogOut size={18} />
-              <span>Deconnexion</span>
-            </button>
-          </div>
+          <button
+            aria-label="Se deconnecter"
+            className="private-nav-item private-nav-logout"
+            onClick={handleLogout}
+            type="button"
+          >
+            <LogOut size={18} />
+            <span>Deconnexion</span>
+          </button>
         </div>
       </aside>
 
