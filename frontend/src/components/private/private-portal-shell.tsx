@@ -275,6 +275,11 @@ export function PrivatePortalShell({
                 ? "Pilotage PieAgency + PieHUB"
                 : session.user.full_name || session.user.email}
             </strong>
+            {pathname === "/espace-etudiant/parcours-guide" ? (
+              <em className="private-topbar-tagline">
+                Avancez étape par étape — bons modules, bonnes ressources, bonnes actions.
+              </em>
+            ) : null}
           </div>
           <div className="private-topbar-actions">
             {requiredRole === "admin" && pathname === "/admin" ? (

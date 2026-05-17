@@ -8679,6 +8679,38 @@ body.chat-open .wa-float {
   opacity: 0.85;
 }
 
+.private-topbar-tagline {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--gray-400);
+  font-weight: 400;
+  margin-top: 2px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 420px;
+}
+
+.pp-compact-header {
+  padding: 10px 0 6px;
+}
+.pp-compact-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin: 2px 0 0;
+  line-height: 1.2;
+}
+[data-theme="dark"] .pp-compact-title { color: #e8eaf0; }
+[data-theme="dark"] .private-topbar-tagline { color: #6070a0; }
+
+@media (max-width: 640px) {
+  .private-topbar-tagline { display: none; }
+  .pp-compact-title { font-size: 17px; }
+}
+
 /* ─── Content ───────────────────────────────────────────────────── */
 .private-content {
   min-width: 0;
