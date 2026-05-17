@@ -11593,8 +11593,24 @@ body.chat-open .wa-float {
 .doc-list-section { display: flex; flex-direction: column; gap: 14px; }
 .doc-list-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 .doc-list-header h2 { font-size: 1.3rem; font-weight: 700; color: var(--navy); margin: 0; }
-.doc-upload-btn { display: flex; align-items: center; gap: 6px; opacity: .55; cursor: not-allowed; }
-.doc-upload-btn:disabled { pointer-events: none; }
+.doc-upload-btn { display: flex; align-items: center; gap: 6px; }
+
+/* doc row file attach */
+.doc-file-hidden { display: none; }
+.doc-attach-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 0.75rem; font-weight: 600; color: var(--navy); background: var(--gray-100,#f3f4f6); border: 1px solid var(--gray-200,#e5e7eb); border-radius: 6px; padding: 4px 10px; cursor: pointer; transition: background 0.15s; }
+.doc-attach-btn:hover { background: var(--gray-200,#e5e7eb); }
+.doc-attach-btn:disabled { opacity: .5; cursor: not-allowed; }
+.doc-upload-ok { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 600; color: #059669; }
+.doc-spinner { width: 12px; height: 12px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: doc-spin 0.6s linear infinite; display: inline-block; }
+@keyframes doc-spin { to { transform: rotate(360deg); } }
+
+/* doc add modal file picker */
+.doc-file-drop { display: flex; align-items: center; gap: 8px; }
+.doc-file-pick-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--navy); background: var(--gray-50,#f9fafb); border: 1px dashed var(--gray-300,#d1d5db); border-radius: 8px; padding: 8px 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; max-width: 280px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.doc-file-pick-btn:hover { border-color: var(--navy); background: var(--gray-100,#f3f4f6); }
+.doc-file-clear { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--gray-200,#e5e7eb); color: var(--gray-600,#6b7280); border: none; cursor: pointer; }
+.crud-hint { font-size: 0.72rem; color: var(--gray-500,#9ca3af); margin-top: 4px; display: block; }
+.crud-error { font-size: 0.82rem; color: #dc2626; margin-top: 4px; }
 
 .doc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .doc-row { background: var(--white); border: 1px solid var(--gray-200,#e5e7eb); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05); flex-wrap: wrap; transition: box-shadow .18s; }

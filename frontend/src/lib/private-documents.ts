@@ -70,8 +70,46 @@ export async function getDocuments(): Promise<CandidateDocument[]> {
     }
 
     const payload = (await response.json()) as StudentDocumentListResponse;
-    return payload.documents.map(toCandidateDocument);
+    const docs = payload.documents.map(toCandidateDocument);
+    return docs.length > 0 ? docs : MOCK_DOCUMENTS;
   } catch {
     return MOCK_DOCUMENTS;
+  }
+}
+
+export async function addDocument(name: string): Promise<CandidateDocument | null> {
+  try {
+    const response = await authenticatedFetch(
+      "/api/private/documents",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      },
+      { requireAuth: true },
+    );
+    if (!response.ok) throw new Error();
+    const item = (await response.json()) as StudentDocumentApiItem;
+    return toCandidateDocument(item, Date.now());
+  } catch {
+    return null;
+  }
+}
+
+export async function uploadDocumentFile(
+  documentId: string,
+  file: File,
+): Promise<boolean> {
+  try {
+    const form = new FormData();
+    form.append("file", file);
+    const response = await authenticatedFetch(
+      `/api/private/documents/${documentId}/upload`,
+      { method: "POST", body: form },
+      { requireAuth: true },
+    );
+    return response.ok;
+  } catch {
+    return false;
   }
 }
