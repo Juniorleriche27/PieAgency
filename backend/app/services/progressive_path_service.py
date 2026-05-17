@@ -144,6 +144,8 @@ def _fallback_path(candidate_id: str) -> ProgressivePathResponse:
             short_description=str(step["short_description"]),
             is_current=int(step["step_order"]) == 1,
             is_locked=int(step["step_order"]) > 1,
+            target_module=str(step.get("target_module") or ""),
+            target_path=str(step.get("target_path") or ""),
         )
         for step in DEFAULT_PROGRESSIVE_PATH_STEPS
     ]
@@ -186,7 +188,7 @@ def get_candidate_progressive_path(
 
         steps_response = (
             client.table("progressive_path_steps")
-            .select("id,title,step_order,short_description")
+            .select("id,title,step_order,short_description,target_module,target_path")
             .eq("is_active", True)
             .order("step_order")
             .execute()
@@ -269,6 +271,8 @@ def get_candidate_progressive_path(
                     short_description=str(step.get("short_description") or ""),
                     is_current=step_id == current_step_id,
                     is_locked=step_order > current_order,
+                    target_module=str(step.get("target_module") or ""),
+                    target_path=str(step.get("target_path") or ""),
                 )
             )
 

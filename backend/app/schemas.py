@@ -695,6 +695,8 @@ class ProgressivePathStepItem(BaseModel):
     short_description: str
     is_current: bool
     is_locked: bool
+    target_module: str | None = None
+    target_path: str | None = None
 
 
 class ProgressivePathResponse(BaseModel):
