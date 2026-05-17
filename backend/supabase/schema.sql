@@ -1385,3 +1385,88 @@ on public.community_ads for update
 to authenticated
 using (auth.uid() = created_by_user_id or public.is_admin())
 with check (auth.uid() = created_by_user_id or public.is_admin());
+
+-- ── Subscription Plans ────────────────────────────────────────────────────────
+create table if not exists public.subscription_plans (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  description text not null default '',
+  price numeric(10,2) not null default 0,
+  currency text not null default 'EUR',
+  billing_period text not null default 'monthly'
+    check (billing_period in ('monthly', 'yearly', 'one_time')),
+  features jsonb not null default '[]'::jsonb,
+  recommended boolean not null default false,
+  service_slug text not null unique,
+  is_active boolean not null default true,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists subscription_plans_sort_idx
+  on public.subscription_plans (sort_order, is_active);
+
+drop trigger if exists set_subscription_plans_updated_at on public.subscription_plans;
+create trigger set_subscription_plans_updated_at
+before update on public.subscription_plans
+for each row execute procedure public.touch_updated_at();
+
+alter table public.subscription_plans enable row level security;
+
+drop policy if exists "subscription_plans_public_read" on public.subscription_plans;
+create policy "subscription_plans_public_read"
+on public.subscription_plans for select
+to anon, authenticated
+using (is_active = true or public.is_admin());
+
+drop policy if exists "subscription_plans_admin_write" on public.subscription_plans;
+create policy "subscription_plans_admin_write"
+on public.subscription_plans for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+-- current plan on profiles
+alter table if exists public.profiles
+  add column if not exists current_plan_id uuid references public.subscription_plans(id) on delete set null;
+
+-- Seed default plans
+insert into public.subscription_plans (title, description, price, currency, billing_period, features, recommended, service_slug, sort_order)
+values
+  (
+    'Gratuit',
+    'Commencez votre préparation',
+    0, 'EUR', 'monthly',
+    '["Checklist de base","Quelques ressources gratuites","Aperçu des produits"]'::jsonb,
+    false, 'gratuit', 0
+  ),
+  (
+    'Essentiel',
+    'Pour avancer avec méthode',
+    9.99, 'EUR', 'monthly',
+    '["Guides pratiques","Checklists détaillées","Modèles de base","Ressources Campus France"]'::jsonb,
+    true, 'essentiel-mensuel', 1
+  ),
+  (
+    'Standard',
+    'Accès complet aux outils',
+    19.99, 'EUR', 'monthly',
+    '["Tous les guides","Générateurs projet d''études et professionnel","Simulateur entretien","Bibliothèque de motivations"]'::jsonb,
+    false, 'standard-mensuel', 2
+  ),
+  (
+    'Premium digital',
+    'Accompagnement digital complet',
+    34.99, 'EUR', 'monthly',
+    '["Tout Standard","Corrections limitées","Analyse simple du dossier","Recommandations personnalisées","Accès prioritaire aux nouveaux produits"]'::jsonb,
+    false, 'premium-digital-mensuel', 3
+  )
+on conflict (service_slug) do update set
+  title = excluded.title,
+  description = excluded.description,
+  price = excluded.price,
+  features = excluded.features,
+  recommended = excluded.recommended,
+  sort_order = excluded.sort_order,
+  updated_at = timezone('utc', now());
