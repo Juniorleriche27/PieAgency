@@ -5,13 +5,13 @@ import {
   CheckCircle2,
   Clock,
   Download,
-  Eye,
   FolderOpen,
   Plus,
   Search,
   Trash2,
   Users,
   X,
+  XCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { authenticatedFetch } from "@/lib/auth";
@@ -43,12 +43,14 @@ const STATUS_OPTIONS: Array<{ value: DocumentStatus; label: string }> = [
   { value: "in-progress", label: "En cours" },
   { value: "to-review", label: "À vérifier" },
   { value: "validated", label: "Validé" },
+  { value: "rejected", label: "Rejeté" },
 ];
 
 function DocStatusIcon({ status }: { status: DocumentStatus }) {
   if (status === "validated") return <CheckCircle2 size={15} className="doc-icon-validated" />;
   if (status === "in-progress") return <Clock size={15} className="doc-icon-progress" />;
   if (status === "to-review") return <AlertCircle size={15} className="doc-icon-review" />;
+  if (status === "rejected") return <XCircle size={15} className="doc-icon-rejected" />;
   return <span className="doc-icon-none-sm" />;
 }
 
@@ -66,6 +68,8 @@ function CandidateDocsPanel({
   const [addLoading, setAddLoading] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectNote, setRejectNote] = useState("");
 
   useEffect(() => {
     setLoading(true);
@@ -94,8 +98,20 @@ function CandidateDocsPanel({
   }
 
   async function handleStatusChange(doc: CandidateDocument, status: DocumentStatus) {
-    setDocs((prev) => prev.map((d) => d.id === doc.id ? { ...d, status } : d));
+    if (status === "rejected") {
+      setRejectingId(doc.id);
+      setRejectNote(doc.note ?? "");
+      return;
+    }
+    setDocs((prev) => prev.map((d) => d.id === doc.id ? { ...d, status, note: undefined } : d));
     await adminUpdateDocumentStatus(candidate.id, doc.id, status);
+  }
+
+  async function handleRejectConfirm(doc: CandidateDocument) {
+    setDocs((prev) => prev.map((d) => d.id === doc.id ? { ...d, status: "rejected" as DocumentStatus, note: rejectNote } : d));
+    setRejectingId(null);
+    setRejectNote("");
+    await adminUpdateDocumentStatus(candidate.id, doc.id, "rejected", rejectNote);
   }
 
   async function handleDelete(docId: string) {
@@ -135,33 +151,56 @@ function CandidateDocsPanel({
                 <li className="admin-docs-row" key={doc.id}>
                   <div className="admin-docs-row-left">
                     <DocStatusIcon status={doc.status} />
-                    <span className="admin-docs-title">{doc.title}</span>
+                    <div>
+                      <span className="admin-docs-title">{doc.title}</span>
+                      {doc.status === "rejected" && doc.note ? (
+                        <span className="admin-docs-note">{doc.note}</span>
+                      ) : null}
+                    </div>
                   </div>
                   <div className="admin-docs-row-right">
-                    <select
-                      className={`admin-docs-status-select status-${doc.status}`}
-                      onChange={(e) => void handleStatusChange(doc, e.target.value as DocumentStatus)}
-                      value={doc.status}
-                    >
-                      {STATUS_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                    {deletingId === doc.id ? (
-                      <div className="admin-docs-confirm-del">
-                        <span>Supprimer ?</span>
-                        <button className="btn btn-danger" onClick={() => void handleDelete(doc.id)} type="button">Oui</button>
-                        <button className="btn btn-ghost" onClick={() => setDeletingId(null)} type="button">Non</button>
+                    {rejectingId === doc.id ? (
+                      <div className="admin-docs-reject-form">
+                        <textarea
+                          className="admin-docs-reject-note"
+                          onChange={(e) => setRejectNote(e.target.value)}
+                          placeholder="Commentaire visible par l'étudiant…"
+                          rows={2}
+                          value={rejectNote}
+                        />
+                        <div className="admin-docs-reject-actions">
+                          <button className="btn btn-danger" onClick={() => void handleRejectConfirm(doc)} type="button">Confirmer le rejet</button>
+                          <button className="btn btn-ghost" onClick={() => setRejectingId(null)} type="button">Annuler</button>
+                        </div>
                       </div>
                     ) : (
-                      <button
-                        className="crud-btn delete"
-                        onClick={() => setDeletingId(doc.id)}
-                        title="Supprimer"
-                        type="button"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <>
+                        <select
+                          className={`admin-docs-status-select status-${doc.status}`}
+                          onChange={(e) => void handleStatusChange(doc, e.target.value as DocumentStatus)}
+                          value={doc.status}
+                        >
+                          {STATUS_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                        {deletingId === doc.id ? (
+                          <div className="admin-docs-confirm-del">
+                            <span>Supprimer ?</span>
+                            <button className="btn btn-danger" onClick={() => void handleDelete(doc.id)} type="button">Oui</button>
+                            <button className="btn btn-ghost" onClick={() => setDeletingId(null)} type="button">Non</button>
+                          </div>
+                        ) : (
+                          <button
+                            className="crud-btn delete"
+                            onClick={() => setDeletingId(doc.id)}
+                            title="Supprimer"
+                            type="button"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </li>

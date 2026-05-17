@@ -11631,12 +11631,36 @@ body.chat-open .wa-float {
 .doc-badge-in-progress { background: #fef3c7; color: #d97706; }
 .doc-badge-to-review { background: #dbeafe; color: #2563eb; }
 .doc-badge-not-started { background: var(--gray-100,#f3f4f6); color: var(--gray-600,#6b7280); }
+.doc-badge-rejected { background: #fee2e2; color: #dc2626; }
 
 /* status icons */
 .doc-icon-validated { color: #10b981; }
 .doc-icon-progress { color: #f59e0b; }
 .doc-icon-review { color: #3b82f6; }
+.doc-icon-rejected { color: #dc2626; }
 .doc-icon-none { color: var(--gray-400,#9ca3af); }
+
+/* rejected row highlight */
+.doc-row-rejected { background: #fff5f5; border-left-color: #dc2626 !important; }
+[data-theme="dark"] .doc-row-rejected { background: rgba(220,38,38,0.08); }
+
+/* admin comment visible to student */
+.doc-item-comment { font-size: 0.78rem; color: #dc2626; margin: 2px 0 0; line-height: 1.4; }
+.doc-comment-label { font-weight: 600; }
+
+/* level setup card */
+.doc-setup-card { background: var(--card-bg,#fff); border: 1px solid var(--border,#e5e7eb); border-radius: 14px; padding: 28px; margin-bottom: 24px; }
+.doc-setup-title { font-size: 1.1rem; font-weight: 700; margin: 0 0 6px; }
+.doc-setup-sub { font-size: 0.875rem; color: var(--gray-500,#6b7280); margin: 0 0 20px; }
+.doc-setup-field { margin-bottom: 18px; }
+.doc-setup-field > label { display: block; font-size: 0.825rem; font-weight: 600; margin-bottom: 8px; color: var(--gray-700,#374151); }
+.doc-setup-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.doc-setup-option { padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border,#e5e7eb); background: transparent; font-size: 0.825rem; cursor: pointer; color: var(--text,#111827); transition: border-color 0.15s, background 0.15s; }
+.doc-setup-option.selected { border-color: var(--primary,#4f46e5); background: #eef2ff; color: var(--primary,#4f46e5); font-weight: 600; }
+.doc-setup-confirm { margin-top: 4px; }
+[data-theme="dark"] .doc-setup-card { background: #1e293b; border-color: rgba(255,255,255,0.08); }
+[data-theme="dark"] .doc-setup-option { border-color: rgba(255,255,255,0.12); color: #e2e8f0; }
+[data-theme="dark"] .doc-setup-option.selected { background: rgba(99,102,241,0.2); border-color: #818cf8; color: #818cf8; }
 
 /* responsive */
 @media (max-width: 900px) {
@@ -12058,6 +12082,21 @@ body.chat-open .wa-float {
 .doc-icon-none-sm { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--gray-300,#d1d5db); display: inline-block; flex-shrink: 0; }
 [data-theme="dark"] .admin-docs-row { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); }
 [data-theme="dark"] .admin-docs-status-select { background: #1e293b; color: #e2e8f0; border-color: rgba(255,255,255,0.1); }
+.admin-docs-status-select.status-rejected { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+[data-theme="dark"] .admin-docs-status-select.status-rejected { background: rgba(220,38,38,0.15); color: #f87171; border-color: rgba(220,38,38,0.3); }
+
+/* admin doc note (shown under title) */
+.admin-docs-note { display: block; font-size: 0.75rem; color: #dc2626; margin-top: 2px; }
+[data-theme="dark"] .admin-docs-note { color: #f87171; }
+
+/* reject form inline */
+.admin-docs-reject-form { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.admin-docs-reject-note { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1.5px solid #fca5a5; font-size: 0.825rem; resize: vertical; font-family: inherit; background: #fff5f5; color: #111827; }
+[data-theme="dark"] .admin-docs-reject-note { background: rgba(220,38,38,0.08); border-color: rgba(220,38,38,0.3); color: #e2e8f0; }
+.admin-docs-reject-actions { display: flex; gap: 8px; }
+
+/* doc icon rejected (admin side) */
+.doc-icon-none-sm { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--gray-300,#d1d5db); }
 
 /* Admin Statistics */
 .admin-statistics-page {

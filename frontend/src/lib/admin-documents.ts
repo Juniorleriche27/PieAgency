@@ -4,7 +4,7 @@ import type { CandidateDocument, DocumentStatus } from "@/lib/private-documents"
 type AdminDocumentApiItem = {
   id: string;
   name: string;
-  status: "approved" | "review" | "missing";
+  status: "approved" | "review" | "missing" | "rejected";
   note: string;
 };
 
@@ -15,6 +15,7 @@ type AdminDocumentListResponse = {
 function mapStatus(s: AdminDocumentApiItem["status"]): DocumentStatus {
   if (s === "approved") return "validated";
   if (s === "review") return "to-review";
+  if (s === "rejected") return "rejected";
   return "not-started";
 }
 
@@ -23,7 +24,8 @@ function toDoc(item: AdminDocumentApiItem, index: number): CandidateDocument {
     id: item.id,
     title: item.name,
     status: mapStatus(item.status),
-    lastUpdated: item.status === "missing" ? undefined : item.note,
+    lastUpdated: item.note || undefined,
+    note: item.note || undefined,
     priority: index < 4 ? "high" : "medium",
   };
 }
@@ -31,6 +33,7 @@ function toDoc(item: AdminDocumentApiItem, index: number): CandidateDocument {
 function toApiStatus(s: DocumentStatus): AdminDocumentApiItem["status"] {
   if (s === "validated") return "approved";
   if (s === "to-review") return "review";
+  if (s === "rejected") return "rejected";
   return "missing";
 }
 
