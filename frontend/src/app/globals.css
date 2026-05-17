@@ -8988,6 +8988,69 @@ body.chat-open .wa-float {
   color: #86efac !important;
 }
 
+/* — Product cards dark mode — */
+[data-theme="dark"] .prod-card {
+  background: rgba(255,255,255,0.04) !important;
+  border-color: rgba(255,255,255,0.1) !important;
+}
+[data-theme="dark"] .prod-card-title,
+[data-theme="dark"] .prod-price strong {
+  color: #e2e8f0 !important;
+}
+[data-theme="dark"] .prod-card-desc,
+[data-theme="dark"] .prod-card-audience,
+[data-theme="dark"] .prod-card-items li,
+[data-theme="dark"] .prod-price span {
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] .prod-card-foot {
+  border-top-color: rgba(255,255,255,0.08) !important;
+}
+[data-theme="dark"] .prod-filter-btn {
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] .prod-filter-btn.active {
+  background: rgba(255,255,255,0.14) !important;
+  color: #e2e8f0 !important;
+}
+[data-theme="dark"] .prod-tip {
+  background: rgba(99,102,241,0.1) !important;
+  border-color: rgba(99,102,241,0.2) !important;
+  color: #a5b4fc !important;
+}
+
+/* — Assistant dark mode — */
+[data-theme="dark"] .private-assistant-suggestions button {
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  color: #cbd5e1 !important;
+}
+[data-theme="dark"] .private-assistant-suggestions button:hover:not(:disabled) {
+  background: rgba(255,255,255,0.12) !important;
+  border-color: rgba(134,239,172,0.3) !important;
+  color: #86efac !important;
+}
+[data-theme="dark"] .private-assistant-form textarea {
+  background: rgba(255,255,255,0.05) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  color: #e2e8f0 !important;
+}
+[data-theme="dark"] .private-assistant-message.assistant p {
+  background: rgba(255,255,255,0.06) !important;
+  color: #e2e8f0 !important;
+}
+[data-theme="dark"] .private-assistant-message.user p {
+  background: rgba(20,83,45,0.35) !important;
+  color: #dcfce7 !important;
+}
+[data-theme="dark"] .private-assistant-side-card {
+  background: rgba(255,255,255,0.04) !important;
+  border-color: rgba(255,255,255,0.08) !important;
+  color: #94a3b8 !important;
+}
+
 .private-placeholder {
   min-height: calc(100vh - 132px);
   display: flex;
