@@ -236,7 +236,7 @@ def get_student_dashboard(
     try:
         document_response = (
             client.table("case_documents")
-            .select("name,status,note")
+            .select("id,name,status,note")
             .eq("case_id", case_id)
             .order("created_at")
             .execute()
@@ -245,6 +245,7 @@ def get_student_dashboard(
         document_response = type("Response", (), {"data": []})()
     documents = [
         StudentDocumentItem(
+            id=str(item.get("id") or ""),
             name=str(item.get("name", "Document")),
             status=_normalize_document_status(item.get("status")),
             note=str(item.get("note") or "Aucun commentaire pour le moment."),

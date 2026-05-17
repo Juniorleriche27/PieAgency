@@ -589,6 +589,13 @@ to authenticated
 using (public.is_admin())
 with check (public.is_admin());
 
+drop policy if exists "student_cases_insert_own" on public.student_cases;
+create policy "student_cases_insert_own"
+on public.student_cases
+for insert
+to authenticated
+with check (student_user_id = auth.uid() or public.is_admin());
+
 drop policy if exists "case_steps_select_related" on public.case_steps;
 create policy "case_steps_select_related"
 on public.case_steps
@@ -634,6 +641,45 @@ for all
 to authenticated
 using (public.is_admin())
 with check (public.is_admin());
+
+drop policy if exists "case_documents_insert_own" on public.case_documents;
+create policy "case_documents_insert_own"
+on public.case_documents
+for insert
+to authenticated
+with check (
+  public.is_admin()
+  or exists (
+    select 1
+    from public.student_cases
+    where student_cases.id = case_documents.case_id
+      and student_cases.student_user_id = auth.uid()
+  )
+);
+
+drop policy if exists "case_documents_update_own" on public.case_documents;
+create policy "case_documents_update_own"
+on public.case_documents
+for update
+to authenticated
+using (
+  public.is_admin()
+  or exists (
+    select 1
+    from public.student_cases
+    where student_cases.id = case_documents.case_id
+      and student_cases.student_user_id = auth.uid()
+  )
+)
+with check (
+  public.is_admin()
+  or exists (
+    select 1
+    from public.student_cases
+    where student_cases.id = case_documents.case_id
+      and student_cases.student_user_id = auth.uid()
+  )
+);
 
 drop policy if exists "case_notes_select_related" on public.case_notes;
 create policy "case_notes_select_related"
@@ -706,6 +752,36 @@ for all
 to authenticated
 using (public.is_admin())
 with check (public.is_admin());
+
+insert into storage.buckets (id, name, public)
+values ('student-documents', 'student-documents', false)
+on conflict (id) do nothing;
+
+drop policy if exists "student_documents_select_own_or_admin" on storage.objects;
+create policy "student_documents_select_own_or_admin"
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'student-documents'
+  and (
+    public.is_admin()
+    or (storage.foldername(name))[2] = auth.uid()::text
+  )
+);
+
+drop policy if exists "student_documents_insert_own_or_admin" on storage.objects;
+create policy "student_documents_insert_own_or_admin"
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'student-documents'
+  and (
+    public.is_admin()
+    or (storage.foldername(name))[2] = auth.uid()::text
+  )
+);
 
 drop policy if exists "admin_tasks_admin_only" on public.admin_tasks;
 create policy "admin_tasks_admin_only"

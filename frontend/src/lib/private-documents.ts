@@ -12,6 +12,7 @@ export type CandidateDocument = {
 };
 
 type StudentDocumentApiItem = {
+  id?: string;
   name: string;
   status: "approved" | "review" | "missing";
   note: string;
@@ -49,7 +50,7 @@ function toCandidateDocument(
   index: number,
 ): CandidateDocument {
   return {
-    id: `doc-${index + 1}-${item.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+    id: item.id || `doc-${index + 1}-${item.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
     title: item.name,
     status: mapDocumentStatus(item.status),
     lastUpdated: item.status === "missing" ? undefined : item.note,

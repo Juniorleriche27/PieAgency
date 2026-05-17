@@ -352,7 +352,7 @@ def list_student_documents(user_id: str, access_token: str | None = None) -> Stu
     try:
         document_response = (
             client.table("case_documents")
-            .select("name,status,note")
+            .select("id,name,status,note")
             .eq("case_id", case_id)
             .order("created_at")
             .execute()
@@ -362,6 +362,7 @@ def list_student_documents(user_id: str, access_token: str | None = None) -> Stu
 
     documents = [
         StudentDocumentItem(
+            id=str(item.get("id") or ""),
             name=str(item.get("name", "Document")),
             status=_normalize_document_status(item.get("status")),
             note=str(item.get("note") or "Aucun commentaire pour le moment."),
@@ -369,6 +370,141 @@ def list_student_documents(user_id: str, access_token: str | None = None) -> Stu
         for item in (document_response.data or [])
     ]
     return StudentDocumentListResponse(documents=documents)
+
+
+def _create_student_case(client, user_id: str) -> str:
+    student_response = (
+        client.table("students")
+        .insert({"full_name": "Espace etudiant"})
+        .execute()
+    )
+    student_rows = student_response.data or []
+    student_id = str(student_rows[0]["id"])
+    reference = f"PIE-{user_id[:8].upper()}"
+
+    case_response = (
+        client.table("student_cases")
+        .insert(
+            {
+                "student_id": student_id,
+                "student_user_id": user_id,
+                "created_by": user_id,
+                "public_reference": reference,
+                "target_project": "A qualifier",
+                "status": "new",
+            }
+        )
+        .execute()
+    )
+    case_rows = case_response.data or []
+    return str(case_rows[0]["id"])
+
+
+def add_student_document(
+    user_id: str,
+    name: str,
+    access_token: str | None = None,
+) -> StudentDocumentItem:
+    cleaned_name = name.strip()
+    client = _client_or_none(access_token)
+    if client is None:
+        return StudentDocumentItem(name=cleaned_name, status="missing", note="")
+
+    try:
+        case_response = (
+            client.table("student_cases")
+            .select("id")
+            .eq("student_user_id", user_id)
+            .order("updated_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        case_rows = case_response.data or []
+        case_id = str(case_rows[0]["id"]) if case_rows else _create_student_case(client, user_id)
+
+        document_response = (
+            client.table("case_documents")
+            .insert(
+                {
+                    "case_id": case_id,
+                    "name": cleaned_name,
+                    "status": "missing",
+                    "note": "",
+                    "uploaded_by": user_id,
+                }
+            )
+            .execute()
+        )
+        document_rows = document_response.data or []
+        document_id = str(document_rows[0].get("id") or "") if document_rows else ""
+        return StudentDocumentItem(
+            id=document_id,
+            name=cleaned_name,
+            status="missing",
+            note="",
+        )
+    except Exception:
+        return StudentDocumentItem(name=cleaned_name, status="missing", note="")
+
+
+def _document_belongs_to_user(client, user_id: str, document_id: str) -> bool:
+    document_response = (
+        client.table("case_documents")
+        .select("case_id")
+        .eq("id", document_id)
+        .limit(1)
+        .execute()
+    )
+    document_rows = document_response.data or []
+    if not document_rows:
+        return False
+
+    case_id = str(document_rows[0].get("case_id") or "")
+    case_response = (
+        client.table("student_cases")
+        .select("id")
+        .eq("id", case_id)
+        .eq("student_user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    return bool(case_response.data or [])
+
+
+def upload_document_file(
+    user_id: str,
+    document_id: str,
+    file_bytes: bytes,
+    filename: str,
+    access_token: str | None = None,
+) -> bool:
+    client = _client_or_none(access_token)
+    if client is None:
+        return False
+
+    safe_filename = filename.replace("\\", "_").replace("/", "_").strip() or "file"
+    try:
+        if not _document_belongs_to_user(client, user_id, document_id):
+            return False
+
+        path = f"documents/{user_id}/{document_id}/{safe_filename}"
+        client.storage.from_("student-documents").upload(path, file_bytes)
+        (
+            client.table("case_documents")
+            .update(
+                {
+                    "status": "review",
+                    "note": f"Fichier joint : {safe_filename}",
+                    "storage_path": path,
+                    "uploaded_by": user_id,
+                }
+            )
+            .eq("id", document_id)
+            .execute()
+        )
+        return True
+    except Exception:
+        return False
 
 
 def save_private_onboarding(

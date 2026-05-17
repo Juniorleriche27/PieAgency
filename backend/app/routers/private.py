@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File as FastAPIFile, HTTPException, UploadFile
 
 from ..dependencies.auth import get_current_access_token, get_current_user
 from ..schemas import (
+    AddDocumentRequest,
     AuthMessageResponse,
     AuthUserProfile,
     PrivateDiagnosticResponse,
@@ -10,9 +11,11 @@ from ..schemas import (
     PrivateProductListResponse,
     PrivateResourceListResponse,
     PrivateSubscriptionListResponse,
+    StudentDocumentItem,
     StudentDocumentListResponse,
 )
 from ..services.private_catalog_service import (
+    add_student_document,
     get_private_diagnostic,
     get_private_product,
     list_private_products,
@@ -20,6 +23,7 @@ from ..services.private_catalog_service import (
     list_private_subscriptions,
     list_student_documents,
     save_private_onboarding,
+    upload_document_file,
 )
 
 router = APIRouter()
@@ -63,6 +67,33 @@ def private_documents(
     access_token: str = Depends(get_current_access_token),
 ) -> StudentDocumentListResponse:
     return list_student_documents(current_user.user_id, access_token)
+
+
+@router.post("/private/documents", response_model=StudentDocumentItem)
+def add_document(
+    body: AddDocumentRequest,
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> StudentDocumentItem:
+    return add_student_document(current_user.user_id, body.name, access_token)
+
+
+@router.post("/private/documents/{document_id}/upload")
+async def upload_document(
+    document_id: str,
+    file: UploadFile = FastAPIFile(...),
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> dict[str, bool]:
+    content = await file.read()
+    ok = upload_document_file(
+        current_user.user_id,
+        document_id,
+        content,
+        file.filename or "file",
+        access_token,
+    )
+    return {"ok": ok}
 
 
 @router.post("/private/onboarding", response_model=AuthMessageResponse)

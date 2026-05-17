@@ -604,8 +604,27 @@ class StudentStepItem(BaseModel):
 
 
 class StudentDocumentItem(BaseModel):
+    id: str = ""
     name: str
     status: StudentDocumentStatus
+    note: str
+
+
+class AddDocumentRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+
+    @field_validator("name")
+    @classmethod
+    def strip_name(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Le nom du document est requis.")
+        return cleaned
+
+
+class AddDocumentResponse(BaseModel):
+    name: str
+    status: Literal["approved", "review", "missing"]
     note: str
 
 
