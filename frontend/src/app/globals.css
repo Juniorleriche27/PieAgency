@@ -8389,7 +8389,7 @@ body.chat-open .wa-float {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 12px 8px;
+  padding: 12px 12px;
   overflow-y: auto;
   flex: 1;
   scrollbar-width: thin;
@@ -8400,7 +8400,7 @@ body.chat-open .wa-float {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin: 0 8px 12px;
+  margin: 0 12px 12px;
   padding-top: 12px;
   border-top: 1px solid var(--ps-sidebar-border);
   transition: border-color var(--ps-transition);
@@ -8495,16 +8495,14 @@ body.chat-open .wa-float {
 
 .private-nav-item-secondary {
   min-height: 38px;
-  border: 1px solid var(--ps-sidebar-border);
   background: transparent;
-  font-size: 0.86rem;
-  font-weight: 500;
-  transition: background var(--ps-transition), border-color var(--ps-transition), color var(--ps-transition), transform 150ms ease;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background var(--ps-transition), color var(--ps-transition), transform 150ms ease;
 }
 
 .private-nav-item-secondary:hover {
   background: var(--ps-nav-hover-bg);
-  border-color: transparent;
 }
 
 /* ─── Sidebar Footer ────────────────────────────────────────────── */
@@ -8514,6 +8512,7 @@ body.chat-open .wa-float {
   display: flex;
   flex-direction: column;
   gap: 0;
+  padding: 8px 12px 12px;
   transition: border-color var(--ps-transition);
 }
 
