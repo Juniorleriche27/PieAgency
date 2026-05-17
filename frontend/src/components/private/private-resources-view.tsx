@@ -1,168 +1,142 @@
 "use client";
 
-import { BookOpen, CheckSquare, ExternalLink, FileText, LinkIcon, PlayCircle } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  BookOpen,
+  CheckSquare,
+  Download,
+  FileText,
+  Lightbulb,
+  Play,
+  PlayCircle,
+  Wrench,
+} from "lucide-react";
+import { useMemo, useState } from "react";
 import {
   fetchPrivateResources,
   type PrivateResource,
   type PrivateResourceType,
+  RESOURCE_CATEGORIES,
 } from "@/lib/private-resources";
+import { useEffect } from "react";
 
-const resourceTypeLabels: Record<PrivateResourceType, string> = {
-  guide: "Guide",
-  template: "Modele",
-  video: "Video",
-  checklist: "Checklist",
-  link: "Lien",
-};
-
-const resourceTypeIcons = {
+const typeIcons: Record<PrivateResourceType, React.ComponentType<{ size?: number }>> = {
   guide: BookOpen,
   template: FileText,
   video: PlayCircle,
   checklist: CheckSquare,
-  link: LinkIcon,
+  example: Lightbulb,
+  exercise: Wrench,
+  link: FileText,
 };
 
-function accessLabel(accessLevel: PrivateResource["access_level"]) {
-  if (accessLevel === "premium") {
-    return "Premium";
-  }
-  if (accessLevel === "free") {
-    return "Libre";
-  }
-  return "Etudiant";
-}
+const typeIconColor: Record<PrivateResourceType, string> = {
+  guide: "res-icon-blue",
+  template: "res-icon-purple",
+  video: "res-icon-red",
+  checklist: "res-icon-green",
+  example: "res-icon-amber",
+  exercise: "res-icon-orange",
+  link: "res-icon-blue",
+};
 
 export function PrivateResourcesView() {
   const [resources, setResources] = useState<PrivateResource[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState("Toutes");
+  const [selectedCategory, setSelectedCategory] = useState("Tous");
   const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     let active = true;
-
-    async function loadResources() {
-      setIsLoading(true);
-      setErrorMessage("");
-
-      try {
-        const payload = await fetchPrivateResources();
-        if (active) {
-          setResources(payload);
-        }
-      } catch (error) {
-        if (active) {
-          setErrorMessage(
-            error instanceof Error
-              ? error.message
-              : "Impossible de charger les ressources privees.",
-          );
-        }
-      } finally {
-        if (active) {
-          setIsLoading(false);
-        }
+    fetchPrivateResources().then((data) => {
+      if (active) {
+        setResources(data);
+        setIsLoading(false);
       }
-    }
-
-    void loadResources();
+    });
     return () => {
       active = false;
     };
   }, []);
 
-  const categories = useMemo(
-    () => ["Toutes", ...Array.from(new Set(resources.map((item) => item.category)))],
-    [resources],
-  );
-
   const visibleResources = useMemo(() => {
-    if (selectedCategory === "Toutes") {
-      return resources;
-    }
-    return resources.filter((item) => item.category === selectedCategory);
+    if (selectedCategory === "Tous") return resources;
+    return resources.filter((r) => r.category === selectedCategory);
   }, [resources, selectedCategory]);
 
   return (
-    <div className="private-resource-page">
-      <section className="private-resource-hero">
-        <div>
-          <span>Bibliotheque privee</span>
-          <h1>Ressources utiles pour avancer sans perdre le fil</h1>
-          <p>
-            Guides, checklists et modeles sont regroupes ici pour accompagner les
-            prochaines etapes du dossier.
-          </p>
-        </div>
-        <div className="private-resource-count">
-          <strong>{resources.length}</strong>
-          <span>ressource(s)</span>
-        </div>
-      </section>
+    <div className="res-page">
+      <div className="res-page-header">
+        <h1>Mes ressources</h1>
+        <p>
+          Accédez à une bibliothèque complète de guides, modèles, checklists et vidéos pour
+          préparer votre procédure.
+        </p>
+      </div>
 
-      {errorMessage ? <div className="portal-warning">{errorMessage}</div> : null}
-
-      <div className="private-resource-filters" aria-label="Categories ressources">
-        {categories.map((category) => (
+      <div className="res-filters" aria-label="Filtrer par catégorie">
+        {RESOURCE_CATEGORIES.map((cat) => (
           <button
-            className={selectedCategory === category ? "active" : ""}
-            key={category}
-            onClick={() => setSelectedCategory(category)}
+            className={`res-filter-btn${selectedCategory === cat ? " active" : ""}`}
+            key={cat}
+            onClick={() => setSelectedCategory(cat)}
             type="button"
           >
-            {category}
+            {cat}
           </button>
         ))}
       </div>
 
       {isLoading ? (
-        <div className="private-resource-grid">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div className="private-resource-card loading" key={index}>
-              <div />
-              <span />
-              <strong />
-              <p />
-            </div>
+        <div className="res-grid">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div className="res-card res-card-loading" key={i} />
           ))}
         </div>
-      ) : null}
-
-      {!isLoading && visibleResources.length ? (
-        <div className="private-resource-grid">
+      ) : visibleResources.length === 0 ? (
+        <div className="portal-empty">
+          Aucune ressource disponible dans cette catégorie pour le moment.
+        </div>
+      ) : (
+        <div className="res-grid">
           {visibleResources.map((resource) => {
-            const Icon = resourceTypeIcons[resource.resource_type];
+            const Icon = typeIcons[resource.resource_type];
+            const iconClass = typeIconColor[resource.resource_type];
 
             return (
-              <article className="private-resource-card" key={resource.id}>
-                <div className="private-resource-card-head">
-                  <span className="private-resource-icon">
+              <article className="res-card" key={resource.id}>
+                <div className="res-card-top">
+                  <span className={`res-icon ${iconClass}`}>
                     <Icon size={20} />
                   </span>
-                  <div className="private-resource-badges">
-                    <span>{resourceTypeLabels[resource.resource_type]}</span>
-                    <span>{accessLabel(resource.access_level)}</span>
-                  </div>
+                  <span className="res-badge">{resource.badge_label}</span>
                 </div>
 
-                <div>
-                  <div className="portal-card-kicker">{resource.category}</div>
+                <div className="res-card-body">
                   <h2>{resource.title}</h2>
                   <p>{resource.description}</p>
+                  {resource.duration_label ? (
+                    <div className="res-duration">
+                      <Play size={12} />
+                      {resource.duration_label}
+                    </div>
+                  ) : null}
                 </div>
 
-                <div className="private-resource-footer">
-                  <span>{resource.format_label}</span>
+                <div className="res-card-footer">
+                  <span className="res-category-tag">{resource.category}</span>
                   {resource.url ? (
-                    <a href={resource.url} rel="noreferrer" target="_blank">
-                      Ouvrir
-                      <ExternalLink size={16} />
+                    <a
+                      className="res-action-btn"
+                      href={resource.url}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      <Download size={16} />
+                      {resource.action_label}
                     </a>
                   ) : (
-                    <button disabled type="button">
-                      Bientot disponible
+                    <button className="res-action-btn" disabled type="button">
+                      <Download size={16} />
+                      {resource.action_label}
                     </button>
                   )}
                 </div>
@@ -170,13 +144,12 @@ export function PrivateResourcesView() {
             );
           })}
         </div>
-      ) : null}
+      )}
 
-      {!isLoading && !visibleResources.length ? (
-        <div className="portal-empty">
-          Aucune ressource n&apos;est disponible dans cette categorie pour le moment.
-        </div>
-      ) : null}
+      <div className="res-free-banner">
+        <strong>✓ Ressources gratuites :</strong> Ces ressources sont disponibles pour tous les
+        abonnés. Consultez-les régulièrement pour progresser dans votre procédure.
+      </div>
     </div>
   );
 }
