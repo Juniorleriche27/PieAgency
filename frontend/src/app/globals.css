@@ -8581,8 +8581,8 @@ body.chat-open .wa-float {
   color: #ef4444;
 }
 
-.private-sidebar-foot div,
-.private-topbar div {
+.private-sidebar-foot-profile > div,
+.private-topbar > div:not(.private-topbar-actions) {
   min-width: 0;
   display: grid;
   gap: 2px;
