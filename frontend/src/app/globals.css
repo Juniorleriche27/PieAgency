@@ -10302,6 +10302,164 @@ body.chat-open .wa-float {
   color: #1e40af;
 }
 
+/* ── Context banner ── */
+.pas-context-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  color: #4338ca;
+  font-size: 0.88rem;
+}
+
+/* ── Parcours badge ── */
+.pas-badge-parcours {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 4px 0 4px 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(20, 83, 45, 0.08);
+  color: #14532d;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* ── RAG resources block ── */
+.pas-resources-block {
+  margin: 6px 0 6px 8px;
+  max-width: 76%;
+}
+
+.pas-resources-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pas-resources-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pas-resource-card {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pas-resource-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.pas-resource-icon { color: #64748b; flex-shrink: 0; }
+
+.pas-resource-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #1e293b;
+  flex: 1;
+}
+
+.pas-resource-type {
+  font-size: 0.75rem;
+  color: #64748b;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.pas-resource-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+  width: fit-content;
+}
+
+.pas-resource-badge--free {
+  background: rgba(20, 83, 45, 0.1);
+  color: #14532d;
+}
+
+.pas-resource-badge--included {
+  background: rgba(29, 78, 216, 0.1);
+  color: #1d4ed8;
+}
+
+.pas-resource-badge--premium_locked {
+  background: rgba(161, 98, 7, 0.1);
+  color: #92400e;
+}
+
+.pas-resource-summary {
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.pas-resource-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: #172033;
+  color: #fff;
+  cursor: pointer;
+  text-decoration: none;
+  width: fit-content;
+  transition: background 0.15s;
+}
+.pas-resource-btn:hover { background: #1e2d45; }
+
+.pas-resource-btn--premium {
+  background: rgba(161, 98, 7, 0.12);
+  color: #92400e;
+  border: 1px solid rgba(161, 98, 7, 0.2);
+}
+.pas-resource-btn--premium:hover { background: rgba(161, 98, 7, 0.2); }
+
+/* ── Dark mode overrides for new pas classes ── */
+[data-theme="dark"] .pas-context-banner {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.25);
+  color: #a5b4fc;
+}
+[data-theme="dark"] .pas-badge-parcours {
+  background: rgba(20, 83, 45, 0.18);
+  color: #4ade80;
+}
+[data-theme="dark"] .pas-resource-card {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.08);
+}
+[data-theme="dark"] .pas-resource-title { color: #e2e8f0; }
+[data-theme="dark"] .pas-resource-summary { color: #8090b0; }
+[data-theme="dark"] .pas-resources-title { color: #8090b0; }
+
 @media (max-width: 640px) {
   .pas-faq-grid {
     grid-template-columns: 1fr;
@@ -10316,6 +10474,8 @@ body.chat-open .wa-float {
   .pas-bubble {
     max-width: 92%;
   }
+
+  .pas-resources-block { max-width: 95%; }
 }
 
 /* Private diagnostic */
