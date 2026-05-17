@@ -12033,6 +12033,32 @@ body.chat-open .wa-float {
 [data-theme="dark"] .crud-btn.edit { background: rgba(255,255,255,0.06); color: #94a3b8; }
 [data-theme="dark"] .crud-btn.delete { background: rgba(255,255,255,0.06); color: #94a3b8; }
 
+/* Admin Candidate Docs Panel */
+.admin-docs-modal { max-width: 640px; width: 100%; }
+.admin-docs-sub { font-size: 0.8rem; color: var(--gray-500,#9ca3af); margin: 2px 0 0; }
+.admin-docs-loading { display: flex; flex-direction: column; gap: 8px; }
+.admin-docs-loading span { height: 38px; border-radius: 8px; background: var(--gray-100,#f3f4f6); animation: pulse 1.4s ease-in-out infinite; }
+.admin-docs-list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.admin-docs-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--gray-50,#f9fafb); border: 1px solid var(--gray-200,#e5e7eb); border-radius: 8px; padding: 10px 14px; }
+.admin-docs-row-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.admin-docs-row-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.admin-docs-title { font-size: 0.9rem; font-weight: 600; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-docs-status-select { font-size: 0.78rem; font-weight: 600; border: 1px solid var(--gray-200,#e5e7eb); border-radius: 6px; padding: 3px 8px; cursor: pointer; background: white; }
+.admin-docs-status-select.status-validated { color: #059669; border-color: #6ee7b7; background: #d1fae5; }
+.admin-docs-status-select.status-in-progress { color: #d97706; border-color: #fcd34d; background: #fef3c7; }
+.admin-docs-status-select.status-to-review { color: #2563eb; border-color: #93c5fd; background: #dbeafe; }
+.admin-docs-status-select.status-not-started { color: var(--gray-600,#6b7280); background: var(--gray-100,#f3f4f6); }
+.admin-docs-confirm-del { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; }
+.admin-docs-add-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; color: var(--navy); border: 1px dashed var(--gray-300,#d1d5db); border-radius: 8px; padding: 8px 16px; cursor: pointer; width: 100%; justify-content: center; background: transparent; transition: border-color 0.15s, background 0.15s; margin-top: 4px; }
+.admin-docs-add-btn:hover { border-color: var(--navy); background: var(--gray-50,#f9fafb); }
+.admin-docs-add-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.admin-docs-add-form select, .admin-docs-add-form input { font-size: 0.85rem; border: 1px solid var(--gray-200,#e5e7eb); border-radius: 8px; padding: 7px 12px; flex: 1; min-width: 160px; }
+.admin-docs-eye-btn { background: none; border: none; cursor: pointer; padding: 4px; color: var(--navy); display: inline-flex; align-items: center; opacity: 0.7; transition: opacity 0.15s; }
+.admin-docs-eye-btn:hover { opacity: 1; }
+.doc-icon-none-sm { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--gray-300,#d1d5db); display: inline-block; flex-shrink: 0; }
+[data-theme="dark"] .admin-docs-row { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); }
+[data-theme="dark"] .admin-docs-status-select { background: #1e293b; color: #e2e8f0; border-color: rgba(255,255,255,0.1); }
+
 /* Admin Statistics */
 .admin-statistics-page {
   display: flex;

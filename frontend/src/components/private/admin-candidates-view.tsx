@@ -1,9 +1,217 @@
 "use client";
 
-import { Download, Eye, Search, Users } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  Download,
+  Eye,
+  FolderOpen,
+  Plus,
+  Search,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { authenticatedFetch } from "@/lib/auth";
 import { fetchAdminCandidates, type AdminCandidate } from "@/lib/admin-candidates";
+import {
+  adminAddDocument,
+  adminDeleteDocument,
+  adminUpdateDocumentStatus,
+  fetchCandidateDocuments,
+} from "@/lib/admin-documents";
+import type { CandidateDocument, DocumentStatus } from "@/lib/private-documents";
+
+const DOC_PRESETS = [
+  "CV",
+  "Projet d'études",
+  "Projet professionnel",
+  "Lettre de motivation",
+  "Relevés de notes",
+  "Passeport",
+  "Justificatif hébergement",
+  "Justificatif financement",
+  "Documents visa",
+  "Admission",
+  "Autre",
+];
+
+const STATUS_OPTIONS: Array<{ value: DocumentStatus; label: string }> = [
+  { value: "not-started", label: "À préparer" },
+  { value: "in-progress", label: "En cours" },
+  { value: "to-review", label: "À vérifier" },
+  { value: "validated", label: "Validé" },
+];
+
+function DocStatusIcon({ status }: { status: DocumentStatus }) {
+  if (status === "validated") return <CheckCircle2 size={15} className="doc-icon-validated" />;
+  if (status === "in-progress") return <Clock size={15} className="doc-icon-progress" />;
+  if (status === "to-review") return <AlertCircle size={15} className="doc-icon-review" />;
+  return <span className="doc-icon-none-sm" />;
+}
+
+function CandidateDocsPanel({
+  candidate,
+  onClose,
+}: {
+  candidate: AdminCandidate;
+  onClose: () => void;
+}) {
+  const [docs, setDocs] = useState<CandidateDocument[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [addName, setAddName] = useState("");
+  const [addCustom, setAddCustom] = useState("");
+  const [addLoading, setAddLoading] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchCandidateDocuments(candidate.id).then((d) => {
+      setDocs(d);
+      setLoading(false);
+    });
+  }, [candidate.id]);
+
+  async function handleAdd() {
+    const name = addName === "Autre" ? addCustom.trim() : addName;
+    if (!name) return;
+    setAddLoading(true);
+    const result = await adminAddDocument(candidate.id, name);
+    const optimistic: CandidateDocument = result ?? {
+      id: `local-${Date.now()}`,
+      title: name,
+      status: "not-started",
+      priority: "medium",
+    };
+    setDocs((prev) => [...prev, optimistic]);
+    setAddName("");
+    setAddCustom("");
+    setShowAdd(false);
+    setAddLoading(false);
+  }
+
+  async function handleStatusChange(doc: CandidateDocument, status: DocumentStatus) {
+    setDocs((prev) => prev.map((d) => d.id === doc.id ? { ...d, status } : d));
+    await adminUpdateDocumentStatus(candidate.id, doc.id, status);
+  }
+
+  async function handleDelete(docId: string) {
+    setDocs((prev) => prev.filter((d) => d.id !== docId));
+    setDeletingId(null);
+    await adminDeleteDocument(candidate.id, docId);
+  }
+
+  return (
+    <div className="crud-overlay" onClick={onClose}>
+      <div
+        className="crud-modal admin-docs-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="crud-modal-head">
+          <div>
+            <h2><FolderOpen size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />Documents — {candidate.full_name}</h2>
+            <p className="admin-docs-sub">{candidate.email ?? candidate.phone ?? ""}</p>
+          </div>
+          <button className="crud-close" onClick={onClose} type="button">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="crud-modal-body">
+          {loading ? (
+            <div className="admin-docs-loading">
+              {Array.from({ length: 4 }).map((_, i) => <span key={i} />)}
+            </div>
+          ) : docs.length === 0 ? (
+            <div className="portal-empty" style={{ padding: "24px 0" }}>
+              Aucun document. Ajoutez le premier ci-dessous.
+            </div>
+          ) : (
+            <ul className="admin-docs-list">
+              {docs.map((doc) => (
+                <li className="admin-docs-row" key={doc.id}>
+                  <div className="admin-docs-row-left">
+                    <DocStatusIcon status={doc.status} />
+                    <span className="admin-docs-title">{doc.title}</span>
+                  </div>
+                  <div className="admin-docs-row-right">
+                    <select
+                      className={`admin-docs-status-select status-${doc.status}`}
+                      onChange={(e) => void handleStatusChange(doc, e.target.value as DocumentStatus)}
+                      value={doc.status}
+                    >
+                      {STATUS_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                    {deletingId === doc.id ? (
+                      <div className="admin-docs-confirm-del">
+                        <span>Supprimer ?</span>
+                        <button className="btn btn-danger" onClick={() => void handleDelete(doc.id)} type="button">Oui</button>
+                        <button className="btn btn-ghost" onClick={() => setDeletingId(null)} type="button">Non</button>
+                      </div>
+                    ) : (
+                      <button
+                        className="crud-btn delete"
+                        onClick={() => setDeletingId(doc.id)}
+                        title="Supprimer"
+                        type="button"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {showAdd ? (
+            <div className="admin-docs-add-form">
+              <select
+                onChange={(e) => setAddName(e.target.value)}
+                value={addName}
+              >
+                <option value="">Choisir un type…</option>
+                {DOC_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+              {addName === "Autre" && (
+                <input
+                  onChange={(e) => setAddCustom(e.target.value)}
+                  placeholder="Nom du document"
+                  type="text"
+                  value={addCustom}
+                />
+              )}
+              <button
+                className="btn btn-primary"
+                disabled={addLoading || !addName || (addName === "Autre" && !addCustom.trim())}
+                onClick={() => void handleAdd()}
+                type="button"
+              >
+                {addLoading ? "Ajout…" : "Ajouter"}
+              </button>
+              <button className="btn btn-ghost" onClick={() => setShowAdd(false)} type="button">
+                Annuler
+              </button>
+            </div>
+          ) : (
+            <button
+              className="admin-docs-add-btn"
+              onClick={() => setShowAdd(true)}
+              type="button"
+            >
+              <Plus size={15} /> Ajouter un document
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function statusClass(status: string) {
   const normalized = status.toLowerCase();
@@ -27,6 +235,7 @@ export function AdminCandidatesView() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [isExporting, setIsExporting] = useState(false);
+  const [docsCandidate, setDocsCandidate] = useState<AdminCandidate | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -242,8 +451,14 @@ export function AdminCandidatesView() {
                       <small>{sourceLabel(candidate.source)}</small>
                     </td>
                     <td>
-                      <button aria-label="Voir le profil" type="button">
-                        <Eye size={17} />
+                      <button
+                        aria-label="Gérer les documents"
+                        className="admin-docs-eye-btn"
+                        onClick={() => setDocsCandidate(candidate)}
+                        title="Gérer les documents"
+                        type="button"
+                      >
+                        <FolderOpen size={17} />
                       </button>
                     </td>
                   </tr>
@@ -272,6 +487,13 @@ export function AdminCandidatesView() {
             et moderation candidats.
           </span>
         </section>
+      ) : null}
+
+      {docsCandidate ? (
+        <CandidateDocsPanel
+          candidate={docsCandidate}
+          onClose={() => setDocsCandidate(null)}
+        />
       ) : null}
     </div>
   );
