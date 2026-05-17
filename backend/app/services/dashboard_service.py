@@ -83,6 +83,8 @@ def _normalize_document_status(value: str | None) -> StudentDocumentStatus:
         return StudentDocumentStatus.APPROVED
     if normalized in {"review", "pending", "current"}:
         return StudentDocumentStatus.REVIEW
+    if normalized == "rejected":
+        return StudentDocumentStatus.REJECTED
     return StudentDocumentStatus.MISSING
 
 

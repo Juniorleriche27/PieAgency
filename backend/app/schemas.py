@@ -587,6 +587,19 @@ class StudentDocumentStatus(str, Enum):
     APPROVED = "approved"
     REVIEW = "review"
     MISSING = "missing"
+    REJECTED = "rejected"
+
+
+class StudentEducationLevel(str, Enum):
+    LYCEE = "lycee"
+    UNIVERSITE = "universite"
+    BTS = "bts"
+    AUTRE = "autre"
+
+
+class StudentGradingSystem(str, Enum):
+    TRIMESTRE = "trimestre"
+    SEMESTRE = "semestre"
 
 
 class DashboardMetric(BaseModel):
@@ -629,8 +642,18 @@ class AddDocumentResponse(BaseModel):
 
 
 class AdminDocumentUpdateRequest(BaseModel):
-    status: Literal["approved", "review", "missing"]
+    status: Literal["approved", "review", "missing", "rejected"]
     note: str = ""
+
+
+class PrivateProfileResponse(BaseModel):
+    education_level: StudentEducationLevel | None = None
+    grading_system: StudentGradingSystem | None = None
+
+
+class PrivateProfileUpdateRequest(BaseModel):
+    education_level: StudentEducationLevel | None = None
+    grading_system: StudentGradingSystem | None = None
 
 
 class StudentNoteItem(BaseModel):

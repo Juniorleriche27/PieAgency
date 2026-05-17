@@ -7,6 +7,8 @@ from ..schemas import (
     AuthUserProfile,
     PrivateDiagnosticResponse,
     PrivateOnboardingSubmitRequest,
+    PrivateProfileResponse,
+    PrivateProfileUpdateRequest,
     PrivateProductItem,
     PrivateProductListResponse,
     PrivateResourceListResponse,
@@ -17,12 +19,14 @@ from ..schemas import (
 from ..services.private_catalog_service import (
     add_student_document,
     get_private_diagnostic,
+    get_private_profile,
     get_private_product,
     list_private_products,
     list_private_resources,
     list_private_subscriptions,
     list_student_documents,
     save_private_onboarding,
+    update_private_profile,
     upload_document_file,
 )
 
@@ -59,6 +63,23 @@ def private_subscriptions(
     current_user: AuthUserProfile = Depends(get_current_user),
 ) -> PrivateSubscriptionListResponse:
     return list_private_subscriptions()
+
+
+@router.get("/private/profile", response_model=PrivateProfileResponse)
+def private_profile(
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> PrivateProfileResponse:
+    return get_private_profile(current_user.user_id, access_token)
+
+
+@router.patch("/private/profile", response_model=PrivateProfileResponse)
+def update_profile(
+    payload: PrivateProfileUpdateRequest,
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> PrivateProfileResponse:
+    return update_private_profile(current_user.user_id, payload, access_token)
 
 
 @router.get("/private/documents", response_model=StudentDocumentListResponse)

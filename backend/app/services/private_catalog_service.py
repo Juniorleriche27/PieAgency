@@ -4,6 +4,8 @@ from ..schemas import (
     PrivateProductListResponse,
     PrivateDiagnosticResponse,
     PrivateOnboardingSubmitRequest,
+    PrivateProfileResponse,
+    PrivateProfileUpdateRequest,
     PrivateResourceItem,
     PrivateResourceListResponse,
     PrivateSubscriptionListResponse,
@@ -325,6 +327,60 @@ def list_private_resources() -> PrivateResourceListResponse:
 
 def list_private_subscriptions() -> PrivateSubscriptionListResponse:
     return PrivateSubscriptionListResponse(plans=SUBSCRIPTION_PLANS)
+
+
+def get_private_profile(
+    user_id: str,
+    access_token: str | None = None,
+) -> PrivateProfileResponse:
+    client = _client_or_none(access_token)
+    if client is None:
+        return PrivateProfileResponse()
+
+    try:
+        response = (
+            client.table("profiles")
+            .select("education_level,grading_system")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception:
+        return PrivateProfileResponse()
+
+    rows = response.data or []
+    if not rows:
+        return PrivateProfileResponse()
+
+    row = rows[0]
+    return PrivateProfileResponse(
+        education_level=row.get("education_level"),
+        grading_system=row.get("grading_system"),
+    )
+
+
+def update_private_profile(
+    user_id: str,
+    payload: PrivateProfileUpdateRequest,
+    access_token: str | None = None,
+) -> PrivateProfileResponse:
+    client = _client_or_none(access_token)
+    if client is None:
+        return PrivateProfileResponse(
+            education_level=payload.education_level,
+            grading_system=payload.grading_system,
+        )
+
+    data = payload.model_dump(exclude_unset=True, mode="json")
+    try:
+        if data:
+            client.table("profiles").update(data).eq("user_id", user_id).execute()
+        return get_private_profile(user_id, access_token)
+    except Exception:
+        return PrivateProfileResponse(
+            education_level=payload.education_level,
+            grading_system=payload.grading_system,
+        )
 
 
 def list_student_documents(user_id: str, access_token: str | None = None) -> StudentDocumentListResponse:

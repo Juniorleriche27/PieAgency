@@ -163,6 +163,14 @@ create table if not exists public.student_onboarding (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+alter table if exists public.profiles
+  add column if not exists education_level text
+  check (education_level in ('lycee', 'universite', 'bts', 'autre'));
+
+alter table if exists public.profiles
+  add column if not exists grading_system text
+  check (grading_system in ('trimestre', 'semestre'));
+
 create index if not exists student_onboarding_updated_at_idx
   on public.student_onboarding (updated_at desc);
 
@@ -180,6 +188,16 @@ alter table if exists public.case_documents
 
 alter table if exists public.case_documents
   add column if not exists updated_at timestamptz not null default timezone('utc', now());
+
+alter table if exists public.case_documents
+  alter column note set default '';
+
+alter table if exists public.case_documents
+  drop constraint if exists case_documents_status_check;
+
+alter table if exists public.case_documents
+  add constraint case_documents_status_check
+  check (status in ('approved', 'review', 'missing', 'rejected'));
 
 create table if not exists public.case_notes (
   id uuid primary key default gen_random_uuid(),
