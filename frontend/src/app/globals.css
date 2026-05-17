@@ -8343,19 +8343,22 @@ body.chat-open .wa-float {
 }
 
 .private-brand-avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-  color: #fff;
-  font-size: 0.85rem;
-  font-weight: 800;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(249,115,22,0.35);
-  letter-spacing: 0.02em;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.private-brand-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .private-brand > div {

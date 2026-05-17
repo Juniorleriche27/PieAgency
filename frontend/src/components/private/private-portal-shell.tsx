@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -168,7 +169,15 @@ export function PrivatePortalShell({
       <aside className={`private-sidebar ${isSidebarOpen ? "open" : ""}`}>
         <div className="private-sidebar-head">
           <Link className="private-brand" href="/">
-            <div className="private-brand-avatar">PA</div>
+            <div className="private-brand-avatar">
+              <Image
+                alt="PieAgency"
+                height={40}
+                priority
+                src="/pieagency-logo.jpg"
+                width={40}
+              />
+            </div>
             <div>
               <span>PieAgency</span>
               <small>{title}</small>
