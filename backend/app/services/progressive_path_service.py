@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from ..schemas import (
     ProgressivePathResponse,
     ProgressivePathStepItem,
@@ -175,6 +177,111 @@ def _seed_steps_if_empty(client) -> None:
     ).execute()
 
 
+def _load_path_response(
+    client,
+    candidate_id: str,
+) -> ProgressivePathResponse:
+    _seed_steps_if_empty(client)
+
+    steps_response = (
+        client.table("progressive_path_steps")
+        .select("id,title,step_order,short_description,target_module,target_path")
+        .eq("is_active", True)
+        .order("step_order")
+        .execute()
+    )
+    step_rows = steps_response.data or []
+    if not step_rows:
+        return _fallback_path(candidate_id)
+
+    progress_response = (
+        client.table("candidate_progressive_path_steps")
+        .select("step_id,status")
+        .eq("candidate_user_id", candidate_id)
+        .execute()
+    )
+    status_by_step = {
+        str(item.get("step_id")): _normalize_path_status(item.get("status"))
+        for item in (progress_response.data or [])
+    }
+
+    state_response = (
+        client.table("candidate_progressive_path_state")
+        .select("current_step_id")
+        .eq("candidate_user_id", candidate_id)
+        .limit(1)
+        .execute()
+    )
+    state_rows = state_response.data or []
+    current_step_id = (
+        str(state_rows[0].get("current_step_id"))
+        if state_rows and state_rows[0].get("current_step_id")
+        else None
+    )
+
+    if not current_step_id:
+        current_step_id = next(
+            (
+                str(step.get("id"))
+                for step in step_rows
+                if status_by_step.get(str(step.get("id"))) != ProgressivePathStepStatus.COMPLETED
+            ),
+            str(step_rows[-1].get("id")),
+        )
+        client.table("candidate_progressive_path_state").upsert(
+            {
+                "candidate_user_id": candidate_id,
+                "current_step_id": current_step_id,
+            },
+            on_conflict="candidate_user_id",
+        ).execute()
+
+    current_order = next(
+        (
+            int(step.get("step_order") or 0)
+            for step in step_rows
+            if str(step.get("id")) == current_step_id
+        ),
+        1,
+    )
+    completed_count = sum(
+        1
+        for step in step_rows
+        if status_by_step.get(str(step.get("id"))) == ProgressivePathStepStatus.COMPLETED
+    )
+    progress_percent = round((completed_count / len(step_rows)) * 100) if step_rows else 0
+
+    items: list[ProgressivePathStepItem] = []
+    for step in step_rows:
+        step_id = str(step.get("id"))
+        step_order = int(step.get("step_order") or 0)
+        status = status_by_step.get(step_id, ProgressivePathStepStatus.NOT_STARTED)
+        if step_id == current_step_id and status == ProgressivePathStepStatus.NOT_STARTED:
+            status = ProgressivePathStepStatus.IN_PROGRESS
+
+        items.append(
+            ProgressivePathStepItem(
+                id=step_id,
+                title=str(step.get("title") or ""),
+                order=step_order,
+                status=status,
+                short_description=str(step.get("short_description") or ""),
+                is_current=step_id == current_step_id,
+                is_locked=step_order > current_order,
+                target_module=str(step.get("target_module") or ""),
+                target_path=str(step.get("target_path") or ""),
+            )
+        )
+
+    current_step = next((step for step in items if step.is_current), items[0] if items else None)
+    return ProgressivePathResponse(
+        candidate_id=candidate_id,
+        current_step=current_step,
+        progress_percent=progress_percent,
+        steps=items,
+    )
+
+
 def get_candidate_progressive_path(
     candidate_id: str,
     access_token: str | None = None,
@@ -184,104 +291,131 @@ def get_candidate_progressive_path(
         return _fallback_path(candidate_id)
 
     try:
-        _seed_steps_if_empty(client)
-
-        steps_response = (
-            client.table("progressive_path_steps")
-            .select("id,title,step_order,short_description,target_module,target_path")
-            .eq("is_active", True)
-            .order("step_order")
-            .execute()
-        )
-        step_rows = steps_response.data or []
-        if not step_rows:
-            return _fallback_path(candidate_id)
-
-        progress_response = (
-            client.table("candidate_progressive_path_steps")
-            .select("step_id,status")
-            .eq("candidate_user_id", candidate_id)
-            .execute()
-        )
-        status_by_step = {
-            str(item.get("step_id")): _normalize_path_status(item.get("status"))
-            for item in (progress_response.data or [])
-        }
-
-        state_response = (
-            client.table("candidate_progressive_path_state")
-            .select("current_step_id")
-            .eq("candidate_user_id", candidate_id)
-            .limit(1)
-            .execute()
-        )
-        state_rows = state_response.data or []
-        current_step_id = (
-            str(state_rows[0].get("current_step_id"))
-            if state_rows and state_rows[0].get("current_step_id")
-            else None
-        )
-
-        if not current_step_id:
-            current_step_id = next(
-                (
-                    str(step.get("id"))
-                    for step in step_rows
-                    if status_by_step.get(str(step.get("id"))) != ProgressivePathStepStatus.COMPLETED
-                ),
-                str(step_rows[-1].get("id")),
-            )
-            client.table("candidate_progressive_path_state").upsert(
-                {
-                    "candidate_user_id": candidate_id,
-                    "current_step_id": current_step_id,
-                },
-                on_conflict="candidate_user_id",
-            ).execute()
-
-        current_order = next(
-            (
-                int(step.get("step_order") or 0)
-                for step in step_rows
-                if str(step.get("id")) == current_step_id
-            ),
-            1,
-        )
-        completed_count = sum(
-            1
-            for step in step_rows
-            if status_by_step.get(str(step.get("id"))) == ProgressivePathStepStatus.COMPLETED
-        )
-        progress_percent = round((completed_count / len(step_rows)) * 100) if step_rows else 0
-
-        items: list[ProgressivePathStepItem] = []
-        for step in step_rows:
-            step_id = str(step.get("id"))
-            step_order = int(step.get("step_order") or 0)
-            status = status_by_step.get(step_id, ProgressivePathStepStatus.NOT_STARTED)
-            if step_id == current_step_id and status == ProgressivePathStepStatus.NOT_STARTED:
-                status = ProgressivePathStepStatus.IN_PROGRESS
-
-            items.append(
-                ProgressivePathStepItem(
-                    id=step_id,
-                    title=str(step.get("title") or ""),
-                    order=step_order,
-                    status=status,
-                    short_description=str(step.get("short_description") or ""),
-                    is_current=step_id == current_step_id,
-                    is_locked=step_order > current_order,
-                    target_module=str(step.get("target_module") or ""),
-                    target_path=str(step.get("target_path") or ""),
-                )
-            )
-
-        current_step = next((step for step in items if step.is_current), items[0] if items else None)
-        return ProgressivePathResponse(
-            candidate_id=candidate_id,
-            current_step=current_step,
-            progress_percent=progress_percent,
-            steps=items,
-        )
+        return _load_path_response(client, candidate_id)
     except Exception:
         return _fallback_path(candidate_id)
+
+
+def _get_active_step_rows(client) -> list[dict]:
+    _seed_steps_if_empty(client)
+    response = (
+        client.table("progressive_path_steps")
+        .select("id,step_order")
+        .eq("is_active", True)
+        .order("step_order")
+        .execute()
+    )
+    return response.data or []
+
+
+def _set_current_step(client, candidate_id: str, step_id: str) -> None:
+    client.table("candidate_progressive_path_state").upsert(
+        {
+            "candidate_user_id": candidate_id,
+            "current_step_id": step_id,
+        },
+        on_conflict="candidate_user_id",
+    ).execute()
+
+
+def _set_step_status(
+    client,
+    candidate_id: str,
+    step_id: str,
+    status: ProgressivePathStepStatus,
+) -> None:
+    payload = {
+        "candidate_user_id": candidate_id,
+        "step_id": step_id,
+        "status": status.value,
+    }
+    if status == ProgressivePathStepStatus.IN_PROGRESS:
+        payload["started_at"] = datetime.now(timezone.utc).isoformat()
+        payload["completed_at"] = None
+    if status == ProgressivePathStepStatus.COMPLETED:
+        payload["completed_at"] = datetime.now(timezone.utc).isoformat()
+
+    client.table("candidate_progressive_path_steps").upsert(
+        payload,
+        on_conflict="candidate_user_id,step_id",
+    ).execute()
+
+
+def _current_order_from_response(path: ProgressivePathResponse) -> int:
+    if path.current_step is not None:
+        return path.current_step.order
+    return 1
+
+
+def start_candidate_progressive_path_step(
+    candidate_id: str,
+    step_id: str,
+    access_token: str | None = None,
+) -> ProgressivePathResponse:
+    client = _client_or_none(access_token)
+    if client is None:
+        return _fallback_path(candidate_id)
+
+    path = _load_path_response(client, candidate_id)
+    step = next((item for item in path.steps if item.id == step_id), None)
+    if step is None:
+        raise LookupError("Etape introuvable.")
+    if step.order > _current_order_from_response(path):
+        raise PermissionError("Cette etape est verrouillee.")
+
+    _set_step_status(client, candidate_id, step_id, ProgressivePathStepStatus.IN_PROGRESS)
+    _set_current_step(client, candidate_id, step_id)
+    return _load_path_response(client, candidate_id)
+
+
+def complete_candidate_progressive_path_step(
+    candidate_id: str,
+    step_id: str,
+    access_token: str | None = None,
+) -> ProgressivePathResponse:
+    client = _client_or_none(access_token)
+    if client is None:
+        return _fallback_path(candidate_id)
+
+    step_rows = _get_active_step_rows(client)
+    current_step = next((item for item in step_rows if str(item.get("id")) == step_id), None)
+    if current_step is None:
+        raise LookupError("Etape introuvable.")
+
+    current_order = int(current_step.get("step_order") or 0)
+    next_step = next(
+        (
+            item
+            for item in step_rows
+            if int(item.get("step_order") or 0) > current_order
+        ),
+        None,
+    )
+
+    _set_step_status(client, candidate_id, step_id, ProgressivePathStepStatus.COMPLETED)
+    if next_step is not None:
+        next_step_id = str(next_step.get("id"))
+        _set_step_status(client, candidate_id, next_step_id, ProgressivePathStepStatus.IN_PROGRESS)
+        _set_current_step(client, candidate_id, next_step_id)
+    else:
+        _set_current_step(client, candidate_id, step_id)
+
+    return _load_path_response(client, candidate_id)
+
+
+def reopen_candidate_progressive_path_step(
+    candidate_id: str,
+    step_id: str,
+    access_token: str | None = None,
+) -> ProgressivePathResponse:
+    client = _client_or_none(access_token)
+    if client is None:
+        return _fallback_path(candidate_id)
+
+    step_rows = _get_active_step_rows(client)
+    if not any(str(item.get("id")) == step_id for item in step_rows):
+        raise LookupError("Etape introuvable.")
+
+    _set_step_status(client, candidate_id, step_id, ProgressivePathStepStatus.IN_PROGRESS)
+    _set_current_step(client, candidate_id, step_id)
+    return _load_path_response(client, candidate_id)
