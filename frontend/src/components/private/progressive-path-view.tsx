@@ -43,14 +43,15 @@ import {
 type PhaseStatus = "done" | "active" | "todo" | "blocked";
 
 const PHASES: { id: string; label: string; short: string; stepOrders: number[] }[] = [
-  { id: "profile",     label: "Profil",                short: "Profil",        stepOrders: [1, 2] },
-  { id: "diagnostic",  label: "Diagnostic",            short: "Diagnostic",    stepOrders: [3] },
-  { id: "formations",  label: "Choix des formations",  short: "Formations",    stepOrders: [4, 5] },
-  { id: "preparation", label: "Préparation du dossier",short: "Dossier",       stepOrders: [6, 7, 8, 9] },
-  { id: "depot",       label: "Dépôt officiel",        short: "Dépôt",         stepOrders: [10, 11] },
-  { id: "entretien",   label: "Entretien",             short: "Entretien",     stepOrders: [12] },
-  { id: "admission",   label: "Admission & Visa",      short: "Visa",          stepOrders: [13, 14] },
-  { id: "depart",      label: "Départ",                short: "Départ",        stepOrders: [15] },
+  { id: "profile",     label: "Profil",                 short: "Profil",         stepOrders: [1, 2] },
+  { id: "diagnostic",  label: "Diagnostic",             short: "Diagnostic",     stepOrders: [3] },
+  { id: "formations",  label: "Choix des formations",   short: "Formations",     stepOrders: [4, 5] },
+  { id: "preparation", label: "Préparation du dossier", short: "Dossier",        stepOrders: [6, 7, 8] },
+  { id: "depot",       label: "Dépôt officiel",         short: "Dépôt officiel", stepOrders: [9, 10] },
+  { id: "entretien",   label: "Entretien",              short: "Entretien",      stepOrders: [11] },
+  { id: "admission",   label: "Admission",              short: "Admission",      stepOrders: [12, 13] },
+  { id: "visa",        label: "Visa",                   short: "Visa",           stepOrders: [14] },
+  { id: "depart",      label: "Départ",                 short: "Départ",         stepOrders: [15] },
 ];
 
 function phaseStatus(steps: ProgressiveStep[], orders: number[]): PhaseStatus {
