@@ -3,6 +3,9 @@ from datetime import datetime, timezone
 from ..schemas import (
     OfficialDepositItem,
     OfficialDepositRequest,
+    ProgressivePathProductRecommendation,
+    ProgressivePathRecommendationAction,
+    ProgressivePathRecommendations,
     ProgressivePathResponse,
     ProgressivePathStepItem,
     ProgressivePathStepStatus,
@@ -134,6 +137,247 @@ DEFAULT_PROGRESSIVE_PATH_STEPS = [
 ]
 
 
+def _action(
+    title: str,
+    description: str,
+    target_module: str,
+    target_path: str,
+) -> ProgressivePathRecommendationAction:
+    return ProgressivePathRecommendationAction(
+        title=title,
+        description=description,
+        target_module=target_module,
+        target_path=target_path,
+    )
+
+
+def _product(
+    title: str,
+    description: str,
+    target_path: str,
+) -> ProgressivePathProductRecommendation:
+    return ProgressivePathProductRecommendation(
+        title=title,
+        description=description,
+        target_module="produits_digitaux",
+        target_path=target_path,
+        requires_purchase=True,
+    )
+
+
+def _assistant_action(step_id: str) -> ProgressivePathRecommendationAction:
+    return _action(
+        "Poser une question a l'assistant dossier",
+        "Demandez a l'assistant de vous aider sur cette etape.",
+        "assistant_dossier",
+        f"/espace-etudiant/assistant?context={step_id}",
+    )
+
+
+def _documents_action(
+    title: str = "Ajouter ou verifier le document lie",
+    description: str = "Suivez l'etat de vos documents dans l'espace documents.",
+) -> ProgressivePathRecommendationAction:
+    return _action(title, description, "documents", "/espace-etudiant/documents")
+
+
+RECOMMENDATION_BY_STEP: dict[str, dict[str, ProgressivePathRecommendationAction | None]] = {
+    "understand-profile": {
+        "free_action": _action(
+            "Completer mon profil",
+            "Renseignez vos informations de depart dans l'embarquement.",
+            "embarquement",
+            "/espace-etudiant/onboarding",
+        ),
+        "recommended_product": None,
+        "document_action": None,
+    },
+    "read-diagnostic": {
+        "free_action": _action(
+            "Lire mon diagnostic",
+            "Consultez les priorites et les points de vigilance identifies.",
+            "diagnostic",
+            "/espace-etudiant/diagnostic",
+        ),
+        "recommended_product": None,
+        "document_action": None,
+    },
+    "define-procedure-strategy": {
+        "free_action": _action(
+            "Revoir ma strategie",
+            "Utilisez le tableau de bord et le diagnostic pour clarifier la trajectoire.",
+            "tableau_de_bord",
+            "/espace-etudiant",
+        ),
+        "recommended_product": _product(
+            "Kit Campus France complet",
+            "Une methode structuree pour preparer votre procedure officielle.",
+            "/espace-etudiant/produits/prod-001",
+        ),
+        "document_action": None,
+    },
+    "choose-programs": {
+        "free_action": _action(
+            "Lire les ressources de selection",
+            "Utilisez les ressources pour comparer les formations et les ecoles.",
+            "ressources",
+            "/espace-etudiant/ressources",
+        ),
+        "recommended_product": _product(
+            "Guide ecoles privees",
+            "Un guide pour identifier et comparer les ecoles privees pertinentes.",
+            "/espace-etudiant/produits/prod-007",
+        ),
+        "document_action": None,
+    },
+    "prepare-study-project": {
+        "free_action": _action(
+            "Continuer avec la checklist",
+            "Utilisez les ressources disponibles pour structurer votre projet d'etudes.",
+            "ressources",
+            "/espace-etudiant/ressources",
+        ),
+        "recommended_product": _product(
+            "Generateur projet d'etudes",
+            "Un outil guide pour construire un projet d'etudes coherent.",
+            "/espace-etudiant/produits/prod-003",
+        ),
+        "document_action": None,
+    },
+    "prepare-career-project": {
+        "free_action": _action(
+            "Lire les ressources projet professionnel",
+            "Appuyez-vous sur les ressources pour relier parcours, formation et objectifs.",
+            "ressources",
+            "/espace-etudiant/ressources",
+        ),
+        "recommended_product": _product(
+            "Generateur projet professionnel",
+            "Un outil guide pour formaliser un projet professionnel coherent.",
+            "/espace-etudiant/produits/prod-004",
+        ),
+        "document_action": None,
+    },
+    "prepare-cv": {
+        "free_action": _documents_action(
+            "Verifier mon CV",
+            "Ajoutez ou suivez votre CV dans l'espace documents.",
+        ),
+        "recommended_product": None,
+        "document_action": _documents_action("Ouvrir mes documents", "Suivez l'etat de votre CV."),
+    },
+    "prepare-motivation-letters": {
+        "free_action": _action(
+            "Lire les exemples de lettres",
+            "Consultez les ressources utiles avant de rediger vos lettres.",
+            "ressources",
+            "/espace-etudiant/ressources",
+        ),
+        "recommended_product": _product(
+            "Bibliotheque de lettres de motivation",
+            "Des modeles pour produire des lettres adaptees a chaque formation.",
+            "/espace-etudiant/produits/prod-005",
+        ),
+        "document_action": _documents_action(),
+    },
+    "prepare-documents": {
+        "free_action": _documents_action(
+            "Ouvrir mes documents",
+            "Ajoutez, verifiez et suivez les pieces necessaires.",
+        ),
+        "recommended_product": None,
+        "document_action": _documents_action(),
+    },
+    "verify-before-official-filing": {
+        "free_action": _documents_action(
+            "Verifier mes pieces",
+            "Controlez l'etat des documents avant action sur les plateformes officielles.",
+        ),
+        "recommended_product": _product(
+            "Pack correction dossier",
+            "Un accompagnement de correction avant depot sur les plateformes officielles.",
+            "/espace-etudiant/produits/prod-009",
+        ),
+        "document_action": _documents_action(),
+    },
+    "mark-official-filing-done": {
+        "free_action": _action(
+            "Declarer le depot officiel comme fait",
+            "Renseignez la plateforme, la date et la reference du dossier officiel.",
+            "official_deposit",
+            "/espace-etudiant",
+        ),
+        "recommended_product": None,
+        "document_action": None,
+    },
+    "prepare-campus-france-interview": {
+        "free_action": _action(
+            "Lire les ressources entretien",
+            "Preparez vos reponses et votre argumentaire avant l'entretien.",
+            "ressources",
+            "/espace-etudiant/ressources",
+        ),
+        "recommended_product": _product(
+            "Simulateur entretien Campus France",
+            "Un simulateur pour s'entrainer avec des questions realistes.",
+            "/espace-etudiant/produits/prod-006",
+        ),
+        "document_action": None,
+    },
+    "prepare-visa-file": {
+        "free_action": _documents_action(
+            "Verifier les documents visa",
+            "Suivez les justificatifs necessaires au dossier visa.",
+        ),
+        "recommended_product": _product(
+            "Kit Visa etudiant",
+            "Un kit pour preparer les pieces et points de vigilance du dossier visa.",
+            "/espace-etudiant/produits/prod-002",
+        ),
+        "document_action": _documents_action(
+            "Ouvrir mes documents visa",
+            "Ajoutez et suivez les justificatifs visa dans l'espace documents.",
+        ),
+    },
+    "track-after-official-filing": {
+        "free_action": _action(
+            "Suivre apres depot officiel",
+            "Gardez a jour les retours, delais et references de vos plateformes officielles.",
+            "official_deposit",
+            "/espace-etudiant",
+        ),
+        "recommended_product": None,
+        "document_action": None,
+    },
+    "prepare-departure": {
+        "free_action": _action(
+            "Lire les ressources depart",
+            "Anticipez les demarches pratiques avant votre depart.",
+            "ressources",
+            "/espace-etudiant/ressources",
+        ),
+        "recommended_product": None,
+        "document_action": None,
+    },
+}
+
+
+def _build_recommendations(
+    current_step: ProgressivePathStepItem | None,
+) -> ProgressivePathRecommendations:
+    if current_step is None:
+        return ProgressivePathRecommendations()
+
+    config = RECOMMENDATION_BY_STEP.get(current_step.id, {})
+    return ProgressivePathRecommendations(
+        current_step_id=current_step.id,
+        free_action=config.get("free_action"),
+        recommended_product=config.get("recommended_product"),
+        assistant_action=_assistant_action(current_step.id),
+        document_action=config.get("document_action"),
+    )
+
+
 def _fallback_path(candidate_id: str) -> ProgressivePathResponse:
     steps = [
         ProgressivePathStepItem(
@@ -159,6 +403,7 @@ def _fallback_path(candidate_id: str) -> ProgressivePathResponse:
         progress_percent=0,
         steps=steps,
         official_deposit=OfficialDepositItem(),
+        recommendations=_build_recommendations(steps[0] if steps else None),
     )
 
 
@@ -317,6 +562,7 @@ def _load_path_response(
         progress_percent=progress_percent,
         steps=items,
         official_deposit=_load_official_deposit(client, candidate_id),
+        recommendations=_build_recommendations(current_step),
     )
 
 

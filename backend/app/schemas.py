@@ -750,12 +750,34 @@ class OfficialDepositRequest(BaseModel):
         return cleaned or None
 
 
+class ProgressivePathRecommendationAction(BaseModel):
+    title: str
+    description: str
+    target_module: str
+    target_path: str
+
+
+class ProgressivePathProductRecommendation(ProgressivePathRecommendationAction):
+    requires_purchase: bool = True
+
+
+class ProgressivePathRecommendations(BaseModel):
+    current_step_id: str | None = None
+    free_action: ProgressivePathRecommendationAction | None = None
+    recommended_product: ProgressivePathProductRecommendation | None = None
+    assistant_action: ProgressivePathRecommendationAction | None = None
+    document_action: ProgressivePathRecommendationAction | None = None
+
+
 class ProgressivePathResponse(BaseModel):
     candidate_id: str
     current_step: ProgressivePathStepItem | None = None
     progress_percent: int = Field(ge=0, le=100)
     steps: list[ProgressivePathStepItem] = Field(default_factory=list)
     official_deposit: OfficialDepositItem = Field(default_factory=OfficialDepositItem)
+    recommendations: ProgressivePathRecommendations = Field(
+        default_factory=ProgressivePathRecommendations
+    )
 
 
 class PrivateProductItem(BaseModel):
