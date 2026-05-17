@@ -12536,3 +12536,507 @@ body.chat-open .wa-float {
     justify-self: end;
   }
 }
+
+/* ============================================================
+   PARCOURS GUIDE
+   ============================================================ */
+
+.pp-page {
+  padding: 0 0 48px;
+}
+
+.pp-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 32px 0 28px;
+  border-bottom: 1px solid var(--gray-100);
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.pp-hero-kicker {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--brand-red);
+  margin-bottom: 6px;
+}
+
+.pp-hero h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--navy);
+  margin: 0 0 8px;
+  line-height: 1.2;
+}
+
+.pp-hero-text p {
+  color: var(--gray-600);
+  font-size: .95rem;
+  margin: 0;
+  max-width: 520px;
+}
+
+.pp-progress-wrap {
+  min-width: 240px;
+  flex: 0 0 260px;
+}
+
+.pp-progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: .85rem;
+  color: var(--gray-600);
+}
+
+.pp-progress-label strong {
+  color: var(--navy);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.pp-progress-bar {
+  height: 10px;
+  background: var(--gray-100);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.pp-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), #5ab39a);
+  border-radius: 99px;
+  transition: width .5s ease;
+}
+
+.pp-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+.pp-left {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pp-card {
+  background: var(--white);
+  border: 1px solid var(--gray-100);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+.pp-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.pp-card-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--gray-400);
+}
+
+.pp-card-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin: 0 0 8px;
+}
+
+.pp-card-desc {
+  color: var(--gray-600);
+  font-size: .9rem;
+  margin: 0 0 18px;
+  line-height: 1.55;
+}
+
+.pp-card-current {
+  border-left: 4px solid var(--brand-red);
+}
+
+.pp-card-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pp-step-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .875rem;
+}
+
+.pp-step-status-chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 99px;
+}
+
+.pp-chip-not_started { background: var(--gray-100); color: var(--gray-600); }
+.pp-chip-in_progress { background: #dbeafe; color: #1d4ed8; }
+.pp-chip-needs_review { background: #fef9c3; color: #92400e; }
+.pp-chip-completed { background: #dcfce7; color: #166534; }
+.pp-chip-blocked { background: #fee2e2; color: #991b1b; }
+
+.pp-step-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .8rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 99px;
+}
+
+.pp-badge-review { background: #fef9c3; color: #92400e; }
+.pp-badge-blocked { background: #fee2e2; color: #991b1b; }
+
+.pp-rec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pp-rec-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: inherit;
+  transition: background .15s;
+  cursor: pointer;
+}
+
+.pp-rec-item:hover { background: var(--gray-50); }
+
+.pp-rec-item-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--gray-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--navy-mid);
+  flex-shrink: 0;
+}
+
+.pp-rec-product .pp-rec-item-icon {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pp-rec-item-body { flex: 1; min-width: 0; }
+
+.pp-rec-item-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--gray-400);
+  margin-bottom: 2px;
+}
+
+.pp-rec-item-body strong {
+  display: block;
+  font-size: .88rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pp-rec-item-body p {
+  font-size: .8rem;
+  color: var(--gray-600);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pp-rec-item-arrow { color: var(--gray-400); flex-shrink: 0; }
+
+.pp-rec-paid {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 1px 6px;
+  border-radius: 99px;
+}
+
+.pp-timeline-card {
+  padding: 20px;
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+.pp-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pp-ti-item {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  position: relative;
+}
+
+.pp-ti-item + .pp-ti-item::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 0;
+  width: 1px;
+  height: 10px;
+  background: var(--gray-200);
+}
+
+.pp-ti-marker {
+  width: 16px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 2px;
+}
+
+.pp-ti-icon { color: var(--gray-400); }
+.pp-ti-done { color: var(--green); }
+.pp-ti-active { color: var(--brand-red); }
+.pp-ti-review { color: #b45309; }
+.pp-ti-blocked { color: var(--danger); }
+.pp-ti-locked { color: var(--gray-200); }
+
+.pp-ti-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gray-200);
+  margin-top: 3px;
+}
+
+.pp-ti-body { flex: 1; min-width: 0; }
+
+.pp-ti-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pp-ti-title span {
+  font-size: .82rem;
+  color: var(--gray-800);
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.pp-ti-locked-item .pp-ti-title span { color: var(--gray-400); }
+.pp-ti-done-item .pp-ti-title span {
+  color: var(--gray-600);
+  text-decoration: line-through;
+  text-decoration-color: var(--gray-300);
+}
+.pp-ti-current .pp-ti-title span { font-weight: 700; color: var(--navy); }
+
+.pp-ti-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 99px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pp-ti-badge-done { background: #dcfce7; color: #166534; }
+.pp-ti-badge-current { background: #fee2e2; color: #991b1b; }
+
+.pp-ti-desc {
+  font-size: .78rem;
+  color: var(--gray-600);
+  margin: 4px 0 8px;
+  line-height: 1.45;
+}
+
+.pp-ti-actions { margin-top: 6px; }
+
+.pp-deposit {
+  background: var(--white);
+  border: 1px solid var(--gray-100);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+.pp-deposit-notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: #fefce8;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  color: #92400e;
+  font-size: .85rem;
+  line-height: 1.5;
+}
+
+.pp-deposit-notice svg { flex-shrink: 0; margin-top: 2px; }
+.pp-deposit-notice p { margin: 0; }
+
+.pp-deposit-cta { width: 100%; justify-content: center; }
+
+.pp-deposit-declared {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.pp-deposit-declared-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--green);
+  font-size: .9rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.pp-deposit-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+  margin: 0 0 12px;
+}
+
+.pp-deposit-details > div { display: flex; flex-direction: column; gap: 2px; }
+
+.pp-deposit-details dt {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--gray-400);
+}
+
+.pp-deposit-details dd {
+  font-size: .85rem;
+  color: var(--navy);
+  font-weight: 600;
+  margin: 0;
+}
+
+.pp-deposit-form {
+  border-top: 1px solid var(--gray-100);
+  padding-top: 20px;
+  margin-top: 12px;
+}
+
+.pp-deposit-form h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin: 0 0 16px;
+}
+
+.pp-deposit-form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.pp-skeleton-hero {
+  height: 100px;
+  background: var(--gray-100);
+  border-radius: var(--radius);
+  margin-bottom: 28px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.pp-skeleton-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+.pp-skeleton-card {
+  height: 200px;
+  background: var(--gray-100);
+  border-radius: var(--radius);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+[data-theme="dark"] .pp-hero h1 { color: #e8eaf0; }
+[data-theme="dark"] .pp-card { background: #1a2240; border-color: #2a3560; }
+[data-theme="dark"] .pp-card-title { color: #e8eaf0; }
+[data-theme="dark"] .pp-card-desc { color: #9aa0c0; }
+[data-theme="dark"] .pp-ti-title span { color: #c8cce0; }
+[data-theme="dark"] .pp-ti-current .pp-ti-title span { color: #e8eaf0; }
+[data-theme="dark"] .pp-ti-done-item .pp-ti-title span { color: #6070a0; }
+[data-theme="dark"] .pp-ti-locked-item .pp-ti-title span { color: #4a5478; }
+[data-theme="dark"] .pp-deposit { background: #1a2240; border-color: #2a3560; }
+[data-theme="dark"] .pp-deposit-notice { background: #2d2200; border-color: #5c4400; color: #fbbf24; }
+[data-theme="dark"] .pp-deposit-declared { background: #0d2016; border-color: #1a4030; }
+[data-theme="dark"] .pp-rec-item:hover { background: #222d52; }
+[data-theme="dark"] .pp-rec-item-body strong { color: #e8eaf0; }
+[data-theme="dark"] .pp-rec-item-body p { color: #9aa0c0; }
+[data-theme="dark"] .pp-skeleton-hero,
+[data-theme="dark"] .pp-skeleton-card { background: #1e2840; }
+[data-theme="dark"] .pp-progress-bar { background: #2a3560; }
+[data-theme="dark"] .pp-chip-not_started { background: #2a3560; color: #9aa0c0; }
+
+@media (max-width: 1100px) {
+  .pp-layout { grid-template-columns: 1fr; }
+  .pp-timeline-card { position: static; max-height: none; }
+  .pp-right { order: 2; }
+  .pp-left { order: 1; }
+}
+
+@media (max-width: 640px) {
+  .pp-hero { flex-direction: column; }
+  .pp-progress-wrap { flex: 1 1 auto; width: 100%; min-width: 0; }
+  .pp-card { padding: 16px; }
+  .pp-card-actions { flex-direction: column; }
+  .pp-step-btn { width: 100%; justify-content: center; }
+  .pp-deposit-details { grid-template-columns: 1fr; }
+  .pp-deposit-form-actions { flex-direction: column-reverse; }
+  .pp-skeleton-grid { grid-template-columns: 1fr; }
+}
+}

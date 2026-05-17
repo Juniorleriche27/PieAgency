@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   MessageCircle,
+  Milestone,
   Moon,
   Package,
   Settings,
@@ -43,6 +44,7 @@ type NavItem = {
 const studentNav: NavItem[] = [
   { href: "/espace-etudiant", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/espace-etudiant/onboarding", label: "Embarquement", icon: Zap },
+  { href: "/espace-etudiant/parcours-guide", label: "Mon parcours guidé", icon: Milestone },
   { href: "/espace-etudiant/diagnostic", label: "Diagnostic", icon: ShieldCheck },
   { href: "/espace-etudiant/produits", label: "Produits digitaux", icon: Package },
   { href: "/espace-etudiant/ressources", label: "Mes ressources", icon: BookOpen },
