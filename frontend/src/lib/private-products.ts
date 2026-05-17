@@ -236,14 +236,22 @@ function toProduct(item: PrivateProductApiItem): Product {
   };
 }
 
-// TODO(Codex): replace with API call once backend returns the 10 canonical products
-export async function getProducts(): Promise<Product[]> {
-  return MOCK_PRODUCTS;
+function live(): Product[] {
+  if (typeof window === "undefined") return MOCK_PRODUCTS;
+  try {
+    const raw = localStorage.getItem("pie_admin_products");
+    return raw ? (JSON.parse(raw) as Product[]) : MOCK_PRODUCTS;
+  } catch {
+    return MOCK_PRODUCTS;
+  }
 }
 
-// TODO(Codex): replace with API call once backend /api/private/products/:id is ready
+export async function getProducts(): Promise<Product[]> {
+  return live();
+}
+
 export async function getProduct(id: string): Promise<Product | null> {
-  return MOCK_PRODUCTS.find((p) => p.id === id) ?? null;
+  return live().find((p) => p.id === id) ?? null;
 }
 
 /** Synchronous lookup — used only for generateStaticParams. */

@@ -165,7 +165,12 @@ export const RESOURCE_CATEGORIES = [
 
 export type ResourceCategory = (typeof RESOURCE_CATEGORIES)[number];
 
-// TODO(Codex): replace with API call once backend /api/private/resources returns the canonical resources
 export async function fetchPrivateResources(): Promise<PrivateResource[]> {
-  return MOCK_RESOURCES;
+  if (typeof window === "undefined") return MOCK_RESOURCES;
+  try {
+    const raw = localStorage.getItem("pie_admin_resources");
+    return raw ? (JSON.parse(raw) as PrivateResource[]) : MOCK_RESOURCES;
+  } catch {
+    return MOCK_RESOURCES;
+  }
 }
