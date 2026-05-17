@@ -654,8 +654,10 @@ class PrivateResourceItem(BaseModel):
     title: str
     description: str
     category: str
-    resource_type: Literal["guide", "template", "video", "checklist", "link"]
-    format_label: str
+    resource_type: Literal["guide", "template", "video", "checklist", "example", "exercise", "link"]
+    badge_label: str
+    action_label: str = "Télécharger"
+    duration_label: str | None = None
     access_level: Literal["free", "student", "premium"] = "student"
     url: str | None = None
 
