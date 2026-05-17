@@ -1470,3 +1470,119 @@ on conflict (service_slug) do update set
   recommended = excluded.recommended,
   sort_order = excluded.sort_order,
   updated_at = timezone('utc', now());
+
+-- ── Progressive guided path ──────────────────────────────────────────────────
+create table if not exists public.progressive_path_steps (
+  id text primary key,
+  title text not null,
+  step_order integer not null unique,
+  short_description text not null default '',
+  target_module text,
+  target_path text,
+  is_active boolean not null default true,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.candidate_progressive_path_steps (
+  candidate_user_id uuid not null references auth.users(id) on delete cascade,
+  step_id text not null references public.progressive_path_steps(id) on delete cascade,
+  status text not null default 'not_started'
+    check (status in ('not_started', 'in_progress', 'needs_review', 'completed', 'blocked')),
+  started_at timestamptz,
+  completed_at timestamptz,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  primary key (candidate_user_id, step_id)
+);
+
+create table if not exists public.candidate_progressive_path_state (
+  candidate_user_id uuid primary key references auth.users(id) on delete cascade,
+  current_step_id text references public.progressive_path_steps(id) on delete set null,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists progressive_path_steps_order_idx
+  on public.progressive_path_steps (step_order, is_active);
+
+create index if not exists candidate_progressive_path_steps_user_idx
+  on public.candidate_progressive_path_steps (candidate_user_id, status);
+
+drop trigger if exists set_progressive_path_steps_updated_at on public.progressive_path_steps;
+create trigger set_progressive_path_steps_updated_at
+before update on public.progressive_path_steps
+for each row execute procedure public.touch_updated_at();
+
+drop trigger if exists set_candidate_progressive_path_steps_updated_at on public.candidate_progressive_path_steps;
+create trigger set_candidate_progressive_path_steps_updated_at
+before update on public.candidate_progressive_path_steps
+for each row execute procedure public.touch_updated_at();
+
+drop trigger if exists set_candidate_progressive_path_state_updated_at on public.candidate_progressive_path_state;
+create trigger set_candidate_progressive_path_state_updated_at
+before update on public.candidate_progressive_path_state
+for each row execute procedure public.touch_updated_at();
+
+alter table public.progressive_path_steps enable row level security;
+alter table public.candidate_progressive_path_steps enable row level security;
+alter table public.candidate_progressive_path_state enable row level security;
+
+drop policy if exists "progressive_path_steps_read" on public.progressive_path_steps;
+create policy "progressive_path_steps_read"
+on public.progressive_path_steps
+for select
+to authenticated
+using (is_active = true or public.is_admin());
+
+drop policy if exists "progressive_path_steps_admin_write" on public.progressive_path_steps;
+create policy "progressive_path_steps_admin_write"
+on public.progressive_path_steps
+for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "candidate_progressive_steps_self_or_admin" on public.candidate_progressive_path_steps;
+create policy "candidate_progressive_steps_self_or_admin"
+on public.candidate_progressive_path_steps
+for all
+to authenticated
+using (candidate_user_id = auth.uid() or public.is_admin())
+with check (candidate_user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "candidate_progressive_state_self_or_admin" on public.candidate_progressive_path_state;
+create policy "candidate_progressive_state_self_or_admin"
+on public.candidate_progressive_path_state
+for all
+to authenticated
+using (candidate_user_id = auth.uid() or public.is_admin())
+with check (candidate_user_id = auth.uid() or public.is_admin());
+
+insert into public.progressive_path_steps (
+  id, title, step_order, short_description, target_module, target_path
+)
+values
+  ('understand-profile', 'Comprendre mon profil', 1, 'Clarifier votre niveau, votre projet et vos contraintes avant d''avancer.', 'embarquement', '/espace-etudiant/onboarding'),
+  ('read-diagnostic', 'Lire mon diagnostic', 2, 'Identifier vos priorités, vos risques et les prochaines actions utiles.', 'diagnostic', '/espace-etudiant/diagnostic'),
+  ('define-procedure-strategy', 'Définir ma stratégie de procédure', 3, 'Choisir la meilleure trajectoire officielle selon votre profil.', 'tableau_de_bord', '/espace-etudiant'),
+  ('choose-programs', 'Choisir mes formations', 4, 'Construire une liste cohérente de formations et d''écoles à viser.', 'ressources', '/espace-etudiant/ressources'),
+  ('prepare-study-project', 'Préparer mon projet d''études', 5, 'Structurer un projet d''études clair, crédible et défendable.', 'produits_digitaux', '/espace-etudiant/produits'),
+  ('prepare-career-project', 'Préparer mon projet professionnel', 6, 'Relier votre parcours, votre formation cible et vos objectifs professionnels.', 'produits_digitaux', '/espace-etudiant/produits'),
+  ('prepare-cv', 'Préparer mon CV', 7, 'Mettre votre parcours en forme pour les plateformes officielles et les écoles.', 'documents', '/espace-etudiant/documents'),
+  ('prepare-motivation-letters', 'Préparer mes lettres de motivation', 8, 'Rédiger des lettres adaptées à chaque formation visée.', 'produits_digitaux', '/espace-etudiant/produits'),
+  ('prepare-documents', 'Préparer mes documents', 9, 'Rassembler, organiser et vérifier les pièces nécessaires.', 'documents', '/espace-etudiant/documents'),
+  ('verify-before-official-filing', 'Vérifier avant dépôt officiel', 10, 'Contrôler la cohérence du dossier avant action sur les plateformes officielles.', 'assistant', '/espace-etudiant/assistant'),
+  ('mark-official-filing-done', 'Déclarer le dépôt officiel comme fait', 11, 'Indiquer que le dépôt a été effectué sur la plateforme officielle concernée.', 'tableau_de_bord', '/espace-etudiant'),
+  ('prepare-campus-france-interview', 'Préparer l''entretien Campus France', 12, 'Préparer vos réponses et votre argumentaire pour l''entretien.', 'produits_digitaux', '/espace-etudiant/produits'),
+  ('prepare-visa-file', 'Préparer le dossier visa', 13, 'Organiser les justificatifs nécessaires au dossier visa.', 'documents', '/espace-etudiant/documents'),
+  ('track-after-official-filing', 'Suivre après dépôt officiel', 14, 'Suivre les retours, délais et actions après dépôt sur les plateformes officielles.', 'tableau_de_bord', '/espace-etudiant'),
+  ('prepare-departure', 'Préparer le départ', 15, 'Anticiper les démarches pratiques avant le départ.', 'ressources', '/espace-etudiant/ressources')
+on conflict (id) do update set
+  title = excluded.title,
+  step_order = excluded.step_order,
+  short_description = excluded.short_description,
+  target_module = excluded.target_module,
+  target_path = excluded.target_path,
+  is_active = true,
+  updated_at = timezone('utc', now());

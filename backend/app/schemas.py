@@ -602,6 +602,14 @@ class StudentGradingSystem(str, Enum):
     SEMESTRE = "semestre"
 
 
+class ProgressivePathStepStatus(str, Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    NEEDS_REVIEW = "needs_review"
+    COMPLETED = "completed"
+    BLOCKED = "blocked"
+
+
 class DashboardMetric(BaseModel):
     label: str
     value: str
@@ -677,6 +685,23 @@ class StudentDashboardResponse(BaseModel):
     steps: list[StudentStepItem]
     documents: list[StudentDocumentItem]
     notes: list[StudentNoteItem]
+
+
+class ProgressivePathStepItem(BaseModel):
+    id: str
+    title: str
+    order: int
+    status: ProgressivePathStepStatus
+    short_description: str
+    is_current: bool
+    is_locked: bool
+
+
+class ProgressivePathResponse(BaseModel):
+    candidate_id: str
+    current_step: ProgressivePathStepItem | None = None
+    progress_percent: int = Field(ge=0, le=100)
+    steps: list[ProgressivePathStepItem] = Field(default_factory=list)
 
 
 class PrivateProductItem(BaseModel):
