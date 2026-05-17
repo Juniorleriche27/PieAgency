@@ -8661,6 +8661,21 @@ body.chat-open .wa-float {
   flex-shrink: 0;
 }
 
+.private-topbar-link {
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--ps-accent);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity 150ms ease;
+}
+.private-topbar-link:hover {
+  opacity: 0.85;
+}
+
 /* ─── Content ───────────────────────────────────────────────────── */
 .private-content {
   min-width: 0;

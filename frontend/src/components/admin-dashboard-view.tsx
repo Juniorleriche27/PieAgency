@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ActionLink } from "@/components/action-link";
 import { PortalAccessPanel } from "@/components/portal-access-panel";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { authenticatedFetch, getApiBaseUrl } from "@/lib/auth";
@@ -484,25 +483,6 @@ export function AdminDashboardView() {
 
   return (
     <div className="portal-shell">
-      <div className="portal-banner admin">
-        <div>
-          <div className="portal-kicker">Interface admin</div>
-          <h2>Pilotage PieAgency + PieHUB</h2>
-          <p>
-            Leads, partenariats, dossiers, conversations IA, pages et exports
-            complets de la plateforme.
-          </p>
-        </div>
-        <div className="portal-banner-meta">
-          <span className="portal-pill review">
-            {isLoading ? "Chargement" : "Session admin active"}
-          </span>
-          <ActionLink href="/partenariat" variant="gold">
-            Voir le formulaire partenariat
-          </ActionLink>
-        </div>
-      </div>
-
       {loadError ? <div className="portal-warning">{loadError}</div> : null}
 
       <div className="portal-metrics">

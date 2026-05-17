@@ -259,9 +259,21 @@ export function PrivatePortalShell({
           </button>
           <div>
             <span>{title}</span>
-            <strong>{session.user.full_name || session.user.email}</strong>
+            <strong>
+              {requiredRole === "admin" && pathname === "/admin"
+                ? "Pilotage PieAgency + PieHUB"
+                : session.user.full_name || session.user.email}
+            </strong>
           </div>
           <div className="private-topbar-actions">
+            {requiredRole === "admin" && pathname === "/admin" ? (
+              <Link
+                className="private-topbar-link"
+                href="/partenariat"
+              >
+                Voir le formulaire partenariat
+              </Link>
+            ) : null}
             <button
               aria-label={isDark ? "Mode clair" : "Mode sombre"}
               className="private-icon-button"

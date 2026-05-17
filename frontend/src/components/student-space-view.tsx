@@ -178,22 +178,6 @@ export function StudentSpaceView() {
 
   return (
     <div className="portal-shell">
-      <div className="portal-banner">
-        <div>
-          <div className="portal-kicker">Espace etudiant</div>
-          <h2>
-            {dashboard.student_name} - {dashboard.project_name}
-          </h2>
-          <p>
-            Reference dossier: {dashboard.case_reference} - {dashboard.status_label}
-          </p>
-        </div>
-        <div className="portal-banner-meta">
-          <span className="portal-pill good">{dashboard.status_label}</span>
-          <span>{isLoading ? "Synchronisation..." : dashboard.last_update_label}</span>
-        </div>
-      </div>
-
       {loadError ? <div className="portal-warning">{loadError}</div> : null}
 
       <div className="portal-metrics">
