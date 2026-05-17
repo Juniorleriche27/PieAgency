@@ -16,6 +16,7 @@ import {
   RotateCcw,
   ShoppingBag,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import {
   completeStep,
@@ -61,7 +62,7 @@ function RecommendationCard({
   label,
 }: {
   action: RecommendationAction | null;
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
 }) {
   if (!action) return null;
