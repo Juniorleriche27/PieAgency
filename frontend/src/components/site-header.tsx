@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { User } from "lucide-react";
+import { Moon, Sun, User } from "lucide-react";
 import { ActionLink } from "@/components/action-link";
 import { clearStoredSession, readStoredSession } from "@/lib/auth";
 
@@ -61,8 +61,25 @@ export function SiteHeader() {
   const [sessionRole, setSessionRole] = useState<"student" | "admin" | null>(null);
   const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
+  const [isDark, setIsDark] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isAdminRoute = pathname.startsWith("/admin");
+
+  useEffect(() => {
+    const stored = localStorage.getItem("pie-theme");
+    const dark = stored === "dark";
+    setIsDark(dark);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  }, []);
+
+  function toggleDark() {
+    setIsDark((prev) => {
+      const next = !prev;
+      localStorage.setItem("pie-theme", next ? "dark" : "light");
+      document.documentElement.setAttribute("data-theme", next ? "dark" : "light");
+      return next;
+    });
+  }
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 20);
@@ -253,6 +270,14 @@ export function SiteHeader() {
           )}
 
           <div className={`header-ctas ${isAdminRoute ? "is-admin" : ""}`}>
+            <button
+              aria-label={isDark ? "Mode clair" : "Mode sombre"}
+              className="header-theme-toggle"
+              onClick={toggleDark}
+              type="button"
+            >
+              {isDark ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
             {isAdminRoute ? (
               <>
                 <ActionLink href="/" variant="outline" size="sm" className="header-admin-link">Voir le site</ActionLink>
