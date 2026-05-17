@@ -236,44 +236,14 @@ function toProduct(item: PrivateProductApiItem): Product {
   };
 }
 
+// TODO(Codex): replace with API call once backend returns the 10 canonical products
 export async function getProducts(): Promise<Product[]> {
-  try {
-    const response = await authenticatedFetch(
-      "/api/private/products",
-      { cache: "no-store" },
-      { requireAuth: true },
-    );
-
-    if (!response.ok) {
-      throw new Error("Impossible de charger les produits.");
-    }
-
-    const payload = (await response.json()) as PrivateProductListResponse;
-    return payload.products.map(toProduct);
-  } catch {
-    return MOCK_PRODUCTS;
-  }
+  return MOCK_PRODUCTS;
 }
 
+// TODO(Codex): replace with API call once backend /api/private/products/:id is ready
 export async function getProduct(id: string): Promise<Product | null> {
-  try {
-    const response = await authenticatedFetch(
-      `/api/private/products/${id}`,
-      { cache: "no-store" },
-      { requireAuth: true },
-    );
-
-    if (response.status === 404) {
-      return null;
-    }
-    if (!response.ok) {
-      throw new Error("Impossible de charger ce produit.");
-    }
-
-    return toProduct((await response.json()) as PrivateProductApiItem);
-  } catch {
-    return MOCK_PRODUCTS.find((p) => p.id === id) ?? null;
-  }
+  return MOCK_PRODUCTS.find((p) => p.id === id) ?? null;
 }
 
 /** Synchronous lookup — used only for generateStaticParams. */
