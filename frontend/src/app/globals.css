@@ -8435,11 +8435,14 @@ body.chat-open .wa-float {
 .private-nav-item {
   position: relative;
   min-height: 40px;
-  display: flex;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 8px;
   align-items: center;
-  gap: 10px;
+  column-gap: 10px;
+  box-sizing: border-box;
   border-radius: 8px;
-  padding: 0 10px;
+  padding: 0 12px;
   color: var(--ps-nav-text);
   font-size: 0.875rem;
   font-weight: 600;
@@ -8452,9 +8455,11 @@ body.chat-open .wa-float {
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+  line-height: 1.2;
 }
 
 .private-nav-item svg {
+  justify-self: center;
   flex-shrink: 0;
   opacity: 0.7;
   transition: opacity var(--ps-transition), transform 200ms ease;
@@ -8484,8 +8489,8 @@ body.chat-open .wa-float {
 /* active indicator pill */
 .private-nav-item.active::after {
   content: "";
-  position: absolute;
-  right: 10px;
+  grid-column: 3;
+  justify-self: end;
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -8562,7 +8567,7 @@ body.chat-open .wa-float {
   border: none;
   cursor: pointer;
   color: var(--ps-nav-text);
-  justify-content: flex-start;
+  text-align: left;
 }
 
 .private-nav-logout:hover {
