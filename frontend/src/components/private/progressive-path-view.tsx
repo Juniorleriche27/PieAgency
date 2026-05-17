@@ -6,8 +6,11 @@ import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Clock,
+  ExternalLink,
   FileText,
   Lock,
   MessageCircle,
@@ -15,6 +18,7 @@ import {
   Play,
   RotateCcw,
   ShoppingBag,
+  Zap,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -31,53 +35,388 @@ import {
   type ProgressivePath,
   type ProgressiveStep,
   type RecommendationAction,
-  type RecommendedProduct,
   type StepStatus,
 } from "@/lib/progressive-path";
 
-function stepStatusLabel(status: StepStatus): string {
-  switch (status) {
-    case "completed": return "Terminé";
-    case "in_progress": return "En cours";
-    case "needs_review": return "En révision";
-    case "blocked": return "Bloqué";
-    default: return "À démarrer";
-  }
+// ─── Phase tunnel ────────────────────────────────────────────────────────────
+
+type PhaseStatus = "done" | "active" | "todo" | "blocked";
+
+const PHASES: { id: string; label: string; short: string; stepOrders: number[] }[] = [
+  { id: "profile",     label: "Profil",                short: "Profil",        stepOrders: [1, 2] },
+  { id: "diagnostic",  label: "Diagnostic",            short: "Diagnostic",    stepOrders: [3] },
+  { id: "formations",  label: "Choix des formations",  short: "Formations",    stepOrders: [4, 5] },
+  { id: "preparation", label: "Préparation du dossier",short: "Dossier",       stepOrders: [6, 7, 8, 9] },
+  { id: "depot",       label: "Dépôt officiel",        short: "Dépôt",         stepOrders: [10, 11] },
+  { id: "entretien",   label: "Entretien",             short: "Entretien",     stepOrders: [12] },
+  { id: "admission",   label: "Admission & Visa",      short: "Visa",          stepOrders: [13, 14] },
+  { id: "depart",      label: "Départ",                short: "Départ",        stepOrders: [15] },
+];
+
+function phaseStatus(steps: ProgressiveStep[], orders: number[]): PhaseStatus {
+  const phaseSteps = steps.filter((s) => orders.includes(s.order));
+  if (phaseSteps.length === 0) return "todo";
+  if (phaseSteps.every((s) => s.status === "completed")) return "done";
+  if (phaseSteps.some((s) => s.status === "blocked")) return "blocked";
+  if (phaseSteps.some((s) => s.is_current || s.status === "in_progress")) return "active";
+  return "todo";
 }
 
-function StepIcon({ status, isLocked }: { status: StepStatus; isLocked: boolean }) {
-  if (isLocked) return <Lock size={14} className="pp-ti-icon pp-ti-locked" />;
-  switch (status) {
-    case "completed": return <CheckCircle2 size={14} className="pp-ti-icon pp-ti-done" />;
-    case "in_progress": return <Play size={14} className="pp-ti-icon pp-ti-active" />;
-    case "needs_review": return <Clock size={14} className="pp-ti-icon pp-ti-review" />;
-    case "blocked": return <AlertCircle size={14} className="pp-ti-icon pp-ti-blocked" />;
-    default: return <div className="pp-ti-dot" />;
-  }
+function currentPhaseIndex(steps: ProgressiveStep[]): number {
+  return PHASES.findIndex((ph) => phaseStatus(steps, ph.stepOrders) === "active");
 }
 
-function RecommendationCard({
-  action,
+function PhaseTunnel({ steps }: { steps: ProgressiveStep[] }) {
+  const activeIdx = currentPhaseIndex(steps);
+  return (
+    <div className="pp-phases-wrap">
+      <div className="pp-phases">
+        {PHASES.map((phase, idx) => {
+          const status = phaseStatus(steps, phase.stepOrders);
+          return (
+            <div className="pp-phase-slot" key={phase.id}>
+              {idx > 0 && <div className={`pp-phase-line${status === "done" || idx <= activeIdx ? " pp-phase-line-done" : ""}`} />}
+              <div className={`pp-phase-item pp-phase-${status}`}>
+                <div className="pp-phase-dot">
+                  {status === "done" ? <CheckCircle2 size={13} /> : status === "active" ? <Zap size={12} /> : status === "blocked" ? <AlertCircle size={12} /> : <span>{idx + 1}</span>}
+                </div>
+                <span className="pp-phase-label">{phase.short}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="pp-phase-full-label">
+        {activeIdx >= 0 ? (
+          <span>Phase actuelle : <strong>{PHASES[activeIdx]?.label}</strong></span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+// ─── Next step zone ───────────────────────────────────────────────────────────
+
+function whatToDoList(step: ProgressiveStep): string[] {
+  const lines: string[] = [];
+  if (step.target_module) lines.push(`Ouvrir le module "${step.target_module}".`);
+  if (step.short_description) lines.push(step.short_description);
+  lines.push("Effectuez l'action demandée.");
+  lines.push("Revenez ici pour valider l'étape.");
+  return lines;
+}
+
+function NextStepZone({
+  step,
+  actionLoading,
+  onStart,
+  onComplete,
+  onReopen,
+}: {
+  step: ProgressiveStep;
+  actionLoading: boolean;
+  onStart: (id: string) => void;
+  onComplete: (id: string) => void;
+  onReopen: (id: string) => void;
+}) {
+  const todos = whatToDoList(step);
+
+  return (
+    <section className="pp-next-step">
+      <div className="pp-next-step-header">
+        <div>
+          <span className="pp-next-step-kicker">Votre prochaine étape</span>
+          <h2 className="pp-next-step-title">{step.title}</h2>
+          {step.short_description ? (
+            <p className="pp-next-step-objective">
+              <strong>Objectif :</strong> {step.short_description}
+            </p>
+          ) : null}
+        </div>
+        <span className={`pp-step-status-chip pp-chip-${step.status}`}>
+          {stepStatusLabel(step.status)}
+        </span>
+      </div>
+
+      <div className="pp-next-step-todo">
+        <p className="pp-next-step-todo-label">Ce que vous devez faire :</p>
+        <ol>
+          {todos.map((line, i) => <li key={i}>{line}</li>)}
+        </ol>
+      </div>
+
+      <div className="pp-next-step-actions">
+        {step.target_path ? (
+          <Link className="btn btn-primary pp-next-btn" href={step.target_path}>
+            {step.target_module ? `Ouvrir ${step.target_module}` : "Ouvrir le module"}
+            <ExternalLink size={14} />
+          </Link>
+        ) : null}
+        <Link className="btn btn-ghost pp-next-btn" href="/espace-etudiant/assistant">
+          <MessageCircle size={14} /> Poser une question à l&apos;assistant
+        </Link>
+        {step.status === "not_started" && !step.is_locked ? (
+          <button
+            className="btn btn-outline pp-next-btn"
+            disabled={actionLoading}
+            onClick={() => onStart(step.id)}
+            type="button"
+          >
+            <Play size={14} /> Commencer cette étape
+          </button>
+        ) : step.status === "in_progress" ? (
+          <button
+            className="btn btn-success pp-next-btn"
+            disabled={actionLoading}
+            onClick={() => onComplete(step.id)}
+            type="button"
+          >
+            <CheckCircle2 size={14} /> J&apos;ai terminé cette étape
+          </button>
+        ) : step.status === "completed" ? (
+          <button
+            className="btn btn-ghost pp-next-btn"
+            disabled={actionLoading}
+            onClick={() => onReopen(step.id)}
+            type="button"
+          >
+            <RotateCcw size={14} /> Rouvrir cette étape
+          </button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+// ─── Options pour avancer ─────────────────────────────────────────────────────
+
+function OptionCard({
   icon,
+  title,
+  body,
+  href,
+  btnLabel,
+  badge,
+}: {
+  icon: ReactNode;
+  title: string;
+  body: string;
+  href: string;
+  btnLabel: string;
+  badge?: ReactNode;
+}) {
+  return (
+    <div className="pp-option-card">
+      <div className="pp-option-icon">{icon}</div>
+      <div className="pp-option-body">
+        {badge ? <div className="pp-option-badge">{badge}</div> : null}
+        <h3>{title}</h3>
+        <p>{body}</p>
+      </div>
+      <Link className="btn btn-outline pp-option-btn" href={href}>
+        {btnLabel} <ChevronRight size={14} />
+      </Link>
+    </div>
+  );
+}
+
+function OptionsSection({ recommendations }: { recommendations: ProgressivePath["recommendations"] }) {
+  const { free_action, recommended_product, assistant_action } = recommendations;
+  if (!free_action && !recommended_product && !assistant_action) return null;
+
+  return (
+    <section className="pp-options">
+      <h2 className="pp-section-title">Vos options pour avancer</h2>
+      <div className="pp-options-grid">
+        {free_action ? (
+          <OptionCard
+            icon={<BookOpen size={20} />}
+            title="Continuer seul"
+            body="Vous pouvez avancer seul avec les ressources gratuites disponibles pour cette étape."
+            href={free_action.target_path}
+            btnLabel="Continuer avec la ressource"
+          />
+        ) : null}
+        {recommended_product ? (
+          <OptionCard
+            icon={<Package size={20} />}
+            title="Utiliser un outil PieAgency"
+            body="Pour aller plus loin, vous pouvez utiliser un produit digital conçu pour cette étape."
+            href={recommended_product.target_path}
+            btnLabel="Voir le produit recommandé"
+            badge={recommended_product.requires_purchase ? (
+              <span className="pp-rec-paid"><ShoppingBag size={11} /> Payant</span>
+            ) : <span className="pp-rec-free">Inclus</span>}
+          />
+        ) : null}
+        {assistant_action ? (
+          <OptionCard
+            icon={<MessageCircle size={20} />}
+            title="Demander de l'aide"
+            body="Vous pouvez poser une question à l'assistant dossier ou demander une aide PieAgency."
+            href={assistant_action.target_path}
+            btnLabel="Ouvrir l'assistant dossier"
+          />
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+// ─── Modules liés ─────────────────────────────────────────────────────────────
+
+function ModuleCard({
+  icon,
+  title,
+  desc,
+  href,
   label,
 }: {
-  action: RecommendationAction | null;
   icon: ReactNode;
+  title: string;
+  desc: string;
+  href: string;
   label: string;
 }) {
-  if (!action) return null;
   return (
-    <Link className="pp-rec-item" href={action.target_path}>
-      <div className="pp-rec-item-icon">{icon}</div>
-      <div className="pp-rec-item-body">
-        <span className="pp-rec-item-label">{label}</span>
-        <strong>{action.title}</strong>
-        <p>{action.description}</p>
+    <Link className="pp-module-card" href={href}>
+      <div className="pp-module-icon">{icon}</div>
+      <div className="pp-module-body">
+        <strong>{title}</strong>
+        <p>{desc}</p>
       </div>
-      <ChevronRight size={16} className="pp-rec-item-arrow" />
+      <span className="pp-module-cta">{label} <ArrowRight size={13} /></span>
     </Link>
   );
 }
+
+function RelatedModules({
+  step,
+  recommendations,
+}: {
+  step: ProgressiveStep | null;
+  recommendations: ProgressivePath["recommendations"];
+}) {
+  const modules: { icon: ReactNode; title: string; desc: string; href: string; label: string }[] = [];
+
+  if (step?.target_path && step.target_module) {
+    modules.push({
+      icon: <Zap size={18} />,
+      title: step.target_module,
+      desc: "Module principal pour cette étape.",
+      href: step.target_path,
+      label: `Ouvrir ${step.target_module}`,
+    });
+  }
+
+  if (recommendations.free_action) {
+    modules.push({
+      icon: <BookOpen size={18} />,
+      title: recommendations.free_action.title,
+      desc: recommendations.free_action.description,
+      href: recommendations.free_action.target_path,
+      label: "Accéder à la ressource",
+    });
+  }
+
+  if (recommendations.document_action) {
+    modules.push({
+      icon: <FileText size={18} />,
+      title: "Mes documents",
+      desc: recommendations.document_action.description || "Préparez ou vérifiez les pièces liées à cette étape.",
+      href: recommendations.document_action.target_path,
+      label: "Ouvrir Mes documents",
+    });
+  }
+
+  if (recommendations.assistant_action) {
+    modules.push({
+      icon: <MessageCircle size={18} />,
+      title: "Assistant dossier",
+      desc: "Posez vos questions sur cette étape.",
+      href: recommendations.assistant_action.target_path,
+      label: "Ouvrir l'assistant",
+    });
+  }
+
+  if (modules.length === 0) return null;
+
+  return (
+    <section className="pp-modules">
+      <h2 className="pp-section-title">Modules liés à cette étape</h2>
+      <div className="pp-modules-grid">
+        {modules.map((m, i) => <ModuleCard key={i} {...m} />)}
+      </div>
+    </section>
+  );
+}
+
+// ─── Timeline secondaire ──────────────────────────────────────────────────────
+
+function stepStatusLabel(status: StepStatus): string {
+  switch (status) {
+    case "completed":   return "Terminé";
+    case "in_progress": return "En cours";
+    case "needs_review":return "En révision";
+    case "blocked":     return "Bloqué";
+    default:            return "À faire";
+  }
+}
+
+function StepDot({ status, isLocked }: { status: StepStatus; isLocked: boolean }) {
+  if (isLocked) return <Lock size={12} className="pp-ti-icon pp-ti-locked" />;
+  switch (status) {
+    case "completed":    return <CheckCircle2 size={12} className="pp-ti-icon pp-ti-done" />;
+    case "in_progress":  return <Play size={12} className="pp-ti-icon pp-ti-active" />;
+    case "needs_review": return <Clock size={12} className="pp-ti-icon pp-ti-review" />;
+    case "blocked":      return <AlertCircle size={12} className="pp-ti-icon pp-ti-blocked" />;
+    default:             return <div className="pp-ti-dot" />;
+  }
+}
+
+function TimelinePanel({ steps }: { steps: ProgressiveStep[] }) {
+  const [open, setOpen] = useState(false);
+  const done = steps.filter((s) => s.status === "completed").length;
+
+  return (
+    <aside className="pp-timeline-panel">
+      <button
+        className="pp-timeline-toggle"
+        onClick={() => setOpen((v) => !v)}
+        type="button"
+      >
+        <span>Les {steps.length} étapes — {done}/{steps.length} terminées</span>
+        {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+      </button>
+      {open ? (
+        <ol className="pp-timeline">
+          {steps.map((step) => (
+            <li
+              className={`pp-ti-item${step.is_current ? " pp-ti-current" : ""}${step.status === "completed" ? " pp-ti-done-item" : ""}${step.is_locked ? " pp-ti-locked-item" : ""}`}
+              key={step.id}
+            >
+              <div className="pp-ti-marker">
+                <StepDot isLocked={step.is_locked} status={step.status} />
+              </div>
+              <div className="pp-ti-body">
+                <div className="pp-ti-title">
+                  <span>{step.title}</span>
+                  {step.status === "completed" ? (
+                    <span className="pp-ti-badge pp-ti-badge-done">Terminé</span>
+                  ) : step.is_current ? (
+                    <span className="pp-ti-badge pp-ti-badge-current">En cours</span>
+                  ) : null}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+    </aside>
+  );
+}
+
+// ─── Dépôt officiel ───────────────────────────────────────────────────────────
 
 const PLATFORM_LABELS: Record<PlatformType, string> = {
   campus_france: "Campus France",
@@ -253,6 +592,8 @@ function OfficialDepositBlock({
   );
 }
 
+// ─── Main view ────────────────────────────────────────────────────────────────
+
 export function ProgressivePathView() {
   const [data, setData] = useState<ProgressivePath | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -289,82 +630,10 @@ export function ProgressivePathView() {
     }
   }
 
-  function handleStart(stepId: string) {
-    return runAction(() => startStep(stepId));
-  }
-
-  function handleComplete(stepId: string) {
-    return runAction(() => completeStep(stepId));
-  }
-
-  function handleReopen(stepId: string) {
-    return runAction(() => reopenStep(stepId));
-  }
-
-  function handleDeposit(body: OfficialDepositBody) {
-    return runAction(() => declareOfficialDeposit(body));
-  }
-
-  function primaryButton(step: ProgressiveStep) {
-    if (step.is_locked) return null;
-    if (step.status === "not_started") {
-      return (
-        <button
-          className="btn btn-primary pp-step-btn"
-          disabled={actionLoading}
-          onClick={() => void handleStart(step.id)}
-          type="button"
-        >
-          <Play size={15} /> Démarrer
-        </button>
-      );
-    }
-    if (step.status === "in_progress") {
-      return (
-        <button
-          className="btn btn-primary pp-step-btn"
-          disabled={actionLoading}
-          onClick={() => void handleComplete(step.id)}
-          type="button"
-        >
-          <CheckCircle2 size={15} /> Marquer comme fait
-        </button>
-      );
-    }
-    if (step.status === "completed") {
-      return (
-        <button
-          className="btn btn-ghost pp-step-btn"
-          disabled={actionLoading}
-          onClick={() => void handleReopen(step.id)}
-          type="button"
-        >
-          <RotateCcw size={15} /> Rouvrir
-        </button>
-      );
-    }
-    if (step.status === "needs_review") {
-      return (
-        <span className="pp-step-badge pp-badge-review">
-          <Clock size={13} /> En révision
-        </span>
-      );
-    }
-    if (step.status === "blocked") {
-      return (
-        <span className="pp-step-badge pp-badge-blocked">
-          <AlertCircle size={13} /> Étape bloquée
-        </span>
-      );
-    }
-    return null;
-  }
-
-  const showDepositBlock =
-    data &&
-    data.current_step &&
-    (data.current_step.id === "mark-official-filing-done" ||
-      data.current_step.id === "track-after-official-filing");
+  const handleStart    = (id: string) => runAction(() => startStep(id));
+  const handleComplete = (id: string) => runAction(() => completeStep(id));
+  const handleReopen   = (id: string) => runAction(() => reopenStep(id));
+  const handleDeposit  = (body: OfficialDepositBody) => runAction(() => declareOfficialDeposit(body));
 
   if (isLoading) {
     return (
@@ -395,14 +664,19 @@ export function ProgressivePathView() {
     );
   }
 
+  const showDepositBlock =
+    current_step &&
+    (current_step.id === "mark-official-filing-done" ||
+      current_step.id === "track-after-official-filing");
+
   return (
     <div className="pp-page">
-      {/* Hero */}
+      {/* Header */}
       <section className="pp-hero">
         <div className="pp-hero-text">
-          <span className="pp-hero-kicker">Espace candidat</span>
+          <span className="pp-hero-kicker">Mon Copilote</span>
           <h1>Mon parcours guidé</h1>
-          <p>Avancez dans votre procédure étape par étape, avec les bonnes ressources au bon moment.</p>
+          <p>Avancez étape par étape avec les bons modules, les bonnes ressources, et les bonnes actions.</p>
         </div>
         <div className="pp-progress-wrap">
           <div className="pp-progress-label">
@@ -415,133 +689,45 @@ export function ProgressivePathView() {
         </div>
       </section>
 
+      {/* Phase tunnel */}
+      <PhaseTunnel steps={steps} />
+
       {errorMessage ? <div className="portal-warning">{errorMessage}</div> : null}
 
-      <div className="pp-layout">
-        {/* Left column */}
-        <div className="pp-left">
-          {/* Current step */}
-          {current_step ? (
-            <section className="pp-card pp-card-current">
-              <div className="pp-card-head">
-                <span className="pp-card-kicker">Étape actuelle</span>
-                <span className={`pp-step-status-chip pp-chip-${current_step.status}`}>
-                  {stepStatusLabel(current_step.status)}
-                </span>
-              </div>
-              <h2 className="pp-card-title">{current_step.title}</h2>
-              <p className="pp-card-desc">{current_step.short_description}</p>
-              <div className="pp-card-actions">
-                {primaryButton(current_step)}
-                {current_step.target_path ? (
-                  <Link className="btn btn-ghost pp-step-btn" href={current_step.target_path}>
-                    Voir le module <ArrowRight size={14} />
-                  </Link>
-                ) : null}
-              </div>
-            </section>
-          ) : null}
-
-          {/* Recommendations */}
-          {(recommendations.free_action ||
-            recommendations.recommended_product ||
-            recommendations.assistant_action ||
-            recommendations.document_action) ? (
-            <section className="pp-card pp-card-recs">
-              <div className="pp-card-head">
-                <span className="pp-card-kicker">Ressources recommandées</span>
-              </div>
-              <div className="pp-rec-list">
-                <RecommendationCard
-                  action={recommendations.free_action}
-                  icon={<BookOpen size={16} />}
-                  label="Action gratuite"
-                />
-                {recommendations.recommended_product ? (
-                  <Link className="pp-rec-item pp-rec-product" href={recommendations.recommended_product.target_path}>
-                    <div className="pp-rec-item-icon"><Package size={16} /></div>
-                    <div className="pp-rec-item-body">
-                      <span className="pp-rec-item-label">
-                        Produit recommandé
-                        {recommendations.recommended_product.requires_purchase ? (
-                          <span className="pp-rec-paid"><ShoppingBag size={11} /> Payant</span>
-                        ) : null}
-                      </span>
-                      <strong>{recommendations.recommended_product.title}</strong>
-                      <p>{recommendations.recommended_product.description}</p>
-                    </div>
-                    <ChevronRight size={16} className="pp-rec-item-arrow" />
-                  </Link>
-                ) : null}
-                <RecommendationCard
-                  action={recommendations.assistant_action}
-                  icon={<MessageCircle size={16} />}
-                  label="Assistant dossier"
-                />
-                <RecommendationCard
-                  action={recommendations.document_action}
-                  icon={<FileText size={16} />}
-                  label="Document lié"
-                />
-              </div>
-            </section>
-          ) : null}
-
-          {/* Official deposit */}
-          {showDepositBlock ? (
-            <OfficialDepositBlock
-              deposit={official_deposit}
-              loading={actionLoading}
-              onDeclare={handleDeposit}
-            />
-          ) : official_deposit.has_declared ? (
-            <OfficialDepositBlock
-              deposit={official_deposit}
-              loading={actionLoading}
-              onDeclare={handleDeposit}
-            />
-          ) : null}
+      {/* Next step */}
+      {current_step ? (
+        <NextStepZone
+          step={current_step}
+          actionLoading={actionLoading}
+          onStart={handleStart}
+          onComplete={handleComplete}
+          onReopen={handleReopen}
+        />
+      ) : (
+        <div className="pp-next-step pp-next-step-done">
+          <CheckCircle2 size={32} />
+          <h2>Toutes vos étapes sont terminées !</h2>
+          <p>Félicitations pour votre parcours. Continuez à suivre votre dossier.</p>
         </div>
+      )}
 
-        {/* Right column — Timeline */}
-        <aside className="pp-right">
-          <section className="pp-card pp-timeline-card">
-            <div className="pp-card-head">
-              <span className="pp-card-kicker">Les 15 étapes</span>
-            </div>
-            <ol className="pp-timeline">
-              {steps.map((step) => (
-                <li
-                  className={`pp-ti-item${step.is_current ? " pp-ti-current" : ""}${step.status === "completed" ? " pp-ti-done-item" : ""}${step.is_locked ? " pp-ti-locked-item" : ""}`}
-                  key={step.id}
-                >
-                  <div className="pp-ti-marker">
-                    <StepIcon isLocked={step.is_locked} status={step.status} />
-                  </div>
-                  <div className="pp-ti-body">
-                    <div className="pp-ti-title">
-                      <span>{step.title}</span>
-                      {step.status === "completed" ? (
-                        <span className="pp-ti-badge pp-ti-badge-done">Terminé</span>
-                      ) : step.is_current ? (
-                        <span className="pp-ti-badge pp-ti-badge-current">En cours</span>
-                      ) : null}
-                    </div>
-                    {step.is_current && step.short_description ? (
-                      <p className="pp-ti-desc">{step.short_description}</p>
-                    ) : null}
-                    {step.is_current && !step.is_locked ? (
-                      <div className="pp-ti-actions">
-                        {primaryButton(step)}
-                      </div>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </section>
-        </aside>
-      </div>
+      {/* Options */}
+      <OptionsSection recommendations={recommendations} />
+
+      {/* Related modules */}
+      <RelatedModules step={current_step} recommendations={recommendations} />
+
+      {/* Official deposit */}
+      {(showDepositBlock || official_deposit.has_declared) ? (
+        <OfficialDepositBlock
+          deposit={official_deposit}
+          loading={actionLoading}
+          onDeclare={handleDeposit}
+        />
+      ) : null}
+
+      {/* Secondary timeline */}
+      <TimelinePanel steps={steps} />
     </div>
   );
 }
