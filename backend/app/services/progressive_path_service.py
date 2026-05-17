@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 
 from ..schemas import (
+    OfficialDepositItem,
+    OfficialDepositRequest,
     ProgressivePathResponse,
     ProgressivePathStepItem,
     ProgressivePathStepStatus,
@@ -156,7 +158,42 @@ def _fallback_path(candidate_id: str) -> ProgressivePathResponse:
         current_step=steps[0] if steps else None,
         progress_percent=0,
         steps=steps,
+        official_deposit=OfficialDepositItem(),
     )
+
+
+def _official_deposit_from_row(row: dict | None) -> OfficialDepositItem:
+    if not row:
+        return OfficialDepositItem()
+
+    deposit_date = row.get("official_deposit_date")
+    return OfficialDepositItem(
+        has_declared=True,
+        platform_type=row.get("platform_type"),
+        platform_name=row.get("platform_name"),
+        official_deposit_date=str(deposit_date) if deposit_date else None,
+        official_reference=row.get("official_reference"),
+        status=row.get("status"),
+        comment=row.get("comment"),
+    )
+
+
+def _load_official_deposit(client, candidate_id: str) -> OfficialDepositItem:
+    try:
+        response = (
+            client.table("candidate_official_deposits")
+            .select(
+                "platform_type,platform_name,official_deposit_date,"
+                "official_reference,status,comment"
+            )
+            .eq("candidate_user_id", candidate_id)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+        return _official_deposit_from_row(rows[0] if rows else None)
+    except Exception:
+        return OfficialDepositItem()
 
 
 def _normalize_path_status(value: str | None) -> ProgressivePathStepStatus:
@@ -279,6 +316,7 @@ def _load_path_response(
         current_step=current_step,
         progress_percent=progress_percent,
         steps=items,
+        official_deposit=_load_official_deposit(client, candidate_id),
     )
 
 
@@ -418,4 +456,29 @@ def reopen_candidate_progressive_path_step(
 
     _set_step_status(client, candidate_id, step_id, ProgressivePathStepStatus.IN_PROGRESS)
     _set_current_step(client, candidate_id, step_id)
+    return _load_path_response(client, candidate_id)
+
+
+def declare_candidate_official_deposit(
+    candidate_id: str,
+    payload: OfficialDepositRequest,
+    access_token: str | None = None,
+) -> ProgressivePathResponse:
+    client = _client_or_none(access_token)
+    if client is None:
+        return _fallback_path(candidate_id)
+
+    client.table("candidate_official_deposits").upsert(
+        {
+            "candidate_user_id": candidate_id,
+            "platform_type": payload.platform_type.value,
+            "platform_name": payload.platform_name,
+            "official_deposit_date": payload.official_deposit_date,
+            "official_reference": payload.official_reference,
+            "status": payload.status.value,
+            "comment": payload.comment,
+        },
+        on_conflict="candidate_user_id",
+    ).execute()
+
     return _load_path_response(client, candidate_id)

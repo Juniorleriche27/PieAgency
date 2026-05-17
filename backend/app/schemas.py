@@ -610,6 +610,24 @@ class ProgressivePathStepStatus(str, Enum):
     BLOCKED = "blocked"
 
 
+class OfficialDepositPlatformType(str, Enum):
+    CAMPUS_FRANCE = "campus_france"
+    PRIVATE_SCHOOL = "private_school"
+    PARCOURSUP = "parcoursup"
+    BELGIUM = "belgium"
+    VISA = "visa"
+    OTHER = "other"
+
+
+class OfficialDepositStatus(str, Enum):
+    DECLARED = "declared"
+    UNDER_REVIEW = "under_review"
+    ACCEPTED = "accepted"
+    REFUSED = "refused"
+    WAITING = "waiting"
+    OTHER = "other"
+
+
 class DashboardMetric(BaseModel):
     label: str
     value: str
@@ -699,11 +717,45 @@ class ProgressivePathStepItem(BaseModel):
     target_path: str | None = None
 
 
+class OfficialDepositItem(BaseModel):
+    has_declared: bool = False
+    platform_type: OfficialDepositPlatformType | None = None
+    platform_name: str | None = None
+    official_deposit_date: str | None = None
+    official_reference: str | None = None
+    status: OfficialDepositStatus | None = None
+    comment: str | None = None
+
+
+class OfficialDepositRequest(BaseModel):
+    platform_type: OfficialDepositPlatformType
+    platform_name: str | None = Field(default=None, max_length=160)
+    official_deposit_date: str | None = Field(default=None, max_length=20)
+    official_reference: str | None = Field(default=None, max_length=160)
+    status: OfficialDepositStatus = OfficialDepositStatus.DECLARED
+    comment: str | None = Field(default=None, max_length=1000)
+
+    @field_validator(
+        "platform_name",
+        "official_deposit_date",
+        "official_reference",
+        "comment",
+        mode="before",
+    )
+    @classmethod
+    def strip_optional_strings(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = str(value).strip()
+        return cleaned or None
+
+
 class ProgressivePathResponse(BaseModel):
     candidate_id: str
     current_step: ProgressivePathStepItem | None = None
     progress_percent: int = Field(ge=0, le=100)
     steps: list[ProgressivePathStepItem] = Field(default_factory=list)
+    official_deposit: OfficialDepositItem = Field(default_factory=OfficialDepositItem)
 
 
 class PrivateProductItem(BaseModel):

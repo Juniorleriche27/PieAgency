@@ -1503,11 +1503,29 @@ create table if not exists public.candidate_progressive_path_state (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.candidate_official_deposits (
+  id uuid primary key default gen_random_uuid(),
+  candidate_user_id uuid not null unique references auth.users(id) on delete cascade,
+  platform_type text not null
+    check (platform_type in ('campus_france', 'private_school', 'parcoursup', 'belgium', 'visa', 'other')),
+  platform_name text,
+  official_deposit_date date,
+  official_reference text,
+  status text not null default 'declared'
+    check (status in ('declared', 'under_review', 'accepted', 'refused', 'waiting', 'other')),
+  comment text,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
 create index if not exists progressive_path_steps_order_idx
   on public.progressive_path_steps (step_order, is_active);
 
 create index if not exists candidate_progressive_path_steps_user_idx
   on public.candidate_progressive_path_steps (candidate_user_id, status);
+
+create index if not exists candidate_official_deposits_user_idx
+  on public.candidate_official_deposits (candidate_user_id, status);
 
 drop trigger if exists set_progressive_path_steps_updated_at on public.progressive_path_steps;
 create trigger set_progressive_path_steps_updated_at
@@ -1524,9 +1542,15 @@ create trigger set_candidate_progressive_path_state_updated_at
 before update on public.candidate_progressive_path_state
 for each row execute procedure public.touch_updated_at();
 
+drop trigger if exists set_candidate_official_deposits_updated_at on public.candidate_official_deposits;
+create trigger set_candidate_official_deposits_updated_at
+before update on public.candidate_official_deposits
+for each row execute procedure public.touch_updated_at();
+
 alter table public.progressive_path_steps enable row level security;
 alter table public.candidate_progressive_path_steps enable row level security;
 alter table public.candidate_progressive_path_state enable row level security;
+alter table public.candidate_official_deposits enable row level security;
 
 drop policy if exists "progressive_path_steps_read" on public.progressive_path_steps;
 create policy "progressive_path_steps_read"
@@ -1554,6 +1578,14 @@ with check (candidate_user_id = auth.uid() or public.is_admin());
 drop policy if exists "candidate_progressive_state_self_or_admin" on public.candidate_progressive_path_state;
 create policy "candidate_progressive_state_self_or_admin"
 on public.candidate_progressive_path_state
+for all
+to authenticated
+using (candidate_user_id = auth.uid() or public.is_admin())
+with check (candidate_user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "candidate_official_deposits_self_or_admin" on public.candidate_official_deposits;
+create policy "candidate_official_deposits_self_or_admin"
+on public.candidate_official_deposits
 for all
 to authenticated
 using (candidate_user_id = auth.uid() or public.is_admin())
