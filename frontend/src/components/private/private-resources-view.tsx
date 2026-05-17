@@ -10,14 +10,13 @@ import {
   PlayCircle,
   Wrench,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   fetchPrivateResources,
   type PrivateResource,
   type PrivateResourceType,
   RESOURCE_CATEGORIES,
 } from "@/lib/private-resources";
-import { useEffect } from "react";
 
 const typeIcons: Record<PrivateResourceType, React.ComponentType<{ size?: number }>> = {
   guide: BookOpen,

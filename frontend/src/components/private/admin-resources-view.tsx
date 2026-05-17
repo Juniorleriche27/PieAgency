@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, CheckSquare, ExternalLink, FileText, LinkIcon, PlayCircle, Search } from "lucide-react";
+import { BookOpen, CheckSquare, ExternalLink, FileText, Lightbulb, LinkIcon, PlayCircle, Search, Wrench } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   fetchPrivateResources,
@@ -13,6 +13,8 @@ const TYPE_LABELS: Record<PrivateResourceType, string> = {
   template: "Modèle",
   video: "Vidéo",
   checklist: "Checklist",
+  example: "Exemple",
+  exercise: "Exercice",
   link: "Lien",
 };
 
@@ -21,6 +23,8 @@ const TYPE_ICONS: Record<PrivateResourceType, React.ElementType> = {
   template: FileText,
   video: PlayCircle,
   checklist: CheckSquare,
+  example: Lightbulb,
+  exercise: Wrench,
   link: LinkIcon,
 };
 
@@ -171,7 +175,7 @@ export function AdminResourcesView() {
                           {TYPE_LABELS[r.resource_type]}
                         </span>
                       </td>
-                      <td>{r.format_label}</td>
+                      <td>{r.badge_label}</td>
                       <td>
                         <span className={`admin-res-access admin-res-access-${r.access_level}`}>
                           {ACCESS_LABELS[r.access_level]}
