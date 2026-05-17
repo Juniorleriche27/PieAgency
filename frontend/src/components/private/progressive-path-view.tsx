@@ -387,6 +387,14 @@ export function ProgressivePathView() {
 
   const { current_step, progress_percent, steps, official_deposit, recommendations } = data;
 
+  if (!Array.isArray(steps)) {
+    return (
+      <div className="pp-page">
+        <div className="portal-warning">Parcours en cours de préparation par votre conseiller.</div>
+      </div>
+    );
+  }
+
   return (
     <div className="pp-page">
       {/* Hero */}
