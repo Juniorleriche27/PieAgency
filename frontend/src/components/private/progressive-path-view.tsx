@@ -674,8 +674,15 @@ export function ProgressivePathView() {
     <div className="pp-page">
       {/* Header compact */}
       <div className="pp-compact-header">
-        <span className="pp-hero-kicker">Mon Copilote</span>
-        <h1 className="pp-compact-title">Mon parcours guidé</h1>
+        <div className="pp-compact-left">
+          <h1 className="pp-compact-title">Mon parcours guidé</h1>
+        </div>
+        <div className="pp-compact-progress">
+          <span>{progress_percent}%</span>
+          <div className="pp-progress-bar">
+            <div className="pp-progress-fill" style={{ width: `${progress_percent}%` }} />
+          </div>
+        </div>
       </div>
 
       {/* Phase tunnel */}

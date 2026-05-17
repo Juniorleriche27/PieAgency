@@ -259,7 +259,7 @@ export function PrivatePortalShell({
       ) : null}
 
       <div className={`private-main${isScrolled ? " scrolled" : ""}`} ref={mainRef}>
-        <header className={`private-topbar${isScrolled ? " scrolled" : ""}`}>
+        <header className={`private-topbar${isScrolled ? " scrolled" : ""}${pathname === "/espace-etudiant/parcours-guide" ? " private-topbar-copilot" : ""}`}>
           <button
             aria-label="Ouvrir le menu"
             className="private-icon-button mobile-only"
@@ -275,12 +275,12 @@ export function PrivatePortalShell({
                 ? "Pilotage PieAgency + PieHUB"
                 : session.user.full_name || session.user.email}
             </strong>
-            {pathname === "/espace-etudiant/parcours-guide" ? (
-              <em className="private-topbar-tagline">
-                Avancez étape par étape — bons modules, bonnes ressources, bonnes actions.
-              </em>
-            ) : null}
           </div>
+          {pathname === "/espace-etudiant/parcours-guide" ? (
+            <p className="private-topbar-copilot-phrase">
+              Avancez étape par étape — bons modules, bonnes ressources, bonnes actions.
+            </p>
+          ) : null}
           <div className="private-topbar-actions">
             {requiredRole === "admin" && pathname === "/admin" ? (
               <Link

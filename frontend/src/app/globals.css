@@ -8679,36 +8679,61 @@ body.chat-open .wa-float {
   opacity: 0.85;
 }
 
-.private-topbar-tagline {
-  display: block;
-  font-style: normal;
-  font-size: 11px;
-  color: var(--gray-400);
-  font-weight: 400;
-  margin-top: 2px;
-  letter-spacing: 0.01em;
+/* Topbar centered copilot phrase */
+.private-topbar-copilot { position: relative; }
+.private-topbar-copilot-phrase {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--gray-500);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 420px;
+  pointer-events: none;
+  letter-spacing: 0.01em;
 }
+[data-theme="dark"] .private-topbar-copilot-phrase { color: #6070a0; }
 
+/* Compact page header */
 .pp-compact-header {
-  padding: 10px 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0 8px;
 }
+.pp-compact-left { min-width: 0; }
 .pp-compact-title {
   font-size: 20px;
   font-weight: 700;
   color: var(--gray-900);
-  margin: 2px 0 0;
+  margin: 0;
   line-height: 1.2;
 }
+.pp-compact-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.pp-compact-progress span {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gray-700);
+  white-space: nowrap;
+}
+.pp-compact-progress .pp-progress-bar {
+  width: 120px;
+}
 [data-theme="dark"] .pp-compact-title { color: #e8eaf0; }
-[data-theme="dark"] .private-topbar-tagline { color: #6070a0; }
+[data-theme="dark"] .pp-compact-progress span { color: #9aa0c0; }
 
 @media (max-width: 640px) {
-  .private-topbar-tagline { display: none; }
+  .private-topbar-copilot-phrase { display: none; }
   .pp-compact-title { font-size: 17px; }
+  .pp-compact-progress .pp-progress-bar { width: 70px; }
 }
 
 /* ─── Content ───────────────────────────────────────────────────── */
