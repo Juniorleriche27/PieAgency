@@ -628,6 +628,11 @@ class AddDocumentResponse(BaseModel):
     note: str
 
 
+class AdminDocumentUpdateRequest(BaseModel):
+    status: Literal["approved", "review", "missing"]
+    note: str = ""
+
+
 class StudentNoteItem(BaseModel):
     title: str
     content: str

@@ -5,6 +5,8 @@ from fastapi.responses import Response
 
 from ..dependencies.auth import get_current_access_token, get_current_user, require_admin_user
 from ..schemas import (
+    AddDocumentRequest,
+    AdminDocumentUpdateRequest,
     AdminCommentModerationResponse,
     AdminCandidatesResponse,
     AdminCommunityPostItem,
@@ -15,6 +17,8 @@ from ..schemas import (
     AdminPageUpdateRequest,
     AuthUserProfile,
     StudentDashboardResponse,
+    StudentDocumentItem,
+    StudentDocumentListResponse,
 )
 from ..services.admin_service import (
     AdminDataUnavailableError,
@@ -28,6 +32,12 @@ from ..services.admin_service import (
 )
 from ..services.dashboard_service import get_admin_dashboard, get_student_dashboard
 from ..services.dashboard_service import list_admin_candidates
+from ..services.private_catalog_service import (
+    add_candidate_document_admin,
+    delete_candidate_document_admin,
+    list_candidate_documents_admin,
+    update_candidate_document_admin,
+)
 
 router = APIRouter()
 
@@ -54,6 +64,76 @@ def admin_candidates(
     access_token: str = Depends(get_current_access_token),
 ) -> AdminCandidatesResponse:
     return list_admin_candidates(access_token)
+
+
+@router.get(
+    "/admin/candidates/{user_id}/documents",
+    response_model=StudentDocumentListResponse,
+)
+def admin_candidate_documents(
+    user_id: str,
+    current_user: AuthUserProfile = Depends(require_admin_user),
+    access_token: str = Depends(get_current_access_token),
+) -> StudentDocumentListResponse:
+    return list_candidate_documents_admin(user_id, access_token)
+
+
+@router.post(
+    "/admin/candidates/{user_id}/documents",
+    response_model=StudentDocumentItem,
+)
+def admin_add_candidate_document(
+    user_id: str,
+    payload: AddDocumentRequest,
+    current_user: AuthUserProfile = Depends(require_admin_user),
+    access_token: str = Depends(get_current_access_token),
+) -> StudentDocumentItem:
+    try:
+        return add_candidate_document_admin(user_id, payload.name, access_token)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.patch(
+    "/admin/candidates/{user_id}/documents/{doc_id}",
+    response_model=StudentDocumentItem,
+)
+def admin_update_candidate_document(
+    user_id: str,
+    doc_id: str,
+    payload: AdminDocumentUpdateRequest,
+    current_user: AuthUserProfile = Depends(require_admin_user),
+    access_token: str = Depends(get_current_access_token),
+) -> StudentDocumentItem:
+    try:
+        return update_candidate_document_admin(
+            user_id,
+            doc_id,
+            payload.status,
+            payload.note,
+            access_token,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.delete("/admin/candidates/{user_id}/documents/{doc_id}")
+def admin_delete_candidate_document(
+    user_id: str,
+    doc_id: str,
+    current_user: AuthUserProfile = Depends(require_admin_user),
+    access_token: str = Depends(get_current_access_token),
+) -> dict[str, bool]:
+    try:
+        return {
+            "ok": delete_candidate_document_admin(user_id, doc_id, access_token)
+        }
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/admin/pages", response_model=list[AdminPageItem])

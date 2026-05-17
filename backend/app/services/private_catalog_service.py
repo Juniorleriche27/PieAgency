@@ -372,6 +372,19 @@ def list_student_documents(user_id: str, access_token: str | None = None) -> Stu
     return StudentDocumentListResponse(documents=documents)
 
 
+def _get_latest_student_case_id(client, user_id: str) -> str | None:
+    case_response = (
+        client.table("student_cases")
+        .select("id")
+        .eq("student_user_id", user_id)
+        .order("updated_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    case_rows = case_response.data or []
+    return str(case_rows[0]["id"]) if case_rows else None
+
+
 def _create_student_case(client, user_id: str) -> str:
     student_response = (
         client.table("students")
@@ -411,16 +424,7 @@ def add_student_document(
         return StudentDocumentItem(name=cleaned_name, status="missing", note="")
 
     try:
-        case_response = (
-            client.table("student_cases")
-            .select("id")
-            .eq("student_user_id", user_id)
-            .order("updated_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-        case_rows = case_response.data or []
-        case_id = str(case_rows[0]["id"]) if case_rows else _create_student_case(client, user_id)
+        case_id = _get_latest_student_case_id(client, user_id) or _create_student_case(client, user_id)
 
         document_response = (
             client.table("case_documents")
@@ -445,6 +449,121 @@ def add_student_document(
         )
     except Exception:
         return StudentDocumentItem(name=cleaned_name, status="missing", note="")
+
+
+def _get_candidate_document(
+    client,
+    user_id: str,
+    document_id: str,
+) -> StudentDocumentItem:
+    case_response = (
+        client.table("student_cases")
+        .select("id")
+        .eq("student_user_id", user_id)
+        .execute()
+    )
+    case_ids = [str(item.get("id") or "") for item in (case_response.data or [])]
+    case_ids = [case_id for case_id in case_ids if case_id]
+    if not case_ids:
+        raise LookupError("Document introuvable.")
+
+    document_response = (
+        client.table("case_documents")
+        .select("id,name,status,note")
+        .eq("id", document_id)
+        .in_("case_id", case_ids)
+        .limit(1)
+        .execute()
+    )
+    document_rows = document_response.data or []
+    if not document_rows:
+        raise LookupError("Document introuvable.")
+
+    item = document_rows[0]
+    return StudentDocumentItem(
+        id=str(item.get("id") or ""),
+        name=str(item.get("name", "Document")),
+        status=_normalize_document_status(item.get("status")),
+        note=str(item.get("note") or ""),
+    )
+
+
+def list_candidate_documents_admin(
+    user_id: str,
+    access_token: str | None = None,
+) -> StudentDocumentListResponse:
+    return list_student_documents(user_id, access_token)
+
+
+def add_candidate_document_admin(
+    user_id: str,
+    name: str,
+    access_token: str | None = None,
+) -> StudentDocumentItem:
+    cleaned_name = name.strip()
+    client = _client_or_none(access_token)
+    if client is None:
+        raise RuntimeError("Supabase indisponible.")
+
+    case_id = _get_latest_student_case_id(client, user_id) or _create_student_case(client, user_id)
+    document_response = (
+        client.table("case_documents")
+        .insert(
+            {
+                "case_id": case_id,
+                "name": cleaned_name,
+                "status": "missing",
+                "note": "",
+            }
+        )
+        .execute()
+    )
+    document_rows = document_response.data or []
+    if not document_rows:
+        raise RuntimeError("Document non cree.")
+
+    item = document_rows[0]
+    return StudentDocumentItem(
+        id=str(item.get("id") or ""),
+        name=str(item.get("name") or cleaned_name),
+        status=_normalize_document_status(item.get("status")),
+        note=str(item.get("note") or ""),
+    )
+
+
+def update_candidate_document_admin(
+    user_id: str,
+    document_id: str,
+    status: str,
+    note: str,
+    access_token: str | None = None,
+) -> StudentDocumentItem:
+    client = _client_or_none(access_token)
+    if client is None:
+        raise RuntimeError("Supabase indisponible.")
+
+    _get_candidate_document(client, user_id, document_id)
+    (
+        client.table("case_documents")
+        .update({"status": status, "note": note})
+        .eq("id", document_id)
+        .execute()
+    )
+    return _get_candidate_document(client, user_id, document_id)
+
+
+def delete_candidate_document_admin(
+    user_id: str,
+    document_id: str,
+    access_token: str | None = None,
+) -> bool:
+    client = _client_or_none(access_token)
+    if client is None:
+        raise RuntimeError("Supabase indisponible.")
+
+    _get_candidate_document(client, user_id, document_id)
+    client.table("case_documents").delete().eq("id", document_id).execute()
+    return True
 
 
 def _document_belongs_to_user(client, user_id: str, document_id: str) -> bool:
