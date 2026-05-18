@@ -1,5 +1,6 @@
 "use client";
 
+import { CopilotBanner } from "@/components/private/copilot-banner";
 import {
   BookOpen,
   CheckSquare,
@@ -63,6 +64,7 @@ export function PrivateResourcesView() {
 
   return (
     <div className="res-page">
+      <CopilotBanner />
       <div className="res-page-header">
         <h1>Mes ressources</h1>
         <p>

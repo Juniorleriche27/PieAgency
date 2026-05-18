@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
+import { CopilotBanner } from "@/components/private/copilot-banner";
 import { useEffect, useState } from "react";
 import {
   PRODUCT_CATEGORIES,
@@ -48,6 +49,7 @@ export function ProductsCatalogue({ products }: Props) {
 
   return (
     <div>
+      <CopilotBanner />
       <div className="prod-page-head">
         <h1>Produits digitaux</h1>
         <p>

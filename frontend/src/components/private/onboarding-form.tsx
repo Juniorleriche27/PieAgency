@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import { CopilotBanner } from "@/components/private/copilot-banner";
 import { ONBOARDING_STEPS, submitOnboarding, type OnboardingData } from "@/lib/private-onboarding";
 
 export function OnboardingForm() {
@@ -54,6 +55,7 @@ export function OnboardingForm() {
 
   return (
     <div className="ob-wrap">
+      <CopilotBanner />
       {/* Header */}
       <div className="ob-head">
         <h1>Embarquement</h1>

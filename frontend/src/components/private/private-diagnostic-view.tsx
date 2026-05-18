@@ -1,156 +1,170 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, CheckCircle2, Target, Zap } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardList, ShieldCheck, Sparkles, Target } from "lucide-react";
 import { useEffect, useState } from "react";
-import {
-  getPrivateDiagnostic,
-  type PrivateDiagnosticResult,
-} from "@/lib/private-diagnostic";
-import { getProduct, type Product } from "@/lib/private-products";
+import { CopilotBanner } from "@/components/private/copilot-banner";
+
+// ─── Static data (no backend change needed) ────────────────────────────────
+
+type ReadinessLevel = "Faible" | "En cours" | "Bon" | "Prêt à vérifier";
+
+type DiagnosticData = {
+  readiness: ReadinessLevel;
+  readinessPercent: number;
+  strengths: string[];
+  watchpoints: string[];
+  priorities: string[];
+};
+
+const STATIC_DIAGNOSTIC: DiagnosticData = {
+  readiness: "En cours",
+  readinessPercent: 42,
+  strengths: [
+    "Parcours académique renseigné",
+    "Objectif d'études identifié",
+    "Ressources consultables disponibles",
+    "Étape actuelle connue dans votre parcours",
+  ],
+  watchpoints: [
+    "Projet d'études à clarifier",
+    "Projet professionnel incomplet",
+    "Documents non encore vérifiés",
+    "Choix de formations à confirmer",
+    "Préparation entretien non commencée",
+  ],
+  priorities: [
+    "Clarifier votre projet d'études",
+    "Définir le métier ou secteur visé",
+    "Préparer vos lettres de motivation",
+    "Vérifier vos documents avant le dépôt officiel",
+  ],
+};
+
+const READINESS_COLOR: Record<ReadinessLevel, string> = {
+  "Faible":          "#ef4444",
+  "En cours":        "#f59e0b",
+  "Bon":             "#3b82f6",
+  "Prêt à vérifier": "#10b981",
+};
+
+// ─── View ─────────────────────────────────────────────────────────────────────
 
 export function PrivateDiagnosticView() {
-  const [diagnostic, setDiagnostic] = useState<PrivateDiagnosticResult | null>(null);
-  const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
-  useEffect(() => {
-    let active = true;
-
-    async function loadDiagnostic() {
-      const nextDiagnostic = await getPrivateDiagnostic();
-      const nextProducts = (
-        await Promise.all(
-          nextDiagnostic.recommendedProducts.map((productId) => getProduct(productId)),
-        )
-      ).filter((product): product is Product => Boolean(product));
-
-      if (!active) {
-        return;
-      }
-
-      setDiagnostic(nextDiagnostic);
-      setRecommendedProducts(nextProducts);
-    }
-
-    void loadDiagnostic();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  if (!diagnostic) {
-    return (
-      <div className="private-diagnostic-page">
-        <section className="private-diagnostic-hero">
-          <div className="private-diagnostic-icon">
-            <CheckCircle2 size={34} />
-          </div>
-          <div>
-            <span>Diagnostic candidat</span>
-            <h1>Chargement du parcours</h1>
-            <p>Nous recuperons vos donnees pour preparer une recommandation.</p>
-          </div>
-        </section>
-      </div>
-    );
-  }
+  const d = STATIC_DIAGNOSTIC;
+  const color = READINESS_COLOR[d.readiness];
 
   return (
-    <div className="private-diagnostic-page">
-      <section className="private-diagnostic-hero">
-        <div className="private-diagnostic-icon">
-          <CheckCircle2 size={34} />
+    <div className="diag-page">
+      <CopilotBanner />
+
+      {/* Header */}
+      <header className="diag-header">
+        <div className="diag-header-icon">
+          <ClipboardList size={28} />
         </div>
         <div>
-          <span>Diagnostic candidat</span>
-          <h1>Votre parcours recommande</h1>
-          <p>
-            A partir de votre profil, voici les points a traiter en priorite pour
-            avancer avec plus de methode.
+          <h1 className="diag-title">Diagnostic de votre dossier</h1>
+          <p className="diag-subtitle">
+            Identifiez vos forces, vos points de vigilance et les prochaines actions
+            utiles pour avancer dans votre procédure.
           </p>
         </div>
+      </header>
+
+      {/* Niveau de préparation */}
+      <section className="diag-card diag-readiness">
+        <div className="diag-card-head">
+          <Target size={18} />
+          <h2>Niveau de préparation</h2>
+        </div>
+        <div className="diag-readiness-label" style={{ color }}>
+          {d.readiness}
+        </div>
+        <div className="diag-bar-track">
+          <div
+            className="diag-bar-fill"
+            style={{
+              width: mounted ? `${d.readinessPercent}%` : "0%",
+              background: color,
+            }}
+          />
+        </div>
+        <p className="diag-readiness-hint">
+          Votre dossier est en cours de construction. Suivez les priorités ci-dessous pour progresser.
+        </p>
       </section>
 
-      <div className="private-diagnostic-grid">
-        <article className="private-diagnostic-card">
-          <div className="private-diagnostic-card-title">
-            <Target size={20} />
-            <h2>Priorite actuelle</h2>
+      <div className="diag-grid">
+        {/* Forces */}
+        <section className="diag-card">
+          <div className="diag-card-head diag-card-head--green">
+            <ShieldCheck size={18} />
+            <h2>Forces du dossier</h2>
           </div>
-          <strong>{diagnostic.currentPriority}</strong>
-          <p>Concentrez-vous sur cette etape pour progresser efficacement.</p>
-        </article>
+          <ul className="diag-list diag-list--strengths">
+            {d.strengths.map((s) => (
+              <li key={s}>
+                <CheckCircle2 size={15} />
+                {s}
+              </li>
+            ))}
+          </ul>
+        </section>
 
-        <article className="private-diagnostic-card risk">
-          <div className="private-diagnostic-card-title">
-            <AlertTriangle size={20} />
-            <h2>Risque principal</h2>
+        {/* Points de vigilance */}
+        <section className="diag-card">
+          <div className="diag-card-head diag-card-head--amber">
+            <AlertTriangle size={18} />
+            <h2>Points de vigilance</h2>
           </div>
-          <strong>{diagnostic.mainRisk}</strong>
-          <p>Ce point doit etre corrige avant de multiplier les candidatures.</p>
-        </article>
+          <ul className="diag-list diag-list--watchpoints">
+            {d.watchpoints.map((w) => (
+              <li key={w}>
+                <AlertTriangle size={14} />
+                {w}
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
 
-      <section className="private-diagnostic-next">
-        <div>
-          <div className="private-diagnostic-card-title">
-            <Zap size={20} />
-            <h2>Prochaine action conseillee</h2>
-          </div>
-          <p>{diagnostic.nextAction}</p>
+      {/* Priorités */}
+      <section className="diag-card diag-priorities">
+        <div className="diag-card-head">
+          <Sparkles size={18} />
+          <h2>Priorités recommandées</h2>
         </div>
-        <Link className="btn btn-green" href="/espace-etudiant/ressources">
-          Acceder aux ressources
-          <ArrowRight size={17} />
-        </Link>
-      </section>
-
-      <section className="private-diagnostic-section">
-        <div className="private-diagnostic-section-head">
-          <span>Recommandations</span>
-          <h2>Produits utiles pour vous</h2>
-        </div>
-
-        <div className="private-diagnostic-products">
-          {recommendedProducts.map((product) => (
-            <Link
-              className="private-diagnostic-product"
-              href={`/espace-etudiant/produits/${product.id}`}
-              key={product.id}
-            >
-              <div>
-                <span>{product.category}</span>
-                <h3>{product.title}</h3>
-                <p>{product.description}</p>
-              </div>
-              <strong>{product.price} EUR</strong>
-            </Link>
+        <ol className="diag-priorities-list">
+          {d.priorities.map((p, i) => (
+            <li key={p}>
+              <span className="diag-priority-num">{i + 1}</span>
+              <span>{p}</span>
+            </li>
           ))}
-        </div>
+        </ol>
+        <p className="diag-disclaimer">
+          Ce diagnostic aide à préparer et organiser votre dossier. Il ne constitue pas une décision officielle.
+        </p>
       </section>
 
-      <section className="private-diagnostic-section">
-        <div className="private-diagnostic-section-head">
-          <span>Checklist adaptee</span>
-          <h2>Ordre de travail recommande</h2>
-        </div>
-
-        <div className="private-diagnostic-checklist">
-          {diagnostic.adaptedChecklist.map((item, index) => (
-            <div className="private-diagnostic-check" key={item}>
-              <span>{index + 1}</span>
-              <p>{item}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="private-diagnostic-actions">
-        <Link className="btn btn-primary" href="/espace-etudiant">
-          Voir mon tableau de bord
+      {/* Actions */}
+      <section className="diag-actions">
+        <Link className="btn btn-primary" href="/espace-etudiant/parcours-guide">
+          Continuer dans Mon parcours guidé
+          <ArrowRight size={16} />
         </Link>
-        <Link className="btn btn-outline" href="/espace-etudiant/assistant">
-          Poser une question a l&apos;assistant
+        <Link className="btn btn-outline" href="/espace-etudiant/assistant?from=parcours-guide&step=open-assistant">
+          Poser une question à l&apos;assistant dossier
+        </Link>
+        <Link className="btn btn-outline" href="/espace-etudiant/ressources?from=parcours-guide&step=visit-resources">
+          Voir les ressources recommandées
+        </Link>
+        <Link className="btn btn-outline" href="/espace-etudiant/produits?from=parcours-guide&step=visit-products">
+          Voir les produits utiles
         </Link>
       </section>
     </div>

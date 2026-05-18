@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CopilotBanner } from "@/components/private/copilot-banner";
 import { CheckCircle2, Minus, Star } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -98,6 +99,7 @@ export function PrivateSubscriptionView() {
 
   return (
     <div className="sub-page">
+      <CopilotBanner />
       <div className="sub-page-head">
         <h1>Choisissez votre abonnement</h1>
         <p>Accédez aux outils et ressources adaptés à votre parcours d&apos;études.</p>

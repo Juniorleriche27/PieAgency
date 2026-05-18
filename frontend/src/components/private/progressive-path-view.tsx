@@ -111,6 +111,11 @@ function fallbackTodoList(step: ProgressiveStep): string[] {
   return lines;
 }
 
+function appendCopilotParams(href: string, step: string): string {
+  const sep = href.includes("?") ? "&" : "?";
+  return `${href}${sep}from=parcours-guide&step=${step}`;
+}
+
 function NextStepZone({
   step,
   guidance,
@@ -134,8 +139,8 @@ function NextStepZone({
     : fallbackTodoList(step);
 
   const assistantHref = guidance?.current_step_id
-    ? `/espace-etudiant/assistant?context=${guidance.current_step_id}`
-    : "/espace-etudiant/assistant";
+    ? `/espace-etudiant/assistant?context=${guidance.current_step_id}&from=parcours-guide&step=open-assistant`
+    : "/espace-etudiant/assistant?from=parcours-guide&step=open-assistant";
 
   return (
     <section className="pp-next-step">
@@ -250,20 +255,20 @@ function OptionsSection({
   // Guidance is the primary source; fallback to recommendations if guidance absent
   const freeTitle  = guidance?.free_option?.title       ?? "Continuer seul";
   const freeBody   = guidance?.free_option?.description ?? "Vous pouvez avancer seul avec les ressources gratuites disponibles pour cette étape.";
-  const freeHref   = guidance?.free_option?.target_path ?? recommendations.free_action?.target_path ?? "/espace-etudiant/ressources";
+  const freeHref   = appendCopilotParams(guidance?.free_option?.target_path ?? recommendations.free_action?.target_path ?? "/espace-etudiant/ressources", "visit-resources");
 
   const hasFreeSrc = guidance?.free_option ?? recommendations.free_action;
 
   const paidTitle  = guidance?.paid_option?.title       ?? "Utiliser un outil PieAgency";
   const paidBody   = guidance?.paid_option?.description ?? "Pour aller plus loin, utilisez un produit digital conçu pour cette étape.";
-  const paidHref   = guidance?.paid_option?.target_path ?? recommendations.recommended_product?.target_path ?? "/espace-etudiant/produits";
+  const paidHref   = appendCopilotParams(guidance?.paid_option?.target_path ?? recommendations.recommended_product?.target_path ?? "/espace-etudiant/produits", "visit-products");
 
   const hasPaidSrc = guidance?.paid_option ?? recommendations.recommended_product;
 
   const assistantStepId = guidance?.current_step_id;
   const assistantHref   = assistantStepId
-    ? `/espace-etudiant/assistant?context=${assistantStepId}`
-    : (guidance?.assistant_suggestion?.target_path ?? recommendations.assistant_action?.target_path ?? "/espace-etudiant/assistant");
+    ? `/espace-etudiant/assistant?context=${assistantStepId}&from=parcours-guide&step=open-assistant`
+    : appendCopilotParams(guidance?.assistant_suggestion?.target_path ?? recommendations.assistant_action?.target_path ?? "/espace-etudiant/assistant", "open-assistant");
   const assistantBody   = guidance?.assistant_suggestion?.message
     ?? "Posez vos questions sur cette étape à l'assistant dossier.";
 

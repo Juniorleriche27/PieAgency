@@ -3,6 +3,7 @@
 import { BookOpen, ExternalLink, Info, MessageCircle, Send, Sparkles } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { CopilotBanner } from "@/components/private/copilot-banner";
 import {
   sendCandidateAssistantMessage,
   type CandidateAssistantResource,
@@ -190,6 +191,7 @@ function AssistantViewInner() {
 
   return (
     <div className="pas-page">
+      <CopilotBanner />
       <div className="pas-header">
         <MessageCircle size={28} className="pas-header-icon" />
         <div>

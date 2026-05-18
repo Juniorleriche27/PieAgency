@@ -1,5 +1,6 @@
 "use client";
 
+import { CopilotBanner } from "@/components/private/copilot-banner";
 import {
   AlertCircle,
   CheckCircle2,
@@ -243,6 +244,7 @@ export function DocumentsView({ documents: initial }: Props) {
 
   return (
     <div className="doc-page">
+      <CopilotBanner />
       <div className="doc-page-head">
         <h1>Mes documents</h1>
         <p>Suivez l&apos;état de vos documents et préparez votre dossier complet.</p>
