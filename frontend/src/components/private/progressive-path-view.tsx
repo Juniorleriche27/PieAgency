@@ -648,6 +648,48 @@ function OfficialDepositBlock({
   );
 }
 
+// ─── Loading screen ───────────────────────────────────────────────────────────
+
+const LOADING_MESSAGES = [
+  "Analyse de votre profil en cours…",
+  "Chargement de vos étapes personnalisées…",
+  "Vérification de votre progression…",
+  "Préparation de vos recommandations…",
+  "Synchronisation avec votre conseiller…",
+];
+
+function ProgressivePathLoader() {
+  const [msgIndex, setMsgIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const cycle = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setMsgIndex((i) => (i + 1) % LOADING_MESSAGES.length);
+        setVisible(true);
+      }, 300);
+    }, 2200);
+    return () => clearInterval(cycle);
+  }, []);
+
+  return (
+    <div className="pp-loader-shell">
+      <div className="pp-loader-card">
+        <div className="pp-loader-spinner">
+          <span />
+          <span />
+          <span />
+        </div>
+        <p className={`pp-loader-msg${visible ? " pp-loader-msg--in" : " pp-loader-msg--out"}`}>
+          {LOADING_MESSAGES[msgIndex]}
+        </p>
+        <p className="pp-loader-sub">Cela prend généralement moins de 5 secondes.</p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main view ────────────────────────────────────────────────────────────────
 
 export function ProgressivePathView() {
@@ -696,14 +738,7 @@ export function ProgressivePathView() {
   const handleDeposit  = (body: OfficialDepositBody) => runAction(() => declareOfficialDeposit(body));
 
   if (isLoading) {
-    return (
-      <div className="pp-page">
-        <div className="pp-skeleton-hero" />
-        <div className="pp-skeleton-grid">
-          {Array.from({ length: 3 }).map((_, i) => <div className="pp-skeleton-card" key={i} />)}
-        </div>
-      </div>
-    );
+    return <ProgressivePathLoader />;
   }
 
   if (errorMessage || !data) {
