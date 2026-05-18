@@ -13615,7 +13615,7 @@ body.chat-open .wa-float {
 }
 .header-theme-toggle:hover { background: var(--gray-100); }
 
-html[data-theme="dark"] {
+html[data-theme="dark"]:not(:has(.private-app-shell)) {
   --white: #0d1520;
   --gray-50: #131d2e;
   --gray-100: #1c2840;
@@ -13629,166 +13629,166 @@ html[data-theme="dark"] {
   --shadow-lg: 0 16px 60px rgba(0,0,0,0.6);
 }
 
-html[data-theme="dark"] body {
+html[data-theme="dark"]:not(:has(.private-app-shell)) body {
   background: #0d1520;
   color: #e0e8f5;
 }
 
-html[data-theme="dark"] p {
+html[data-theme="dark"]:not(:has(.private-app-shell)) p {
   color: #8a9ab8;
 }
 
-html[data-theme="dark"] header {
+html[data-theme="dark"]:not(:has(.private-app-shell)) header {
   background: rgba(13, 21, 32, 0.97);
   border-bottom-color: rgba(255,255,255,0.07);
 }
 
-html[data-theme="dark"] .logo,
-html[data-theme="dark"] .logo-wordmark,
-html[data-theme="dark"] .footer-wordmark {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .logo,
+html[data-theme="dark"]:not(:has(.private-app-shell)) .logo-wordmark,
+html[data-theme="dark"]:not(:has(.private-app-shell)) .footer-wordmark {
   color: #e0e8f5;
 }
 
-html[data-theme="dark"] .nav-link {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .nav-link {
   color: #c8d8f0;
 }
-html[data-theme="dark"] .nav-link:hover,
-html[data-theme="dark"] .nav-link.active {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .nav-link:hover,
+html[data-theme="dark"]:not(:has(.private-app-shell)) .nav-link.active {
   color: #fff;
   background: rgba(255,255,255,0.08);
 }
 
-html[data-theme="dark"] .nav-dropdown {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .nav-dropdown {
   background: #1a2840;
   border-color: rgba(255,255,255,0.08);
   box-shadow: 0 24px 56px rgba(0,0,0,0.5);
 }
 
-html[data-theme="dark"] .nav-dropdown-group-label {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .nav-dropdown-group-label {
   color: #7080a0;
 }
 
-html[data-theme="dark"] .nav-dropdown-item {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .nav-dropdown-item {
   color: #c8d8f0;
 }
-html[data-theme="dark"] .nav-dropdown-item:hover {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .nav-dropdown-item:hover {
   background: rgba(255,255,255,0.07);
   color: #fff;
 }
 
-html[data-theme="dark"] .nav-dropdown-item-sub {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .nav-dropdown-item-sub {
   color: #7080a0;
 }
 
-html[data-theme="dark"] .logo-context-chip {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .logo-context-chip {
   background: rgba(255,255,255,0.1);
   color: #c8d8f0;
 }
 
-html[data-theme="dark"] .header-user-icon {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .header-user-icon {
   color: #c8d8f0;
   border-color: rgba(255,255,255,0.15);
 }
-html[data-theme="dark"] .header-user-icon:hover {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .header-user-icon:hover {
   background: rgba(255,255,255,0.08);
 }
 
-html[data-theme="dark"] .header-user-dropdown,
-html[data-theme="dark"] .header-account-menu {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .header-user-dropdown,
+html[data-theme="dark"]:not(:has(.private-app-shell)) .header-account-menu {
   background: #1a2840;
   border-color: rgba(255,255,255,0.08);
   box-shadow: 0 16px 40px rgba(0,0,0,0.5);
 }
 
-html[data-theme="dark"] .header-user-item,
-html[data-theme="dark"] .header-account-link {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .header-user-item,
+html[data-theme="dark"]:not(:has(.private-app-shell)) .header-account-link {
   color: #c8d8f0;
 }
-html[data-theme="dark"] .header-user-item:hover,
-html[data-theme="dark"] .header-account-link:hover {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .header-user-item:hover,
+html[data-theme="dark"]:not(:has(.private-app-shell)) .header-account-link:hover {
   background: rgba(255,255,255,0.07);
 }
 
-html[data-theme="dark"] .header-account-trigger {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .header-account-trigger {
   color: #c8d8f0;
   border-color: rgba(255,255,255,0.2);
 }
 
-html[data-theme="dark"] .mobile-menu-panel {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .mobile-menu-panel {
   background: #111d30;
   border-color: rgba(255,255,255,0.07);
 }
 
-html[data-theme="dark"] .mobile-menu-kicker { color: #7080a0; }
-html[data-theme="dark"] .mobile-menu-title { color: #e0e8f5; }
-html[data-theme="dark"] .mobile-menu-close { color: #8a9ab8; }
+html[data-theme="dark"]:not(:has(.private-app-shell)) .mobile-menu-kicker { color: #7080a0; }
+html[data-theme="dark"]:not(:has(.private-app-shell)) .mobile-menu-title { color: #e0e8f5; }
+html[data-theme="dark"]:not(:has(.private-app-shell)) .mobile-menu-close { color: #8a9ab8; }
 
-html[data-theme="dark"] .mobile-nav-link {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .mobile-nav-link {
   color: #c8d8f0;
   border-bottom-color: rgba(255,255,255,0.06);
 }
-html[data-theme="dark"] .mobile-nav-link:hover,
-html[data-theme="dark"] .mobile-nav-link.active {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .mobile-nav-link:hover,
+html[data-theme="dark"]:not(:has(.private-app-shell)) .mobile-nav-link.active {
   color: #fff;
   background: rgba(255,255,255,0.07);
 }
 
-html[data-theme="dark"] .mobile-nav-sub { background: rgba(255,255,255,0.03); }
-html[data-theme="dark"] .mobile-nav-sub-label { color: #7080a0; }
-html[data-theme="dark"] .mobile-nav-sub-link { color: #b8c8e0; }
-html[data-theme="dark"] .mobile-nav-sub-link:hover { color: #fff; }
+html[data-theme="dark"]:not(:has(.private-app-shell)) .mobile-nav-sub { background: rgba(255,255,255,0.03); }
+html[data-theme="dark"]:not(:has(.private-app-shell)) .mobile-nav-sub-label { color: #7080a0; }
+html[data-theme="dark"]:not(:has(.private-app-shell)) .mobile-nav-sub-link { color: #b8c8e0; }
+html[data-theme="dark"]:not(:has(.private-app-shell)) .mobile-nav-sub-link:hover { color: #fff; }
 
-html[data-theme="dark"] .mobile-menu-backdrop {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .mobile-menu-backdrop {
   background: rgba(0,0,0,0.7);
 }
 
-html[data-theme="dark"] .header-theme-toggle {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .header-theme-toggle {
   color: #c8d8f0;
 }
-html[data-theme="dark"] .header-theme-toggle:hover {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .header-theme-toggle:hover {
   background: rgba(255,255,255,0.08);
 }
 
 /* Public sections dark mode */
-html[data-theme="dark"] .section,
-html[data-theme="dark"] section {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .section,
+html[data-theme="dark"]:not(:has(.private-app-shell)) section {
   background: transparent;
 }
 
-html[data-theme="dark"] h1,
-html[data-theme="dark"] h2,
-html[data-theme="dark"] h3,
-html[data-theme="dark"] h4 {
+html[data-theme="dark"]:not(:has(.private-app-shell)) h1,
+html[data-theme="dark"]:not(:has(.private-app-shell)) h2,
+html[data-theme="dark"]:not(:has(.private-app-shell)) h3,
+html[data-theme="dark"]:not(:has(.private-app-shell)) h4 {
   color: #e0e8f5;
 }
 
 /* Cards, boxes, inputs */
-html[data-theme="dark"] .faq-item,
-html[data-theme="dark"] .card,
-html[data-theme="dark"] [class*="-card"] {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .faq-item,
+html[data-theme="dark"]:not(:has(.private-app-shell)) .card,
+html[data-theme="dark"]:not(:has(.private-app-shell)) [class*="-card"] {
   background: #131d2e;
   border-color: rgba(255,255,255,0.07);
   color: #c8d8f0;
 }
 
-html[data-theme="dark"] input,
-html[data-theme="dark"] select,
-html[data-theme="dark"] textarea {
+html[data-theme="dark"]:not(:has(.private-app-shell)) input,
+html[data-theme="dark"]:not(:has(.private-app-shell)) select,
+html[data-theme="dark"]:not(:has(.private-app-shell)) textarea {
   background: #1c2840;
   color: #e0e8f5;
   border-color: rgba(255,255,255,0.12);
 }
-html[data-theme="dark"] input::placeholder,
-html[data-theme="dark"] textarea::placeholder {
+html[data-theme="dark"]:not(:has(.private-app-shell)) input::placeholder,
+html[data-theme="dark"]:not(:has(.private-app-shell)) textarea::placeholder {
   color: #4a5c78;
 }
 
 /* Buttons */
-html[data-theme="dark"] .btn-outline {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .btn-outline {
   color: #c8d8f0;
   border-color: rgba(255,255,255,0.2);
 }
-html[data-theme="dark"] .btn-outline:hover {
+html[data-theme="dark"]:not(:has(.private-app-shell)) .btn-outline:hover {
   background: rgba(255,255,255,0.08);
 }
 

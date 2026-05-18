@@ -70,6 +70,9 @@ export function SiteHeader() {
     const dark = stored === "dark";
     setIsDark(dark);
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    return () => {
+      document.documentElement.removeAttribute("data-theme");
+    };
   }, []);
 
   function toggleDark() {
