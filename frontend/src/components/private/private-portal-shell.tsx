@@ -63,6 +63,7 @@ const adminNav: NavItem[] = [
   { href: "/admin/abonnements", label: "Abonnements", icon: CreditCard },
   { href: "/admin/paiements", label: "Paiements", icon: FileText },
   { href: "/admin/statistiques", label: "Statistiques", icon: Settings },
+  { href: "/partenariat", label: "Formulaire partenariat", icon: Globe2 },
 ];
 
 function isActivePath(pathname: string, href: string) {
@@ -282,14 +283,6 @@ export function PrivatePortalShell({
             </p>
           ) : null}
           <div className="private-topbar-actions">
-            {requiredRole === "admin" && pathname === "/admin" ? (
-              <Link
-                className="private-topbar-link"
-                href="/partenariat"
-              >
-                Voir le formulaire partenariat
-              </Link>
-            ) : null}
             <button
               aria-label={isDark ? "Mode clair" : "Mode sombre"}
               className="private-icon-button"
