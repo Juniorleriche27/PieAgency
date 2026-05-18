@@ -684,7 +684,7 @@ function ProgressivePathLoader() {
         <p className={`pp-loader-msg${visible ? " pp-loader-msg--in" : " pp-loader-msg--out"}`}>
           {LOADING_MESSAGES[msgIndex]}
         </p>
-        <p className="pp-loader-sub">Cela prend généralement moins de 5 secondes.</p>
+        <p className="pp-loader-sub">Cela prend généralement moins d&apos;une minute.</p>
       </div>
     </div>
   );
