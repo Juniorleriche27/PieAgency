@@ -95,6 +95,45 @@ export async function reopenStep(stepId: string): Promise<ProgressivePath | null
   return mutate(`/api/candidate/progressive-path/steps/${stepId}/reopen`);
 }
 
+// ─── Guidance intelligente ────────────────────────────────────────────────────
+
+export type GuidanceOption = {
+  title: string;
+  description: string;
+  target_path: string;
+};
+
+export type AssistantSuggestion = {
+  message?: string;
+  target_path: string;
+};
+
+export type Guidance = {
+  current_step_id: string;
+  phase: string;
+  title: string;
+  objective: string;
+  what_to_do_now: string[];
+  free_option: GuidanceOption | null;
+  paid_option: GuidanceOption | null;
+  assistant_suggestion: AssistantSuggestion | null;
+  official_warning: string | null;
+};
+
+export async function fetchGuidance(): Promise<Guidance | null> {
+  try {
+    const res = await authenticatedFetch(
+      "/api/candidate/progressive-path/guidance",
+      { cache: "no-store" },
+      { requireAuth: true },
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as Guidance;
+  } catch {
+    return null;
+  }
+}
+
 export async function declareOfficialDeposit(body: OfficialDepositBody): Promise<ProgressivePath | null> {
   try {
     const res = await authenticatedFetch(

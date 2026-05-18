@@ -12,12 +12,14 @@ import {
   Clock,
   ExternalLink,
   FileText,
+  Info,
   Lock,
   MessageCircle,
   Package,
   Play,
   RotateCcw,
   ShoppingBag,
+  Sparkles,
   Zap,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -25,9 +27,11 @@ import { useEffect, useState } from "react";
 import {
   completeStep,
   declareOfficialDeposit,
+  fetchGuidance,
   fetchProgressivePath,
   reopenStep,
   startStep,
+  type Guidance,
   type OfficialDeposit,
   type OfficialDepositBody,
   type OfficialDepositStatus,
@@ -98,7 +102,7 @@ function PhaseTunnel({ steps }: { steps: ProgressiveStep[] }) {
 
 // ─── Next step zone ───────────────────────────────────────────────────────────
 
-function whatToDoList(step: ProgressiveStep): string[] {
+function fallbackTodoList(step: ProgressiveStep): string[] {
   const lines: string[] = [];
   if (step.target_module) lines.push(`Ouvrir le module "${step.target_module}".`);
   if (step.short_description) lines.push(step.short_description);
@@ -109,28 +113,43 @@ function whatToDoList(step: ProgressiveStep): string[] {
 
 function NextStepZone({
   step,
+  guidance,
   actionLoading,
   onStart,
   onComplete,
   onReopen,
 }: {
   step: ProgressiveStep;
+  guidance: Guidance | null;
   actionLoading: boolean;
   onStart: (id: string) => void;
   onComplete: (id: string) => void;
   onReopen: (id: string) => void;
 }) {
-  const todos = whatToDoList(step);
+  const title     = guidance?.title     ?? step.title;
+  const objective = guidance?.objective ?? step.short_description;
+  const phase     = guidance?.phase     ?? null;
+  const todos     = (guidance?.what_to_do_now && guidance.what_to_do_now.length > 0)
+    ? guidance.what_to_do_now
+    : fallbackTodoList(step);
+
+  const assistantHref = guidance?.current_step_id
+    ? `/espace-etudiant/assistant?context=${guidance.current_step_id}`
+    : "/espace-etudiant/assistant";
 
   return (
     <section className="pp-next-step">
       <div className="pp-next-step-header">
         <div>
-          <span className="pp-next-step-kicker">Votre prochaine étape</span>
-          <h2 className="pp-next-step-title">{step.title}</h2>
-          {step.short_description ? (
+          <span className="pp-next-step-kicker">
+            {phase ? (
+              <><Sparkles size={12} className="pp-kicker-spark" /> Phase : {phase}</>
+            ) : "Votre prochaine étape"}
+          </span>
+          <h2 className="pp-next-step-title">{title}</h2>
+          {objective ? (
             <p className="pp-next-step-objective">
-              <strong>Objectif :</strong> {step.short_description}
+              <strong>Objectif :</strong> {objective}
             </p>
           ) : null}
         </div>
@@ -140,7 +159,7 @@ function NextStepZone({
       </div>
 
       <div className="pp-next-step-todo">
-        <p className="pp-next-step-todo-label">Ce que vous devez faire :</p>
+        <p className="pp-next-step-todo-label">Ce que vous devez faire maintenant</p>
         <ol>
           {todos.map((line, i) => <li key={i}>{line}</li>)}
         </ol>
@@ -153,7 +172,7 @@ function NextStepZone({
             <ExternalLink size={14} />
           </Link>
         ) : null}
-        <Link className="btn btn-ghost pp-next-btn" href="/espace-etudiant/assistant">
+        <Link className="btn btn-ghost pp-next-btn" href={assistantHref}>
           <MessageCircle size={14} /> Poser une question à l&apos;assistant
         </Link>
         {step.status === "not_started" && !step.is_locked ? (
@@ -221,46 +240,82 @@ function OptionCard({
   );
 }
 
-function OptionsSection({ recommendations }: { recommendations: ProgressivePath["recommendations"] }) {
-  const { free_action, recommended_product, assistant_action } = recommendations;
-  if (!free_action && !recommended_product && !assistant_action) return null;
+function OptionsSection({
+  guidance,
+  recommendations,
+}: {
+  guidance: Guidance | null;
+  recommendations: ProgressivePath["recommendations"];
+}) {
+  // Guidance is the primary source; fallback to recommendations if guidance absent
+  const freeTitle  = guidance?.free_option?.title       ?? "Continuer seul";
+  const freeBody   = guidance?.free_option?.description ?? "Vous pouvez avancer seul avec les ressources gratuites disponibles pour cette étape.";
+  const freeHref   = guidance?.free_option?.target_path ?? recommendations.free_action?.target_path ?? "/espace-etudiant/ressources";
+
+  const hasFreeSrc = guidance?.free_option ?? recommendations.free_action;
+
+  const paidTitle  = guidance?.paid_option?.title       ?? "Utiliser un outil PieAgency";
+  const paidBody   = guidance?.paid_option?.description ?? "Pour aller plus loin, utilisez un produit digital conçu pour cette étape.";
+  const paidHref   = guidance?.paid_option?.target_path ?? recommendations.recommended_product?.target_path ?? "/espace-etudiant/produits";
+
+  const hasPaidSrc = guidance?.paid_option ?? recommendations.recommended_product;
+
+  const assistantStepId = guidance?.current_step_id;
+  const assistantHref   = assistantStepId
+    ? `/espace-etudiant/assistant?context=${assistantStepId}`
+    : (guidance?.assistant_suggestion?.target_path ?? recommendations.assistant_action?.target_path ?? "/espace-etudiant/assistant");
+  const assistantBody   = guidance?.assistant_suggestion?.message
+    ?? "Posez vos questions sur cette étape à l'assistant dossier.";
+
+  const hasAssistantSrc = guidance?.assistant_suggestion ?? recommendations.assistant_action;
+
+  if (!hasFreeSrc && !hasPaidSrc && !hasAssistantSrc) return null;
 
   return (
     <section className="pp-options">
       <h2 className="pp-section-title">Vos options pour avancer</h2>
       <div className="pp-options-grid">
-        {free_action ? (
+        {hasFreeSrc ? (
           <OptionCard
             icon={<BookOpen size={20} />}
-            title="Continuer seul"
-            body="Vous pouvez avancer seul avec les ressources gratuites disponibles pour cette étape."
-            href={free_action.target_path}
-            btnLabel="Continuer avec la ressource"
+            title={freeTitle}
+            body={freeBody}
+            href={freeHref}
+            btnLabel="Continuer seul"
           />
         ) : null}
-        {recommended_product ? (
+        {hasPaidSrc ? (
           <OptionCard
             icon={<Package size={20} />}
-            title="Utiliser un outil PieAgency"
-            body="Pour aller plus loin, vous pouvez utiliser un produit digital conçu pour cette étape."
-            href={recommended_product.target_path}
-            btnLabel="Voir le produit recommandé"
-            badge={recommended_product.requires_purchase ? (
-              <span className="pp-rec-paid"><ShoppingBag size={11} /> Payant</span>
-            ) : <span className="pp-rec-free">Inclus</span>}
+            title={paidTitle}
+            body={paidBody}
+            href={paidHref}
+            btnLabel="Voir l'outil recommandé"
+            badge={<span className="pp-rec-paid"><ShoppingBag size={11} /> Recommandé</span>}
           />
         ) : null}
-        {assistant_action ? (
+        {hasAssistantSrc ? (
           <OptionCard
             icon={<MessageCircle size={20} />}
             title="Demander de l'aide"
-            body="Vous pouvez poser une question à l'assistant dossier ou demander une aide PieAgency."
-            href={assistant_action.target_path}
+            body={assistantBody}
+            href={assistantHref}
             btnLabel="Ouvrir l'assistant dossier"
           />
         ) : null}
       </div>
     </section>
+  );
+}
+
+// ─── Avertissement officiel ───────────────────────────────────────────────────
+
+function OfficialWarningBlock({ text }: { text: string }) {
+  return (
+    <div className="pp-official-warning">
+      <Info size={18} className="pp-official-warning-icon" />
+      <p>{text}</p>
+    </div>
   );
 }
 
@@ -597,6 +652,7 @@ function OfficialDepositBlock({
 
 export function ProgressivePathView() {
   const [data, setData] = useState<ProgressivePath | null>(null);
+  const [guidance, setGuidance] = useState<Guidance | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
@@ -607,8 +663,11 @@ export function ProgressivePathView() {
       setIsLoading(true);
       setErrorMessage("");
       try {
-        const result = await fetchProgressivePath();
-        if (active) setData(result);
+        const [result, guide] = await Promise.all([fetchProgressivePath(), fetchGuidance()]);
+        if (active) {
+          setData(result);
+          setGuidance(guide);
+        }
       } catch (err) {
         if (active)
           setErrorMessage(err instanceof Error ? err.message : "Impossible de charger le parcours.");
@@ -694,6 +753,7 @@ export function ProgressivePathView() {
       {current_step ? (
         <NextStepZone
           step={current_step}
+          guidance={guidance}
           actionLoading={actionLoading}
           onStart={handleStart}
           onComplete={handleComplete}
@@ -707,8 +767,13 @@ export function ProgressivePathView() {
         </div>
       )}
 
+      {/* Avertissement officiel */}
+      {guidance?.official_warning ? (
+        <OfficialWarningBlock text={guidance.official_warning} />
+      ) : null}
+
       {/* Options */}
-      <OptionsSection recommendations={recommendations} />
+      <OptionsSection guidance={guidance} recommendations={recommendations} />
 
       {/* Related modules */}
       <RelatedModules step={current_step} recommendations={recommendations} />
