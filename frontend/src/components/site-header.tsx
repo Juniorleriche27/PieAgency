@@ -310,7 +310,7 @@ export function SiteHeader() {
                   </button>
                   <div className="header-user-dropdown">
                     <Link className="header-user-item" href="/connexion">Connexion</Link>
-                    <Link className="header-user-item" href="/inscription">Inscription</Link>
+                    <Link className="header-user-item" href="/connexion?mode=signup">Inscription</Link>
                     <button className="header-user-item header-user-item--action" onClick={handleLogout} type="button">Déconnexion</button>
                   </div>
                 </div>
