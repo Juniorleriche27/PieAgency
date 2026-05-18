@@ -13613,7 +13613,7 @@ body.chat-open .wa-float {
 
 @media (max-width: 640px) {
   .pp-phases { gap: 0; }
-  .pp-phase-label { max-width: 48px; font-size: 9px; }
+  .pp-phase-label { display: none; }
   .pp-phase-dot { width: 24px; height: 24px; font-size: 10px; }
   .pp-next-step { padding: 18px 16px; }
   .pp-next-step-header { flex-direction: column; }
