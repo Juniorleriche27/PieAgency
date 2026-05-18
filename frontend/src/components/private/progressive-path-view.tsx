@@ -50,13 +50,36 @@ const PHASES: { id: string; label: string; short: string; stepOrders: number[] }
   { id: "profile",     label: "Profil",                 short: "Profil",         stepOrders: [1, 2] },
   { id: "diagnostic",  label: "Diagnostic",             short: "Diagnostic",     stepOrders: [3] },
   { id: "formations",  label: "Choix des formations",   short: "Formations",     stepOrders: [4, 5] },
-  { id: "preparation", label: "Préparation du dossier", short: "Dossier",        stepOrders: [6, 7, 8] },
-  { id: "depot",       label: "Dépôt officiel",         short: "Dépôt officiel", stepOrders: [9, 10] },
-  { id: "entretien",   label: "Entretien",              short: "Entretien",      stepOrders: [11] },
-  { id: "admission",   label: "Admission",              short: "Admission",      stepOrders: [12, 13] },
-  { id: "visa",        label: "Visa",                   short: "Visa",           stepOrders: [14] },
-  { id: "depart",      label: "Départ",                 short: "Départ",         stepOrders: [15] },
+  { id: "preparation", label: "Préparation du dossier", short: "Dossier",        stepOrders: [6, 7, 8, 9, 10] },
+  { id: "depot",       label: "Dépôt officiel",         short: "Dépôt officiel", stepOrders: [11, 12] },
+  { id: "entretien",   label: "Entretien",              short: "Entretien",      stepOrders: [13] },
+  { id: "admission",   label: "Admission",              short: "Admission",      stepOrders: [14, 15] },
+  { id: "visa",        label: "Visa",                   short: "Visa",           stepOrders: [16, 17, 18] },
+  { id: "depart",      label: "Départ",                 short: "Départ",         stepOrders: [19] },
 ];
+
+// step_id -> phase_id: authoritative mapping regardless of DB order
+const STEP_PHASE_MAP: Record<string, string> = {
+  "understand-profile":              "profile",
+  "read-diagnostic":                 "diagnostic",
+  "define-procedure-strategy":       "formations",
+  "choose-formations":               "formations",
+  "prepare-documents":               "preparation",
+  "prepare-cv":                      "preparation",
+  "prepare-study-project":           "preparation",
+  "prepare-career-project":          "preparation",
+  "prepare-motivation-letters":      "preparation",
+  "verify-before-official-deposit":  "depot",
+  "declare-official-deposit":        "depot",
+  "mark-official-filing-done":       "depot",
+  "track-after-official-filing":     "depot",
+  "prepare-campus-france-interview": "entretien",
+  "follow-admission":                "admission",
+  "prepare-visa-file":               "visa",
+  "declare-visa-deposit":            "visa",
+  "follow-visa":                     "visa",
+  "prepare-departure":               "depart",
+};
 
 function phaseStatus(steps: ProgressiveStep[], orders: number[]): PhaseStatus {
   const phaseSteps = steps.filter((s) => orders.includes(s.order));
@@ -67,12 +90,30 @@ function phaseStatus(steps: ProgressiveStep[], orders: number[]): PhaseStatus {
   return "todo";
 }
 
-function currentPhaseIndex(steps: ProgressiveStep[]): number {
+function currentPhaseIndex(steps: ProgressiveStep[], guidancePhase?: string | null): number {
+  // 1. Use step_id -> phase map for current step (most reliable)
+  const currentStep = steps.find((s) => s.is_current);
+  if (currentStep) {
+    const mappedPhaseId = STEP_PHASE_MAP[currentStep.id];
+    if (mappedPhaseId) {
+      const idx = PHASES.findIndex((ph) => ph.id === mappedPhaseId);
+      if (idx >= 0) return idx;
+    }
+  }
+  // 2. Use guidance phase string as fallback
+  if (guidancePhase) {
+    const lower = guidancePhase.toLowerCase();
+    const idx = PHASES.findIndex(
+      (ph) => ph.id === lower || ph.label.toLowerCase() === lower || ph.short.toLowerCase() === lower,
+    );
+    if (idx >= 0) return idx;
+  }
+  // 3. Fall back to stepOrders-based detection
   return PHASES.findIndex((ph) => phaseStatus(steps, ph.stepOrders) === "active");
 }
 
-function PhaseTunnel({ steps }: { steps: ProgressiveStep[] }) {
-  const activeIdx = currentPhaseIndex(steps);
+function PhaseTunnel({ steps, guidancePhase }: { steps: ProgressiveStep[]; guidancePhase?: string | null }) {
+  const activeIdx = currentPhaseIndex(steps, guidancePhase);
   return (
     <div className="pp-phases-wrap">
       <div className="pp-phases">
@@ -172,28 +213,19 @@ function NextStepZone({
 
       <div className="pp-next-step-actions">
         {step.target_path ? (
-          <Link className="btn btn-primary pp-next-btn" href={step.target_path}>
-            {step.target_module ? `Ouvrir ${step.target_module}` : "Ouvrir le module"}
+          <Link
+            className="btn btn-primary pp-next-btn"
+            href={appendCopilotParams(step.target_path, step.id)}
+          >
+            {step.target_module ? `Ouvrir ${step.target_module}` : "Ouvrir cette étape"}
             <ExternalLink size={14} />
           </Link>
         ) : null}
-        <Link className="btn btn-ghost pp-next-btn" href={assistantHref}>
-          <MessageCircle size={14} /> Poser une question à l&apos;assistant
-        </Link>
-        {step.status === "not_started" && !step.is_locked ? (
-          <button
-            className="btn btn-outline pp-next-btn"
-            disabled={actionLoading}
-            onClick={() => onStart(step.id)}
-            type="button"
-          >
-            <Play size={14} /> Commencer cette étape
-          </button>
-        ) : step.status === "in_progress" ? (
+        {(step.status === "not_started" || step.status === "in_progress") && !step.is_locked ? (
           <button
             className="btn btn-success pp-next-btn"
             disabled={actionLoading}
-            onClick={() => onComplete(step.id)}
+            onClick={() => step.status === "not_started" ? onStart(step.id) : onComplete(step.id)}
             type="button"
           >
             <CheckCircle2 size={14} /> J&apos;ai terminé cette étape
@@ -208,6 +240,9 @@ function NextStepZone({
             <RotateCcw size={14} /> Rouvrir cette étape
           </button>
         ) : null}
+        <Link className="btn btn-ghost pp-next-btn" href={assistantHref}>
+          <MessageCircle size={14} /> Poser une question à l&apos;assistant
+        </Link>
       </div>
     </section>
   );
@@ -730,8 +765,14 @@ export function ProgressivePathView() {
     setActionLoading(true);
     try {
       const result = await fn();
-      if (result) setData(result);
-      else setErrorMessage("Une erreur est survenue. Veuillez réessayer.");
+      if (result) {
+        setData(result);
+        // refresh guidance so phase + recommendations stay in sync
+        const guide = await fetchGuidance();
+        setGuidance(guide);
+      } else {
+        setErrorMessage("Une erreur est survenue. Veuillez réessayer.");
+      }
     } finally {
       setActionLoading(false);
     }
@@ -785,7 +826,7 @@ export function ProgressivePathView() {
       </div>
 
       {/* Phase tunnel */}
-      <PhaseTunnel steps={steps} />
+      <PhaseTunnel steps={steps} guidancePhase={guidance?.phase} />
 
       {errorMessage ? <div className="portal-warning">{errorMessage}</div> : null}
 
