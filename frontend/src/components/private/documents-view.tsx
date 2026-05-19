@@ -1,6 +1,7 @@
 "use client";
 
 import { CopilotBanner } from "@/components/private/copilot-banner";
+import Link from "next/link";
 import {
   AlertCircle,
   CheckCircle2,
@@ -13,6 +14,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   addDocument,
   getDocuments,
@@ -26,6 +28,14 @@ import {
   type GradingSystem,
 } from "@/lib/private-documents";
 import { buildDocumentTemplates } from "@/lib/document-templates";
+import {
+  fetchOnboardingStatus,
+  ONBOARDING_DRAFT_STORAGE_KEY,
+  ONBOARDING_STEP_STORAGE_KEY,
+  submitOnboarding,
+  type OnboardingData,
+  type OnboardingStatus,
+} from "@/lib/private-onboarding";
 
 const DOCUMENT_PRESETS = [
   "CV",
@@ -151,9 +161,15 @@ function LevelSetup({
 }
 
 export function DocumentsView({ documents: initial }: Props) {
+  const router = useRouter();
   const [docs, setDocs] = useState(initial);
   const [profile, setProfile] = useState<CandidateProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus>(null);
+  const [onboardingDraft, setOnboardingDraft] = useState<OnboardingData | null>(null);
+  const [finishLoading, setFinishLoading] = useState(false);
+  const [finishError, setFinishError] = useState("");
+  const [finishDone, setFinishDone] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addName, setAddName] = useState("");
   const [addCustom, setAddCustom] = useState("");
@@ -173,6 +189,24 @@ export function DocumentsView({ documents: initial }: Props) {
       setProfile(p);
       setProfileLoading(false);
     });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void fetchOnboardingStatus().then((status) => {
+      if (active) setOnboardingStatus(status);
+    });
+
+    const rawDraft = window.localStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
+    if (rawDraft) {
+      try {
+        setOnboardingDraft(JSON.parse(rawDraft) as OnboardingData);
+      } catch {
+        window.localStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+      }
+    }
+
     return () => { active = false; };
   }, []);
 
@@ -240,7 +274,46 @@ export function DocumentsView({ documents: initial }: Props) {
     }
   }
 
+  async function handleFinishOnboarding() {
+    if (!onboardingDraft) {
+      router.push("/espace-etudiant/onboarding");
+      return;
+    }
+
+    setFinishLoading(true);
+    setFinishError("");
+    try {
+      const payload = {
+        ...onboardingDraft,
+        country:
+          onboardingDraft.country === "Autre"
+            ? onboardingDraft.countryOther?.trim() || "Autre"
+            : onboardingDraft.country,
+        mainNeed: onboardingDraft.mainNeed?.split("|||").filter(Boolean).join(", ") ?? "",
+      };
+      await submitOnboarding(payload);
+      window.localStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+      window.localStorage.removeItem(ONBOARDING_STEP_STORAGE_KEY);
+      setOnboardingStatus("submitted");
+      setOnboardingDraft(null);
+      setFinishDone(true);
+    } catch (error) {
+      setFinishError(
+        error instanceof Error
+          ? error.message
+          : "Impossible de finaliser l'embarquement.",
+      );
+    } finally {
+      setFinishLoading(false);
+    }
+  }
+
   const showSetup = !profileLoading && profile && !profile.education_level;
+  const showOnboardingFinish =
+    onboardingStatus !== null &&
+    onboardingStatus !== "validated" &&
+    onboardingStatus !== "submitted" &&
+    onboardingStatus !== "under_review";
 
   return (
     <div className="doc-page">
@@ -249,6 +322,38 @@ export function DocumentsView({ documents: initial }: Props) {
         <h1>Mes documents</h1>
         <p>Suivez l&apos;état de vos documents et préparez votre dossier complet.</p>
       </div>
+
+      {showOnboardingFinish ? (
+        <div className="doc-onboarding-card">
+          <div>
+            <p className="doc-onboarding-eyebrow">Embarquement</p>
+            <h2>Finalisez votre dossier de départ</h2>
+            <p>
+              Une fois vos documents joints, envoyez votre embarquement à l&apos;équipe PieAgency pour analyse et validation.
+            </p>
+            {finishError ? <p className="crud-error">{finishError}</p> : null}
+          </div>
+          <div className="doc-onboarding-actions">
+            <Link className="btn btn-outline" href="/espace-etudiant/onboarding">
+              Retour Embarquement
+            </Link>
+            <button
+              className="btn btn-primary"
+              disabled={finishLoading}
+              onClick={() => void handleFinishOnboarding()}
+              type="button"
+            >
+              {finishLoading ? "Envoi..." : <>Terminer l&apos;embarquement</>}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {finishDone ? (
+        <div className="portal-warning doc-finish-success">
+          Votre embarquement a été envoyé. L&apos;équipe PieAgency va analyser votre dossier avant ouverture complète de l&apos;espace de suivi.
+        </div>
+      ) : null}
 
       {showSetup ? (
         <LevelSetup onConfirm={(l, s) => void handleLevelConfirm(l, s)} />

@@ -2,7 +2,7 @@ import { authenticatedFetch } from "@/lib/auth";
 
 export type OnboardingStatus = "not_started" | "in_progress" | "submitted" | "under_review" | "validated" | "rejected" | null;
 
-export type QuestionType = "text" | "select" | "radio";
+export type QuestionType = "text" | "select" | "radio" | "checkbox";
 
 export type OnboardingQuestion = {
   id: string;
@@ -20,6 +20,9 @@ export type OnboardingStep = {
 };
 
 export type OnboardingData = Record<string, string>;
+
+export const ONBOARDING_DRAFT_STORAGE_KEY = "pieagency:onboarding:draft";
+export const ONBOARDING_STEP_STORAGE_KEY = "pieagency:onboarding:step";
 
 export const REQUIRED_DOCUMENTS = [
   { label: "Pièce d'identité ou passeport", required: true },
@@ -68,7 +71,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     title: "Projet d'études",
     description: "Définissons votre projet d'études",
     questions: [
-      { id: "targetCountry", label: "Pays visé", type: "select", options: ["France", "Belgique", "Suisse", "Canada", "Autre"], required: true },
+      { id: "targetCountry", label: "Pays visé", type: "select", options: ["France", "Belgique"], required: true },
       { id: "targetProcedure", label: "Procédure visée", type: "select", options: ["Campus France", "École privée", "Parcoursup", "Visa", "Belgique"], required: true },
       { id: "targetLevel", label: "Niveau demandé", type: "select", options: ["L1", "L2", "L3", "M1", "M2", "Bachelor", "MSc", "MBA"], required: true },
       { id: "studyField", label: "Domaine d'études", type: "text", required: true },
@@ -91,13 +94,13 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     id: 4,
-    title: "Besoin principal",
-    description: "Quel est votre besoin prioritaire ?",
+    title: "Besoins principaux",
+    description: "Quels sont vos besoins prioritaires ?",
     questions: [
       {
         id: "mainNeed",
-        label: "Sélectionnez votre besoin principal",
-        type: "radio",
+        label: "Sélectionnez un ou plusieurs besoins principaux",
+        type: "checkbox",
         options: [
           "Choisir mes formations",
           "Rédiger projet d'études",

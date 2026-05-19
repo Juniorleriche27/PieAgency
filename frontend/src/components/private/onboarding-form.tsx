@@ -1,14 +1,42 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, FileText } from "lucide-react";
 import { CopilotBanner } from "@/components/private/copilot-banner";
-import { ONBOARDING_STEPS, REQUIRED_DOCUMENTS, submitOnboarding, type OnboardingData } from "@/lib/private-onboarding";
+import {
+  ONBOARDING_DRAFT_STORAGE_KEY,
+  ONBOARDING_STEP_STORAGE_KEY,
+  ONBOARDING_STEPS,
+  REQUIRED_DOCUMENTS,
+  submitOnboarding,
+  type OnboardingData,
+} from "@/lib/private-onboarding";
+
+function getInitialOnboardingData(): OnboardingData {
+  if (typeof window === "undefined") return {};
+  const rawDraft = window.localStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
+  if (!rawDraft) return {};
+  try {
+    return JSON.parse(rawDraft) as OnboardingData;
+  } catch {
+    window.localStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+    return {};
+  }
+}
+
+function getInitialOnboardingStep() {
+  if (typeof window === "undefined") return 1;
+  const rawStep = window.localStorage.getItem(ONBOARDING_STEP_STORAGE_KEY);
+  const savedStep = Number(rawStep);
+  return Number.isInteger(savedStep) && savedStep >= 1 && savedStep <= ONBOARDING_STEPS.length
+    ? savedStep
+    : 1;
+}
 
 export function OnboardingForm() {
-  const [step, setStep] = useState(1);
-  const [data, setData] = useState<OnboardingData>({});
+  const [step, setStep] = useState(getInitialOnboardingStep);
+  const [data, setData] = useState<OnboardingData>(getInitialOnboardingData);
   const [done, setDone] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -17,6 +45,24 @@ export function OnboardingForm() {
   const pct = Math.round((step / total) * 100);
 
   const set = (id: string, value: string) => setData((prev) => ({ ...prev, [id]: value }));
+  const getSelectedValues = (id: string) => data[id]?.split("|||").filter(Boolean) ?? [];
+  const toggleMulti = (id: string, value: string) => {
+    setData((prev) => {
+      const values = prev[id]?.split("|||").filter(Boolean) ?? [];
+      const next = values.includes(value)
+        ? values.filter((item) => item !== value)
+        : [...values, value];
+      return { ...prev, [id]: next.join("|||") };
+    });
+  };
+
+  useEffect(() => {
+    window.localStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(data));
+  }, [data]);
+
+  useEffect(() => {
+    window.localStorage.setItem(ONBOARDING_STEP_STORAGE_KEY, String(step));
+  }, [step]);
 
   const isDocStep = current.questions.length === 0;
   const isComplete =
@@ -38,8 +84,11 @@ export function OnboardingForm() {
         const payload = {
           ...data,
           country: data.country === "Autre" ? data.countryOther?.trim() || "Autre" : data.country,
+          mainNeed: getSelectedValues("mainNeed").join(", "),
         };
         await submitOnboarding(payload);
+        window.localStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+        window.localStorage.removeItem(ONBOARDING_STEP_STORAGE_KEY);
         setDone(true);
       } catch (error) {
         setErrorMessage(
@@ -174,6 +223,29 @@ export function OnboardingForm() {
                       {opt}
                     </label>
                   ))}
+                </div>
+              )}
+
+              {q.type === "checkbox" && (
+                <div className="ob-radio-group" role="group" aria-labelledby={`${q.id}-label`}>
+                  <span id={`${q.id}-label`} className="sr-only">{q.label}</span>
+                  {q.options?.map((opt) => {
+                    const selected = getSelectedValues(q.id).includes(opt);
+                    return (
+                      <label key={opt} className={`ob-radio-item${selected ? " selected" : ""}`}>
+                        <input
+                          type="checkbox"
+                          name={q.id}
+                          value={opt}
+                          checked={selected}
+                          onChange={() => toggleMulti(q.id, opt)}
+                          className="sr-only"
+                        />
+                        <span className="ob-checkbox-dot" aria-hidden />
+                        {opt}
+                      </label>
+                    );
+                  })}
                 </div>
               )}
             </div>
