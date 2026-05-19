@@ -11,6 +11,29 @@ const COMMON: DocTemplate[] = [
   { title: "Documents visa", priority: "medium" },
 ];
 
+const DEFAULT_ONBOARDING_DOCUMENTS: DocTemplate[] = [
+  { title: "Pièce d'identité ou passeport", priority: "high" },
+  { title: "Dernier diplôme obtenu", priority: "high" },
+  { title: "Relevés de notes", priority: "high" },
+  { title: "CV", priority: "high" },
+  { title: "Photo d'identité", priority: "high" },
+  { title: "Lettre de motivation", priority: "high" },
+  { title: "Projet d'études", priority: "medium" },
+  { title: "Projet professionnel", priority: "medium" },
+  { title: "Justificatif de niveau de langue", priority: "medium" },
+  { title: "Attestation d'inscription ou certificat de scolarité", priority: "medium" },
+  { title: "Tout autre document utile à votre projet", priority: "low" },
+];
+
+function toTemplateDocuments(items: DocTemplate[], prefix: string): CandidateDocument[] {
+  return items.map((t, i) => ({
+    id: `${prefix}-${i}-${t.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+    title: t.title,
+    status: "not-started",
+    priority: t.priority,
+  }));
+}
+
 function bulletins(classe: string, system: GradingSystem): DocTemplate[] {
   if (system === "trimestre") {
     return [
@@ -103,10 +126,9 @@ export function buildDocumentTemplates(
   else if (level === "bts") levelDocs = btsDocs(system);
   else levelDocs = autreDocs();
 
-  return [...levelDocs, ...COMMON].map((t, i) => ({
-    id: `tpl-${i}-${t.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-    title: t.title,
-    status: "not-started",
-    priority: t.priority,
-  }));
+  return toTemplateDocuments([...levelDocs, ...COMMON], "tpl");
+}
+
+export function buildDefaultDocumentTemplates(): CandidateDocument[] {
+  return toTemplateDocuments(DEFAULT_ONBOARDING_DOCUMENTS, "doc-default");
 }

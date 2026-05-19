@@ -27,7 +27,7 @@ import {
   type EducationLevel,
   type GradingSystem,
 } from "@/lib/private-documents";
-import { buildDocumentTemplates } from "@/lib/document-templates";
+import { buildDefaultDocumentTemplates, buildDocumentTemplates } from "@/lib/document-templates";
 import {
   fetchOnboardingStatus,
   ONBOARDING_DRAFT_STORAGE_KEY,
@@ -50,6 +50,21 @@ const DOCUMENT_PRESETS = [
   "Admission",
   "Autre",
 ];
+
+function isGeneratedDocument(doc: CandidateDocument) {
+  return doc.id.startsWith("tpl-") || doc.id.startsWith("doc-default-");
+}
+
+function buildVisibleDocuments(
+  documents: CandidateDocument[],
+  profile: CandidateProfile,
+): CandidateDocument[] {
+  if (documents.length > 0) return documents;
+  if (profile.education_level) {
+    return buildDocumentTemplates(profile.education_level, profile.grading_system ?? "semestre");
+  }
+  return buildDefaultDocumentTemplates();
+}
 
 type Props = {
   documents: CandidateDocument[];
@@ -185,7 +200,7 @@ export function DocumentsView({ documents: initial }: Props) {
     let active = true;
     void Promise.all([getDocuments(), getProfile()]).then(([d, p]) => {
       if (!active) return;
-      setDocs(d);
+      setDocs(buildVisibleDocuments(d, p));
       setProfile(p);
       setProfileLoading(false);
     });
@@ -213,7 +228,7 @@ export function DocumentsView({ documents: initial }: Props) {
   async function handleLevelConfirm(level: EducationLevel, system: GradingSystem) {
     await updateProfile({ education_level: level, grading_system: system });
     setProfile({ education_level: level, grading_system: system });
-    if (docs.length === 0) {
+    if (docs.length === 0 || docs.every(isGeneratedDocument)) {
       const templates = buildDocumentTemplates(level, system);
       setDocs(templates);
     }
@@ -259,18 +274,25 @@ export function DocumentsView({ documents: initial }: Props) {
 
   async function handleRowUpload(doc: CandidateDocument, file: File) {
     setUploadingId(doc.id);
-    const ok = await uploadDocumentFile(doc.id, file);
+    const persistedDoc = isGeneratedDocument(doc) ? await addDocument(doc.title) : doc;
+    if (!persistedDoc) {
+      setUploadingId(null);
+      return;
+    }
+    const ok = await uploadDocumentFile(persistedDoc.id, file);
     setUploadingId(null);
     if (ok) {
       setDocs((prev) =>
         prev.map((d) =>
           d.id === doc.id
-            ? { ...d, status: "in-progress" as DocumentStatus, lastUpdated: new Date().toISOString().slice(0, 10) }
+            ? { ...persistedDoc, status: "in-progress" as DocumentStatus, lastUpdated: new Date().toISOString().slice(0, 10) }
             : d,
         ),
       );
-      setUploadSuccess(doc.id);
+      setUploadSuccess(persistedDoc.id);
       setTimeout(() => setUploadSuccess(null), 3000);
+    } else if (persistedDoc.id !== doc.id) {
+      setDocs((prev) => prev.map((d) => (d.id === doc.id ? persistedDoc : d)));
     }
   }
 
