@@ -19,7 +19,15 @@ export function OnboardingForm() {
   const set = (id: string, value: string) => setData((prev) => ({ ...prev, [id]: value }));
 
   const isDocStep = current.questions.length === 0;
-  const isComplete = isDocStep || current.questions.every((q) => !q.required || data[q.id]?.trim());
+  const isComplete =
+    isDocStep ||
+    current.questions.every((q) => {
+      if (q.required && !data[q.id]?.trim()) return false;
+      if (q.id === "country" && data.country === "Autre") {
+        return Boolean(data.countryOther?.trim());
+      }
+      return true;
+    });
 
   async function handleNext() {
     if (step < total) {
@@ -27,7 +35,11 @@ export function OnboardingForm() {
     } else {
       setErrorMessage("");
       try {
-        await submitOnboarding(data);
+        const payload = {
+          ...data,
+          country: data.country === "Autre" ? data.countryOther?.trim() || "Autre" : data.country,
+        };
+        await submitOnboarding(payload);
         setDone(true);
       } catch (error) {
         setErrorMessage(
@@ -45,7 +57,7 @@ export function OnboardingForm() {
         <CheckCircle2 size={48} className="ob-success-icon" aria-hidden />
         <h2>Dossier soumis !</h2>
         <p>
-          Vos informations et documents ont bien été transmis. L'équipe PieAgency va analyser votre dossier.
+          Vos informations et documents ont bien été transmis. L&apos;équipe PieAgency va analyser votre dossier.
         </p>
         <p className="ob-success-note">
           Vous recevrez une confirmation dès que votre espace de suivi sera ouvert.
@@ -120,17 +132,29 @@ export function OnboardingForm() {
               )}
 
               {q.type === "select" && (
-                <select
-                  id={q.id}
-                  className="ob-select"
-                  value={data[q.id] ?? ""}
-                  onChange={(e) => set(q.id, e.target.value)}
-                >
-                  <option value="" disabled>Sélectionnez une option</option>
-                  {q.options?.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
+                <>
+                  <select
+                    id={q.id}
+                    className="ob-select"
+                    value={data[q.id] ?? ""}
+                    onChange={(e) => set(q.id, e.target.value)}
+                  >
+                    <option value="" disabled>Sélectionnez une option</option>
+                    {q.options?.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                  {q.id === "country" && data.country === "Autre" ? (
+                    <input
+                      id="countryOther"
+                      className="ob-input"
+                      type="text"
+                      placeholder="Précisez votre pays de résidence"
+                      value={data.countryOther ?? ""}
+                      onChange={(e) => set("countryOther", e.target.value)}
+                    />
+                  ) : null}
+                </>
               )}
 
               {q.type === "radio" && (
