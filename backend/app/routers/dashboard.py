@@ -7,6 +7,7 @@ from ..dependencies.auth import get_current_access_token, get_current_user, requ
 from ..schemas import (
     AddDocumentRequest,
     AdminDocumentUpdateRequest,
+    AdminOnboardingStatusUpdateRequest,
     AdminCommentModerationResponse,
     AdminCandidatesResponse,
     AdminCommunityPostItem,
@@ -19,6 +20,7 @@ from ..schemas import (
     CurrentSubscriptionResponse,
     PrivateSubscriptionListResponse,
     PrivateSubscriptionPlanItem,
+    PrivateOnboardingStatusResponse,
     StudentDashboardResponse,
     StudentDocumentItem,
     StudentDocumentListResponse,
@@ -48,6 +50,7 @@ from ..services.private_catalog_service import (
     list_admin_subscription_plans,
     set_current_subscription,
     update_admin_subscription_plan,
+    update_candidate_onboarding_status,
     update_candidate_document_admin,
 )
 
@@ -136,6 +139,26 @@ def admin_update_candidate_subscription(
     access_token: str = Depends(get_current_access_token),
 ) -> CurrentSubscriptionResponse:
     return set_current_subscription(user_id, payload.plan_id, access_token)
+
+
+@router.patch(
+    "/admin/candidates/{user_id}/onboarding/status",
+    response_model=PrivateOnboardingStatusResponse,
+)
+def admin_update_candidate_onboarding_status(
+    user_id: str,
+    payload: AdminOnboardingStatusUpdateRequest,
+    current_user: AuthUserProfile = Depends(require_admin_user),
+    access_token: str = Depends(get_current_access_token),
+) -> PrivateOnboardingStatusResponse:
+    try:
+        return update_candidate_onboarding_status(
+            user_id,
+            payload.onboarding_status,
+            access_token,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get(

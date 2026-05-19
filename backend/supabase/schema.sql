@@ -151,6 +151,8 @@ create table if not exists public.profiles (
   phone text,
   country text,
   role text not null default 'student' check (role in ('student', 'admin')),
+  onboarding_status text not null default 'not_started'
+    check (onboarding_status in ('not_started', 'in_progress', 'submitted', 'under_review', 'validated', 'rejected')),
   is_active boolean not null default true,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
@@ -170,6 +172,13 @@ alter table if exists public.profiles
 alter table if exists public.profiles
   add column if not exists grading_system text
   check (grading_system in ('trimestre', 'semestre'));
+
+alter table if exists public.profiles
+  add column if not exists onboarding_status text not null default 'not_started'
+  check (onboarding_status in ('not_started', 'in_progress', 'submitted', 'under_review', 'validated', 'rejected'));
+
+alter table if exists public.profiles
+  alter column onboarding_status set default 'not_started';
 
 create index if not exists student_onboarding_updated_at_idx
   on public.student_onboarding (updated_at desc);
@@ -385,6 +394,9 @@ create table if not exists public.community_ai_events (
 
 create index if not exists profiles_role_idx
   on public.profiles (role);
+
+create index if not exists profiles_onboarding_status_idx
+  on public.profiles (onboarding_status);
 
 create index if not exists student_cases_student_user_id_idx
   on public.student_cases (student_user_id);

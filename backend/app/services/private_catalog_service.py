@@ -1,6 +1,8 @@
 from ..schemas import (
     AuthMessageResponse,
     CurrentSubscriptionResponse,
+    OnboardingStatus,
+    PrivateOnboardingStatusResponse,
     PrivateProductItem,
     PrivateProductListResponse,
     PrivateDiagnosticResponse,
@@ -561,6 +563,55 @@ def update_private_profile(
         )
 
 
+def get_private_onboarding_status(
+    user_id: str,
+    access_token: str | None = None,
+) -> PrivateOnboardingStatusResponse:
+    client = _client_or_none(access_token)
+    if client is None:
+        return PrivateOnboardingStatusResponse()
+
+    try:
+        response = (
+            client.table("profiles")
+            .select("onboarding_status")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception:
+        return PrivateOnboardingStatusResponse()
+
+    rows = response.data or []
+    if not rows:
+        return PrivateOnboardingStatusResponse()
+
+    value = rows[0].get("onboarding_status") or OnboardingStatus.NOT_STARTED.value
+    try:
+        return PrivateOnboardingStatusResponse(onboarding_status=OnboardingStatus(value))
+    except ValueError:
+        return PrivateOnboardingStatusResponse()
+
+
+def update_candidate_onboarding_status(
+    user_id: str,
+    status: OnboardingStatus,
+    access_token: str | None = None,
+) -> PrivateOnboardingStatusResponse:
+    client = _client_or_none(access_token)
+    if client is None:
+        raise RuntimeError("Supabase indisponible.")
+
+    client.table("profiles").upsert(
+        {
+            "user_id": user_id,
+            "onboarding_status": status.value,
+        },
+        on_conflict="user_id",
+    ).execute()
+    return get_private_onboarding_status(user_id, access_token)
+
+
 def list_student_documents(user_id: str, access_token: str | None = None) -> StudentDocumentListResponse:
     client = _client_or_none(access_token)
     if client is None:
@@ -877,10 +928,17 @@ def save_private_onboarding(
             },
             on_conflict="user_id",
         ).execute()
+        client.table("profiles").upsert(
+            {
+                "user_id": user_id,
+                "onboarding_status": OnboardingStatus.SUBMITTED.value,
+            },
+            on_conflict="user_id",
+        ).execute()
     except Exception:
         return AuthMessageResponse(message="Onboarding recu. Synchronisation conseiller en attente.")
 
-    return AuthMessageResponse(message="Onboarding enregistre.")
+    return AuthMessageResponse(message="Onboarding soumis. Validation PieAgency en attente.")
 
 
 def get_private_diagnostic(

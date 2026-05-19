@@ -602,6 +602,15 @@ class StudentGradingSystem(str, Enum):
     SEMESTRE = "semestre"
 
 
+class OnboardingStatus(str, Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    SUBMITTED = "submitted"
+    UNDER_REVIEW = "under_review"
+    VALIDATED = "validated"
+    REJECTED = "rejected"
+
+
 class ProgressivePathStepStatus(str, Enum):
     NOT_STARTED = "not_started"
     IN_PROGRESS = "in_progress"
@@ -680,6 +689,14 @@ class PrivateProfileResponse(BaseModel):
 class PrivateProfileUpdateRequest(BaseModel):
     education_level: StudentEducationLevel | None = None
     grading_system: StudentGradingSystem | None = None
+
+
+class PrivateOnboardingStatusResponse(BaseModel):
+    onboarding_status: OnboardingStatus = OnboardingStatus.NOT_STARTED
+
+
+class AdminOnboardingStatusUpdateRequest(BaseModel):
+    onboarding_status: OnboardingStatus
 
 
 class StudentNoteItem(BaseModel):

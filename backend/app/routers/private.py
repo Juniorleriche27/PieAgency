@@ -7,6 +7,7 @@ from ..schemas import (
     AuthUserProfile,
     CurrentSubscriptionResponse,
     PrivateDiagnosticResponse,
+    PrivateOnboardingStatusResponse,
     PrivateOnboardingSubmitRequest,
     PrivateProfileResponse,
     PrivateProfileUpdateRequest,
@@ -21,6 +22,7 @@ from ..schemas import (
 from ..services.private_catalog_service import (
     add_student_document,
     get_private_diagnostic,
+    get_private_onboarding_status,
     get_private_profile,
     get_private_product,
     get_current_subscription,
@@ -145,6 +147,14 @@ def private_onboarding(
     access_token: str = Depends(get_current_access_token),
 ) -> AuthMessageResponse:
     return save_private_onboarding(current_user.user_id, payload, access_token)
+
+
+@router.get("/private/onboarding/status", response_model=PrivateOnboardingStatusResponse)
+def private_onboarding_status(
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> PrivateOnboardingStatusResponse:
+    return get_private_onboarding_status(current_user.user_id, access_token)
 
 
 @router.get("/private/diagnostic", response_model=PrivateDiagnosticResponse)
