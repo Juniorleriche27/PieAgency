@@ -359,9 +359,8 @@ export function DocumentsView({ documents: initial }: Props) {
         <LevelSetup onConfirm={(l, s) => void handleLevelConfirm(l, s)} />
       ) : null}
 
-      {!showSetup ? (
-        <>
-          <div className="doc-stats">
+      <>
+        <div className="doc-stats">
             <div className="doc-stat-card">
               <span className="doc-stat-num validated">{validated}</span>
               <span className="doc-stat-label">Validés</span>
@@ -505,8 +504,7 @@ export function DocumentsView({ documents: initial }: Props) {
               </ul>
             )}
           </div>
-        </>
-      ) : null}
+      </>
 
       {showAddModal ? (
         <div className="crud-overlay" onClick={() => setShowAddModal(false)}>
