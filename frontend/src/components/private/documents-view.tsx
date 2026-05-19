@@ -526,6 +526,26 @@ export function DocumentsView({ documents: initial }: Props) {
               </ul>
             )}
           </div>
+
+          {showOnboardingFinish ? (
+            <div className="doc-bottom-finish-card">
+              <div>
+                <p className="doc-onboarding-eyebrow">Dernière étape</p>
+                <h2>Documents ajoutés ? Finalisez l&apos;embarquement.</h2>
+                <p>
+                  Envoyez votre dossier à l&apos;équipe PieAgency pour analyse et validation.
+                </p>
+              </div>
+              <button
+                className="btn btn-primary"
+                disabled={finishLoading}
+                onClick={() => void handleFinishOnboarding()}
+                type="button"
+              >
+                {finishLoading ? "Envoi..." : <>Terminer l&apos;embarquement</>}
+              </button>
+            </div>
+          ) : null}
       </>
 
       {showAddModal ? (

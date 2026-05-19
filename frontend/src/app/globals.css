@@ -11963,10 +11963,16 @@ body.chat-open .wa-float {
 .doc-onboarding-card p { margin: 0; color: var(--gray-600,#6b7280); font-size: .92rem; line-height: 1.55; }
 .doc-onboarding-eyebrow { color: var(--green) !important; font-size: .72rem !important; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 6px !important; }
 .doc-onboarding-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+.doc-bottom-finish-card { background: var(--white); border: 1px solid rgba(16,185,129,.26); border-radius: 16px; padding: 20px 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; box-shadow: 0 8px 24px rgba(15,23,42,.07); }
+.doc-bottom-finish-card h2 { margin: 0 0 5px; color: var(--navy); font-size: 1.05rem; font-weight: 750; }
+.doc-bottom-finish-card p { margin: 0; color: var(--gray-600,#6b7280); font-size: .9rem; }
 .doc-finish-success { border-color: rgba(16,185,129,.35); background: rgba(16,185,129,.10); color: #065f46; }
 [data-theme="dark"] .doc-onboarding-card { background: linear-gradient(135deg, rgba(16,185,129,.16), rgba(30,41,59,.78)); border-color: rgba(16,185,129,.30); }
 [data-theme="dark"] .doc-onboarding-card h2 { color: #f8fafc; }
 [data-theme="dark"] .doc-onboarding-card p { color: #cbd5e1; }
+[data-theme="dark"] .doc-bottom-finish-card { background: #111827; border-color: rgba(16,185,129,.28); }
+[data-theme="dark"] .doc-bottom-finish-card h2 { color: #f8fafc; }
+[data-theme="dark"] .doc-bottom-finish-card p { color: #cbd5e1; }
 [data-theme="dark"] .doc-finish-success { color: #bbf7d0; background: rgba(16,185,129,.14); border-color: rgba(16,185,129,.28); }
 
 /* responsive */
@@ -11986,6 +11992,8 @@ body.chat-open .wa-float {
   .doc-onboarding-card { align-items: stretch; flex-direction: column; padding: 18px; }
   .doc-onboarding-actions { flex-direction: column; align-items: stretch; }
   .doc-onboarding-actions .btn { width: 100%; justify-content: center; }
+  .doc-bottom-finish-card { align-items: stretch; flex-direction: column; padding: 18px; }
+  .doc-bottom-finish-card .btn { width: 100%; justify-content: center; }
 }
 
 /* ─── Onboarding ─────────────────────────────────────────────────────────── */
