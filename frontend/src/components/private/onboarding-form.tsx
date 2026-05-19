@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2, FileText } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, FileText, ShieldCheck } from "lucide-react";
 import { CopilotBanner } from "@/components/private/copilot-banner";
 import {
+  fetchOnboardingStatus,
   ONBOARDING_DRAFT_STORAGE_KEY,
   ONBOARDING_STEP_STORAGE_KEY,
   ONBOARDING_STEPS,
   REQUIRED_DOCUMENTS,
   submitOnboarding,
   type OnboardingData,
+  type OnboardingStatus,
 } from "@/lib/private-onboarding";
 
 function getInitialOnboardingData(): OnboardingData {
@@ -34,10 +36,60 @@ function getInitialOnboardingStep() {
     : 1;
 }
 
+type OnboardingStatusPanelProps = {
+  description: string;
+  eyebrow: string;
+  icon: "check" | "clock" | "shield";
+  note?: string;
+  primaryAction?: { href: string; label: string };
+  title: string;
+};
+
+function OnboardingStatusPanel({
+  description,
+  eyebrow,
+  icon,
+  note,
+  primaryAction,
+  title,
+}: OnboardingStatusPanelProps) {
+  const Icon = icon === "shield" ? ShieldCheck : icon === "check" ? CheckCircle2 : Clock3;
+
+  return (
+    <div className="ob-success ob-status-card">
+      <div className={`ob-status-icon ob-status-icon--${icon}`}>
+        <Icon size={34} aria-hidden />
+      </div>
+      <p className="ob-status-eyebrow">{eyebrow}</p>
+      <h2>{title}</h2>
+      <p>{description}</p>
+      {note ? <p className="ob-success-note">{note}</p> : null}
+      <div className="ob-status-steps" aria-label="Etapes de validation">
+        <span>Analyse des informations</span>
+        <span>Verification des documents</span>
+        <span>Validation ou retour a corriger</span>
+      </div>
+      <div className="ob-status-actions">
+        {primaryAction ? (
+          <Link className="btn btn-primary" href={primaryAction.href}>
+            {primaryAction.label}
+          </Link>
+        ) : (
+          <Link className="btn btn-outline" href="/espace-etudiant/documents">
+            Voir mes documents
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function OnboardingForm() {
   const [step, setStep] = useState(getInitialOnboardingStep);
   const [data, setData] = useState<OnboardingData>(getInitialOnboardingData);
   const [done, setDone] = useState(false);
+  const [remoteStatus, setRemoteStatus] = useState<OnboardingStatus>(null);
+  const [statusChecked, setStatusChecked] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const total = ONBOARDING_STEPS.length;
@@ -57,12 +109,34 @@ export function OnboardingForm() {
   };
 
   useEffect(() => {
-    window.localStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(data));
-  }, [data]);
+    let active = true;
+    void fetchOnboardingStatus().then((status) => {
+      if (!active) return;
+      setRemoteStatus(status);
+      setStatusChecked(true);
+      if (status === "submitted" || status === "under_review" || status === "validated") {
+        window.localStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+        window.localStorage.removeItem(ONBOARDING_STEP_STORAGE_KEY);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
+    if (!statusChecked || remoteStatus === "submitted" || remoteStatus === "under_review" || remoteStatus === "validated") {
+      return;
+    }
+    window.localStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(data));
+  }, [data, remoteStatus, statusChecked]);
+
+  useEffect(() => {
+    if (!statusChecked || remoteStatus === "submitted" || remoteStatus === "under_review" || remoteStatus === "validated") {
+      return;
+    }
     window.localStorage.setItem(ONBOARDING_STEP_STORAGE_KEY, String(step));
-  }, [step]);
+  }, [remoteStatus, statusChecked, step]);
 
   const isDocStep = current.questions.length === 0;
   const isComplete =
@@ -89,6 +163,7 @@ export function OnboardingForm() {
         await submitOnboarding(payload);
         window.localStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
         window.localStorage.removeItem(ONBOARDING_STEP_STORAGE_KEY);
+        setRemoteStatus("submitted");
         setDone(true);
       } catch (error) {
         setErrorMessage(
@@ -98,6 +173,41 @@ export function OnboardingForm() {
         );
       }
     }
+  }
+
+  if (!statusChecked) {
+    return (
+      <OnboardingStatusPanel
+        description="Nous verifions l'etat de votre dossier avant d'afficher la prochaine action."
+        eyebrow="Embarquement"
+        icon="clock"
+        title="Verification du statut"
+      />
+    );
+  }
+
+  if (done || remoteStatus === "submitted" || remoteStatus === "under_review") {
+    return (
+      <OnboardingStatusPanel
+        description="Votre embarquement a bien ete transmis. L'equipe PieAgency analyse vos informations et vos documents avant d'ouvrir votre espace de suivi."
+        eyebrow="Validation en attente"
+        icon="clock"
+        note="Vous serez informe des que votre dossier sera valide ou si une correction est necessaire."
+        title={remoteStatus === "under_review" ? "Analyse en cours" : "Dossier transmis"}
+      />
+    );
+  }
+
+  if (remoteStatus === "validated") {
+    return (
+      <OnboardingStatusPanel
+        description="Votre dossier de depart a ete valide par l'equipe PieAgency. Vous pouvez continuer depuis votre tableau de bord."
+        eyebrow="Acces valide"
+        icon="shield"
+        primaryAction={{ href: "/espace-etudiant", label: "Ouvrir le tableau de bord" }}
+        title="Votre espace de suivi est ouvert"
+      />
+    );
   }
 
   if (done) {
