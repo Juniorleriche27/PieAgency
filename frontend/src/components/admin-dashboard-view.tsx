@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { PortalAccessPanel } from "@/components/portal-access-panel";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { authenticatedFetch, getApiBaseUrl } from "@/lib/auth";
+import {
+  updateCandidateOnboardingStatus,
+  type AdminCandidate,
+} from "@/lib/admin-candidates";
 
 type MetricTone = "neutral" | "good" | "attention" | "info";
 type Priority = "low" | "medium" | "high";
@@ -171,7 +175,6 @@ export function AdminDashboardView() {
     emptyAdminDashboard,
   );
   const [exportCatalog, setExportCatalog] = useState<AdminExportCatalogItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [selectedConversation, setSelectedConversation] =
     useState<AdminConversationDetailResponse | null>(null);
@@ -185,6 +188,8 @@ export function AdminDashboardView() {
   const [communityActionError, setCommunityActionError] = useState("");
   const [exportingKey, setExportingKey] = useState<string | null>(null);
   const [exportError, setExportError] = useState("");
+  const [pendingCandidates, setPendingCandidates] = useState<AdminCandidate[]>([]);
+  const [validatingCandidateId, setValidatingCandidateId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isReady) {
@@ -194,18 +199,17 @@ export function AdminDashboardView() {
     if (!session || session.user.role !== "admin") {
       setDashboard(emptyAdminDashboard);
       setExportCatalog([]);
-      setIsLoading(false);
+      setPendingCandidates([]);
       return;
     }
 
     let active = true;
 
     async function loadDashboard() {
-      setIsLoading(true);
       setLoadError("");
 
       try {
-        const [dashboardResponse, catalogResponse] = await Promise.all([
+        const [dashboardResponse, catalogResponse, candidatesResponse] = await Promise.all([
           authenticatedFetch(
             "/api/admin/dashboard",
             { cache: "no-store" },
@@ -213,6 +217,11 @@ export function AdminDashboardView() {
           ),
           authenticatedFetch(
             "/api/admin/exports/catalog",
+            { cache: "no-store" },
+            { apiBaseUrl, requireAuth: true },
+          ),
+          authenticatedFetch(
+            "/api/admin/candidates",
             { cache: "no-store" },
             { apiBaseUrl, requireAuth: true },
           ),
@@ -227,6 +236,9 @@ export function AdminDashboardView() {
         const catalogPayload = catalogResponse.ok
           ? ((await catalogResponse.json()) as AdminExportCatalogItem[])
           : [];
+        const candidatesPayload = candidatesResponse.ok
+          ? ((await candidatesResponse.json()) as { candidates: AdminCandidate[] })
+          : { candidates: [] };
 
         if (!active) {
           return;
@@ -234,6 +246,11 @@ export function AdminDashboardView() {
 
         setDashboard(dashboardPayload);
         setExportCatalog(catalogPayload);
+        setPendingCandidates(
+          candidatesPayload.candidates.filter((candidate) =>
+            ["submitted", "under_review"].includes(candidate.onboarding_status ?? ""),
+          ),
+        );
       } catch (error) {
         if (!active) {
           return;
@@ -241,15 +258,12 @@ export function AdminDashboardView() {
 
         setDashboard(emptyAdminDashboard);
         setExportCatalog([]);
+        setPendingCandidates([]);
         setLoadError(
           error instanceof Error
             ? error.message
             : "Impossible de charger le tableau de bord admin.",
         );
-      } finally {
-        if (active) {
-          setIsLoading(false);
-        }
       }
     }
 
@@ -366,6 +380,26 @@ export function AdminDashboardView() {
 
   function rowCountFor(datasetKey: string) {
     return exportCatalog.find((item) => item.key === datasetKey)?.row_count;
+  }
+
+  async function validateCandidateAccess(candidate: AdminCandidate) {
+    setValidatingCandidateId(candidate.id);
+    setLoadError("");
+
+    try {
+      await updateCandidateOnboardingStatus(candidate.id, "validated");
+      setPendingCandidates((current) =>
+        current.filter((item) => item.id !== candidate.id),
+      );
+    } catch (error) {
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "Impossible de valider l'acces candidat.",
+      );
+    } finally {
+      setValidatingCandidateId(null);
+    }
   }
 
   async function toggleCommunityPostArchive(post: AdminCommunityPostItem) {
@@ -493,6 +527,47 @@ export function AdminDashboardView() {
             <div className={`portal-tone ${metric.tone}`}>{metric.detail}</div>
           </div>
         ))}
+      </div>
+
+      <div className="portal-card admin-onboarding-review-card">
+        <div className="portal-card-head">
+          <div>
+            <div className="portal-card-kicker">Validation candidats</div>
+            <h3>Embarquements a valider</h3>
+          </div>
+          <div className="portal-progress-meta">
+            {pendingCandidates.length} dossier(s)
+          </div>
+        </div>
+
+        {pendingCandidates.length ? (
+          <div className="portal-list">
+            {pendingCandidates.map((candidate) => (
+              <div className="portal-list-item admin-onboarding-review-row" key={candidate.id}>
+                <div>
+                  <strong>{candidate.full_name}</strong>
+                  <p>
+                    {candidate.email ?? candidate.phone ?? "Contact non renseigne"}
+                    {" · "}
+                    {candidate.stage}
+                  </p>
+                </div>
+                <button
+                  className="btn btn-primary"
+                  disabled={validatingCandidateId === candidate.id}
+                  onClick={() => void validateCandidateAccess(candidate)}
+                  type="button"
+                >
+                  {validatingCandidateId === candidate.id ? "Validation..." : "Valider l'acces"}
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="portal-empty">
+            Aucun embarquement en attente de validation.
+          </div>
+        )}
       </div>
 
       <div className="portal-card">

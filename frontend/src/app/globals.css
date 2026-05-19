@@ -12419,6 +12419,30 @@ body.chat-open .wa-float {
   border-color: rgba(34, 197, 94, .28) !important;
   color: #86efac !important;
 }
+.admin-onboarding-review-card {
+  border-color: rgba(34, 197, 94, .24);
+  background: linear-gradient(135deg, rgba(34, 197, 94, .08), var(--white));
+}
+.admin-onboarding-review-row {
+  align-items: center;
+}
+.admin-onboarding-review-row .btn {
+  white-space: nowrap;
+}
+[data-theme="dark"] .admin-onboarding-review-card {
+  background: linear-gradient(135deg, rgba(34, 197, 94, .12), #111827);
+  border-color: rgba(34, 197, 94, .22);
+}
+@media (max-width: 720px) {
+  .admin-onboarding-review-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .admin-onboarding-review-row .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
 .doc-icon-none-sm { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--gray-300,#d1d5db); display: inline-block; flex-shrink: 0; }
 [data-theme="dark"] .admin-docs-row { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); }
 [data-theme="dark"] .admin-docs-status-select { background: #1e293b; color: #e2e8f0; border-color: rgba(255,255,255,0.1); }
