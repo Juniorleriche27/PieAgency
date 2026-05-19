@@ -116,25 +116,30 @@ export function PrivatePortalShell({
   }, []);
 
   useEffect(() => {
+    let active = true;
     if (!isReady || !session || requiredRole !== "student") {
-      setOnboardingChecked(true);
-      return;
+      window.setTimeout(() => {
+        if (active) setOnboardingChecked(true);
+      }, 0);
+      return () => {
+        active = false;
+      };
     }
-    // Prefer onboarding_status from session if backend sends it
-    const sessionStatus = session.user.onboarding_status ?? null;
-    if (sessionStatus !== null) {
-      setOnboardingStatus(sessionStatus);
-      setOnboardingChecked(true);
-      return;
-    }
-    // Fallback: call dedicated endpoint
+    // Always ask the backend. The stored auth session can be stale after signup
+    // or account switching, while onboarding gates must reflect the database.
+    // On failure it returns not_started, so a
+    // new/unverified candidate is never allowed into the dashboard by default.
     void fetchOnboardingStatus().then((status) => {
+      if (!active) return;
       setOnboardingStatus(status);
       setOnboardingChecked(true);
     });
+    return () => {
+      active = false;
+    };
   }, [isReady, session, requiredRole]);
 
-  // Gate: redirect student to onboarding if not validated (only when backend provides the status)
+  // Gate: redirect student to onboarding if not validated.
   useEffect(() => {
     if (!onboardingChecked) return;
     if (requiredRole !== "student") return;
@@ -189,6 +194,18 @@ export function PrivatePortalShell({
         secondaryLabel="Retour au site"
         title="Acces protege"
       />
+    );
+  }
+
+  if (requiredRole === "student" && !onboardingChecked) {
+    return (
+      <div className="private-loading">
+        <div className="portal-access-card">
+          <div className="portal-card-kicker">Embarquement</div>
+          <h2>Verification de votre dossier</h2>
+          <p>Nous verifions si votre embarquement est deja valide.</p>
+        </div>
+      </div>
     );
   }
 
