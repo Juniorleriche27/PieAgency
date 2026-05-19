@@ -29,6 +29,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PortalAccessPanel } from "@/components/portal-access-panel";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { clearStoredSession, getApiBaseUrl, type PlatformRole } from "@/lib/auth";
+import { fetchOnboardingStatus, type OnboardingStatus } from "@/lib/private-onboarding";
+
+const ONBOARDING_ALLOWED_PATHS = [
+  "/espace-etudiant/onboarding",
+  "/espace-etudiant/documents",
+];
 
 type PrivatePortalShellProps = {
   children: ReactNode;
@@ -82,6 +88,8 @@ export function PrivatePortalShell({
   const pathname = usePathname();
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
   const { session, isReady } = useAuthSession(apiBaseUrl);
+  const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus>(null);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDark, setIsDark] = useState(
     () => typeof window !== "undefined" && localStorage.getItem("pie-theme") === "dark",
@@ -106,6 +114,37 @@ export function PrivatePortalShell({
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    if (!isReady || !session || requiredRole !== "student") {
+      setOnboardingChecked(true);
+      return;
+    }
+    // Prefer onboarding_status from session if backend sends it
+    const sessionStatus = session.user.onboarding_status ?? null;
+    if (sessionStatus !== null) {
+      setOnboardingStatus(sessionStatus);
+      setOnboardingChecked(true);
+      return;
+    }
+    // Fallback: call dedicated endpoint
+    void fetchOnboardingStatus().then((status) => {
+      setOnboardingStatus(status);
+      setOnboardingChecked(true);
+    });
+  }, [isReady, session, requiredRole]);
+
+  // Gate: redirect student to onboarding if not validated (only when backend provides the status)
+  useEffect(() => {
+    if (!onboardingChecked) return;
+    if (requiredRole !== "student") return;
+    if (onboardingStatus === null) return; // backend not ready yet — don't block
+    if (onboardingStatus === "validated") return;
+    if (ONBOARDING_ALLOWED_PATHS.some((p) => pathname.startsWith(p))) return;
+    router.replace("/espace-etudiant/onboarding");
+  }, [onboardingChecked, onboardingStatus, pathname, requiredRole, router]);
+
+  const isGated = requiredRole === "student" && onboardingStatus !== null && onboardingStatus !== "validated";
 
   const navItems = requiredRole === "admin" ? adminNav : studentNav;
   const title = requiredRole === "admin" ? "Admin PieAgency" : "Espace candidat";
@@ -200,6 +239,20 @@ export function PrivatePortalShell({
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActivePath(pathname, item.href);
+            const locked = isGated && !ONBOARDING_ALLOWED_PATHS.some((p) => item.href.startsWith(p));
+
+            if (locked) {
+              return (
+                <span
+                  className="private-nav-item private-nav-item--locked"
+                  key={item.href}
+                  title="Votre espace sera ouvert après validation de votre dossier"
+                >
+                  <Icon size={18} />
+                  <span>{item.label}</span>
+                </span>
+              );
+            }
 
             return (
               <Link
@@ -214,6 +267,12 @@ export function PrivatePortalShell({
             );
           })}
         </nav>
+
+        {isGated ? (
+          <div className="private-nav-gate-msg">
+            Votre espace de suivi sera ouvert après analyse et validation de votre dossier par l&apos;équipe PieAgency.
+          </div>
+        ) : null}
 
         {session?.user.role === "admin" ? (
           <div className="private-nav-section" aria-label="Acces rapides">

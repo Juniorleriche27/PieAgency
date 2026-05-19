@@ -1,5 +1,7 @@
 import { authenticatedFetch } from "@/lib/auth";
 
+export type OnboardingStatus = "not_started" | "in_progress" | "submitted" | "under_review" | "validated" | "rejected" | null;
+
 export type QuestionType = "text" | "select" | "radio";
 
 export type OnboardingQuestion = {
@@ -18,6 +20,17 @@ export type OnboardingStep = {
 };
 
 export type OnboardingData = Record<string, string>;
+
+export const REQUIRED_DOCUMENTS = [
+  { label: "Pièce d'identité ou passeport", required: true },
+  { label: "Dernier diplôme obtenu", required: true },
+  { label: "Relevés de notes", required: true },
+  { label: "CV", required: true },
+  { label: "Photo d'identité", required: true },
+  { label: "Justificatif de niveau de langue", required: false },
+  { label: "Attestation d'inscription ou certificat de scolarité", required: false },
+  { label: "Tout autre document utile à votre projet", required: false },
+];
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
@@ -81,7 +94,28 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
       },
     ],
   },
+  {
+    id: 5,
+    title: "Vos documents",
+    description: "Ajoutez vos documents dans le module Mes documents pour que l'équipe PieAgency puisse analyser votre dossier.",
+    questions: [],
+  },
 ];
+
+export async function fetchOnboardingStatus(): Promise<OnboardingStatus> {
+  try {
+    const response = await authenticatedFetch(
+      "/api/private/onboarding/status",
+      { method: "GET" },
+      { requireAuth: true },
+    );
+    if (!response.ok) return null;
+    const data = (await response.json()) as { onboarding_status?: OnboardingStatus };
+    return data.onboarding_status ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export async function submitOnboarding(data: OnboardingData): Promise<void> {
   const response = await authenticatedFetch(

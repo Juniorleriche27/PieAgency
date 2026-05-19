@@ -8,6 +8,7 @@ export type AuthUserProfile = {
   country?: string | null;
   role: PlatformRole;
   is_active: boolean;
+  onboarding_status?: "not_started" | "in_progress" | "submitted" | "under_review" | "validated" | "rejected" | null;
 };
 
 export type AuthSession = {

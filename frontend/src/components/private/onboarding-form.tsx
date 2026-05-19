@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, FileText } from "lucide-react";
 import { CopilotBanner } from "@/components/private/copilot-banner";
-import { ONBOARDING_STEPS, submitOnboarding, type OnboardingData } from "@/lib/private-onboarding";
+import { ONBOARDING_STEPS, REQUIRED_DOCUMENTS, submitOnboarding, type OnboardingData } from "@/lib/private-onboarding";
 
 export function OnboardingForm() {
   const [step, setStep] = useState(1);
@@ -17,7 +18,8 @@ export function OnboardingForm() {
 
   const set = (id: string, value: string) => setData((prev) => ({ ...prev, [id]: value }));
 
-  const isComplete = current.questions.every((q) => !q.required || data[q.id]?.trim());
+  const isDocStep = current.questions.length === 0;
+  const isComplete = isDocStep || current.questions.every((q) => !q.required || data[q.id]?.trim());
 
   async function handleNext() {
     if (step < total) {
@@ -41,13 +43,12 @@ export function OnboardingForm() {
     return (
       <div className="ob-success">
         <CheckCircle2 size={48} className="ob-success-icon" aria-hidden />
-        <h2>Embarquement terminé !</h2>
+        <h2>Dossier soumis !</h2>
         <p>
-          Vos informations ont bien été enregistrées. Nous allons maintenant personnaliser votre
-          expérience.
+          Vos informations et documents ont bien été transmis. L'équipe PieAgency va analyser votre dossier.
         </p>
         <p className="ob-success-note">
-          La synchronisation avec votre conseiller sera disponible prochainement.
+          Vous recevrez une confirmation dès que votre espace de suivi sera ouvert.
         </p>
       </div>
     );
@@ -81,6 +82,25 @@ export function OnboardingForm() {
         </div>
 
         <div className="ob-card-body">
+          {isDocStep ? (
+            <div className="ob-doc-step">
+              <ul className="ob-doc-list">
+                {REQUIRED_DOCUMENTS.map((doc) => (
+                  <li key={doc.label} className="ob-doc-item">
+                    <FileText size={15} className="ob-doc-icon" />
+                    <span>{doc.label}</span>
+                    {!doc.required && <span className="ob-doc-optional">optionnel</span>}
+                  </li>
+                ))}
+              </ul>
+              <Link className="btn btn-primary ob-doc-btn" href="/espace-etudiant/documents">
+                Ouvrir Mes documents →
+              </Link>
+              <p className="ob-doc-note">
+                Ajoutez vos documents dans le module <strong>Mes documents</strong>, puis revenez ici pour soumettre votre dossier.
+              </p>
+            </div>
+          ) : null}
           {current.questions.map((q) => (
             <div key={q.id} className="ob-field">
               <label className="ob-label" htmlFor={q.id}>
