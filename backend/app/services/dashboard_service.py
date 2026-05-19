@@ -935,6 +935,26 @@ def list_admin_candidates(
         for item in case_rows
         if item.get("student_user_id")
     }
+    listed_user_ids = set(case_user_ids)
+    onboarding_user_ids: set[str] = set()
+    onboarding_rows_by_user_id: dict[str, dict] = {}
+    try:
+        onboarding_response = (
+            client.table("student_onboarding")
+            .select("user_id,data,created_at,updated_at")
+            .order("updated_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        onboarding_rows_by_user_id = {
+            str(item.get("user_id")): item
+            for item in (onboarding_response.data or [])
+            if item.get("user_id")
+        }
+        onboarding_user_ids = set(onboarding_rows_by_user_id.keys())
+    except Exception:
+        onboarding_rows_by_user_id = {}
+        onboarding_user_ids = set()
     student_ids = [str(item.get("student_id")) for item in case_rows if item.get("student_id")]
     students_map: dict[str, dict] = {}
     if student_ids:
@@ -993,6 +1013,12 @@ def list_admin_candidates(
                 continue
 
             onboarding_status = str(profile.get("onboarding_status") or "not_started")
+            if user_id in onboarding_user_ids and onboarding_status not in {"validated", "rejected"}:
+                onboarding_status = (
+                    onboarding_status
+                    if onboarding_status in {"submitted", "under_review"}
+                    else "submitted"
+                )
             candidates.append(
                 AdminCandidateItem(
                     id=user_id,
@@ -1014,6 +1040,61 @@ def list_admin_candidates(
                     source="profile",
                 ),
             )
+            listed_user_ids.add(user_id)
+
+        remaining_limit = max(limit - len(candidates), 0)
+
+    remaining_limit = max(limit - len(candidates), 0)
+    if remaining_limit and onboarding_rows_by_user_id:
+        missing_onboarding_user_ids = [
+            user_id
+            for user_id in onboarding_rows_by_user_id
+            if user_id not in listed_user_ids
+        ][:remaining_limit]
+        profiles_map: dict[str, dict] = {}
+        if missing_onboarding_user_ids:
+            try:
+                missing_profiles_response = (
+                    client.table("profiles")
+                    .select("user_id,full_name,email,phone,country,onboarding_status,created_at,updated_at")
+                    .in_("user_id", missing_onboarding_user_ids)
+                    .execute()
+                )
+                profiles_map = {
+                    str(item.get("user_id")): item
+                    for item in (missing_profiles_response.data or [])
+                    if item.get("user_id")
+                }
+            except Exception:
+                profiles_map = {}
+
+        for user_id in missing_onboarding_user_ids:
+            profile = profiles_map.get(user_id, {})
+            profile_status = str(profile.get("onboarding_status") or "")
+            if profile_status in {"validated", "rejected"}:
+                continue
+
+            onboarding_row = onboarding_rows_by_user_id.get(user_id, {})
+            candidates.append(
+                AdminCandidateItem(
+                    id=user_id,
+                    full_name=str(profile.get("full_name") or profile.get("email") or "Candidat sans nom"),
+                    email=profile.get("email"),
+                    phone=profile.get("phone"),
+                    country=str(profile.get("country") or "Inconnu"),
+                    procedure="Embarquement",
+                    stage=_labelize_onboarding_status("submitted"),
+                    subscription="Espace candidat",
+                    status="A valider",
+                    onboarding_status="submitted",
+                    progress_percent=0,
+                    created_at_label=_format_datetime_label(
+                        onboarding_row.get("updated_at") or onboarding_row.get("created_at"),
+                    ),
+                    source="profile",
+                ),
+            )
+            listed_user_ids.add(user_id)
 
         remaining_limit = max(limit - len(candidates), 0)
 
