@@ -48,9 +48,9 @@ type NavItem = {
 };
 
 const studentNav: NavItem[] = [
+  { href: "/espace-etudiant/onboarding", label: "Embarquement", icon: Zap },
   { href: "/espace-etudiant", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/espace-etudiant/parcours-guide", label: "Mon parcours guidé", icon: Milestone },
-  { href: "/espace-etudiant/onboarding", label: "Embarquement", icon: Zap },
   { href: "/espace-etudiant/diagnostic", label: "Diagnostic", icon: ShieldCheck },
   { href: "/espace-etudiant/documents", label: "Mes documents", icon: FileText },
   { href: "/espace-etudiant/ressources", label: "Mes ressources", icon: BookOpen },
