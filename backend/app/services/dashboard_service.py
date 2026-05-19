@@ -125,6 +125,19 @@ def _labelize_case_status(value: str | None) -> str:
     return mapping.get(normalized, "Suivi actif")
 
 
+def _labelize_onboarding_status(value: str | None) -> str:
+    mapping = {
+        "not_started": "Embarquement non commence",
+        "in_progress": "Embarquement en cours",
+        "submitted": "Embarquement soumis",
+        "under_review": "Analyse en cours",
+        "validated": "Acces valide",
+        "rejected": "Embarquement rejete",
+    }
+    normalized = (value or "").strip().lower()
+    return mapping.get(normalized, "Embarquement")
+
+
 def _pick_student_name(current_user: AuthUserProfile) -> str:
     if current_user.full_name:
         return current_user.full_name
@@ -907,7 +920,7 @@ def list_admin_candidates(
         case_response = (
             client.table("student_cases")
             .select(
-                "id,student_id,public_reference,target_project,status,progress_percent,created_at,updated_at",
+                "id,student_id,student_user_id,public_reference,target_project,status,progress_percent,created_at,updated_at",
             )
             .order("updated_at", desc=True)
             .limit(limit)
@@ -917,6 +930,11 @@ def list_admin_candidates(
         case_response = type("Response", (), {"data": []})()
 
     case_rows = case_response.data or []
+    case_user_ids = {
+        str(item.get("student_user_id"))
+        for item in case_rows
+        if item.get("student_user_id")
+    }
     student_ids = [str(item.get("student_id")) for item in case_rows if item.get("student_id")]
     students_map: dict[str, dict] = {}
     if student_ids:
@@ -939,7 +957,7 @@ def list_admin_candidates(
         progress_percent = int(row.get("progress_percent") or 0)
         candidates.append(
             AdminCandidateItem(
-                id=str(row.get("id") or row.get("public_reference") or ""),
+                id=str(row.get("student_user_id") or row.get("id") or row.get("public_reference") or ""),
                 full_name=str(student.get("full_name") or "Etudiant rattache"),
                 email=student.get("email"),
                 phone=student.get("phone"),
@@ -948,6 +966,7 @@ def list_admin_candidates(
                 stage=_labelize_case_status(row.get("status")),
                 subscription="Suivi PieAgency",
                 status="Actif" if str(row.get("status") or "").lower() != "completed" else "Clos",
+                onboarding_status=None,
                 progress_percent=progress_percent,
                 created_at_label=_format_datetime_label(row.get("created_at")),
                 source="case",
@@ -955,6 +974,49 @@ def list_admin_candidates(
         )
 
     remaining_limit = max(limit - len(candidates), 0)
+    if remaining_limit:
+        try:
+            profile_response = (
+                client.table("profiles")
+                .select("user_id,full_name,email,phone,country,onboarding_status,role,created_at,updated_at")
+                .eq("role", "student")
+                .order("updated_at", desc=True)
+                .limit(remaining_limit)
+                .execute()
+            )
+        except Exception:
+            profile_response = type("Response", (), {"data": []})()
+
+        for profile in (profile_response.data or []):
+            user_id = str(profile.get("user_id") or "")
+            if not user_id or user_id in case_user_ids:
+                continue
+
+            onboarding_status = str(profile.get("onboarding_status") or "not_started")
+            candidates.append(
+                AdminCandidateItem(
+                    id=user_id,
+                    full_name=str(profile.get("full_name") or profile.get("email") or "Candidat sans nom"),
+                    email=profile.get("email"),
+                    phone=profile.get("phone"),
+                    country=str(profile.get("country") or "Inconnu"),
+                    procedure="Embarquement",
+                    stage=_labelize_onboarding_status(onboarding_status),
+                    subscription="Espace candidat",
+                    status=(
+                        "A valider"
+                        if onboarding_status in {"submitted", "under_review"}
+                        else _labelize_onboarding_status(onboarding_status)
+                    ),
+                    onboarding_status=onboarding_status,
+                    progress_percent=0,
+                    created_at_label=_format_datetime_label(profile.get("created_at") or profile.get("updated_at")),
+                    source="profile",
+                ),
+            )
+
+        remaining_limit = max(limit - len(candidates), 0)
+
     if remaining_limit:
         try:
             lead_response = (
@@ -981,6 +1043,7 @@ def list_admin_candidates(
                     stage=str(item.get("study_level") or "Lead entrant"),
                     subscription="Non abonne",
                     status="Lead",
+                    onboarding_status=None,
                     progress_percent=0,
                     created_at_label=_format_datetime_label(item.get("created_at")),
                     source="lead",

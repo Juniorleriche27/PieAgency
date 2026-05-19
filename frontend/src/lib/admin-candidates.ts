@@ -10,9 +10,10 @@ export type AdminCandidate = {
   stage: string;
   subscription: string;
   status: string;
+  onboarding_status?: "not_started" | "in_progress" | "submitted" | "under_review" | "validated" | "rejected" | null;
   progress_percent: number;
   created_at_label: string;
-  source: "case" | "lead";
+  source: "case" | "lead" | "profile";
 };
 
 type AdminCandidatesResponse = {
@@ -32,4 +33,26 @@ export async function fetchAdminCandidates(): Promise<AdminCandidate[]> {
 
   const payload = (await response.json()) as AdminCandidatesResponse;
   return payload.candidates;
+}
+
+export async function updateCandidateOnboardingStatus(
+  userId: string,
+  onboardingStatus: NonNullable<AdminCandidate["onboarding_status"]>,
+): Promise<AdminCandidate["onboarding_status"]> {
+  const response = await authenticatedFetch(
+    `/api/admin/candidates/${userId}/onboarding/status`,
+    {
+      body: JSON.stringify({ onboarding_status: onboardingStatus }),
+      headers: { "Content-Type": "application/json" },
+      method: "PATCH",
+    },
+    { requireAuth: true },
+  );
+
+  if (!response.ok) {
+    throw new Error("Impossible de mettre a jour le statut d'embarquement.");
+  }
+
+  const payload = (await response.json()) as { onboarding_status: AdminCandidate["onboarding_status"] };
+  return payload.onboarding_status;
 }

@@ -15,7 +15,11 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { authenticatedFetch } from "@/lib/auth";
-import { fetchAdminCandidates, type AdminCandidate } from "@/lib/admin-candidates";
+import {
+  fetchAdminCandidates,
+  updateCandidateOnboardingStatus,
+  type AdminCandidate,
+} from "@/lib/admin-candidates";
 import {
   adminAddDocument,
   adminDeleteDocument,
@@ -72,7 +76,6 @@ function CandidateDocsPanel({
   const [rejectNote, setRejectNote] = useState("");
 
   useEffect(() => {
-    setLoading(true);
     fetchCandidateDocuments(candidate.id).then((d) => {
       setDocs(d);
       setLoading(false);
@@ -254,6 +257,9 @@ function CandidateDocsPanel({
 
 function statusClass(status: string) {
   const normalized = status.toLowerCase();
+  if (normalized.includes("valider")) {
+    return "lead";
+  }
   if (normalized.includes("actif")) {
     return "active";
   }
@@ -264,7 +270,9 @@ function statusClass(status: string) {
 }
 
 function sourceLabel(source: AdminCandidate["source"]) {
-  return source === "case" ? "Dossier" : "Lead";
+  if (source === "case") return "Dossier";
+  if (source === "profile") return "Profil";
+  return "Lead";
 }
 
 export function AdminCandidatesView() {
@@ -275,6 +283,7 @@ export function AdminCandidatesView() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [docsCandidate, setDocsCandidate] = useState<AdminCandidate | null>(null);
+  const [validatingId, setValidatingId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -383,6 +392,35 @@ export function AdminCandidatesView() {
       );
     } finally {
       setIsExporting(false);
+    }
+  }
+
+  async function validateCandidateAccess(candidate: AdminCandidate) {
+    setValidatingId(candidate.id);
+    setErrorMessage("");
+
+    try {
+      const onboardingStatus = await updateCandidateOnboardingStatus(candidate.id, "validated");
+      setCandidates((current) =>
+        current.map((item) =>
+          item.id === candidate.id
+            ? {
+                ...item,
+                onboarding_status: onboardingStatus,
+                stage: "Acces valide",
+                status: "Actif",
+              }
+            : item,
+        ),
+      );
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Impossible de valider l'acces candidat.",
+      );
+    } finally {
+      setValidatingId(null);
     }
   }
 
@@ -499,6 +537,17 @@ export function AdminCandidatesView() {
                       >
                         <FolderOpen size={17} />
                       </button>
+                      {candidate.onboarding_status &&
+                      candidate.onboarding_status !== "validated" ? (
+                        <button
+                          className="admin-validate-access-btn"
+                          disabled={validatingId === candidate.id}
+                          onClick={() => void validateCandidateAccess(candidate)}
+                          type="button"
+                        >
+                          {validatingId === candidate.id ? "Validation..." : "Valider acces"}
+                        </button>
+                      ) : null}
                     </td>
                   </tr>
                 ))}

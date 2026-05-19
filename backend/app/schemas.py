@@ -1053,9 +1053,10 @@ class AdminCandidateItem(BaseModel):
     stage: str
     subscription: str
     status: str
+    onboarding_status: OnboardingStatus | None = None
     progress_percent: int = Field(ge=0, le=100)
     created_at_label: str
-    source: Literal["case", "lead"]
+    source: Literal["case", "lead", "profile"]
 
 
 class AdminCandidatesResponse(BaseModel):

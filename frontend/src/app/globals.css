@@ -12399,6 +12399,26 @@ body.chat-open .wa-float {
 .admin-docs-add-form select, .admin-docs-add-form input { font-size: 0.85rem; border: 1px solid var(--gray-200,#e5e7eb); border-radius: 8px; padding: 7px 12px; flex: 1; min-width: 160px; }
 .admin-docs-eye-btn { background: none; border: none; cursor: pointer; padding: 4px; color: var(--navy); display: inline-flex; align-items: center; opacity: 0.7; transition: opacity 0.15s; }
 .admin-docs-eye-btn:hover { opacity: 1; }
+.admin-validate-access-btn {
+  width: auto !important;
+  min-width: 112px;
+  height: 36px;
+  margin-left: 8px;
+  padding: 0 12px !important;
+  border-color: rgba(22, 163, 74, 0.28) !important;
+  background: #dcfce7 !important;
+  color: #166534 !important;
+  font-size: 0.78rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.admin-validate-access-btn:hover { background: #bbf7d0 !important; }
+.admin-validate-access-btn:disabled { cursor: wait; opacity: .7; }
+[data-theme="dark"] .admin-validate-access-btn {
+  background: rgba(22, 163, 74, .16) !important;
+  border-color: rgba(34, 197, 94, .28) !important;
+  color: #86efac !important;
+}
 .doc-icon-none-sm { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--gray-300,#d1d5db); display: inline-block; flex-shrink: 0; }
 [data-theme="dark"] .admin-docs-row { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); }
 [data-theme="dark"] .admin-docs-status-select { background: #1e293b; color: #e2e8f0; border-color: rgba(255,255,255,0.1); }
