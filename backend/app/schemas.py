@@ -831,6 +831,47 @@ class PrivateResourceListResponse(BaseModel):
     resources: list[PrivateResourceItem]
 
 
+class PrivateResourceSectionItem(BaseModel):
+    id: str
+    screen_number: int
+    section_type: Literal[
+        "preview",
+        "paywall",
+        "chapter",
+        "timeline",
+        "checklist",
+        "mistakes",
+        "video",
+        "sources",
+    ]
+    title: str
+    subtitle: str | None = None
+    body: str | None = None
+    items: list[str] = Field(default_factory=list)
+    is_preview: bool = False
+    is_locked: bool = False
+
+
+class PrivateResourceDetailResponse(BaseModel):
+    id: str
+    title: str
+    slug: str
+    description: str
+    category: str
+    resource_type: Literal["tunnel_guide"] = "tunnel_guide"
+    access_mode: Literal["preview_free_then_paid"] = "preview_free_then_paid"
+    badge_label: str = "Guide interactif"
+    action_label: str = "Ouvrir"
+    reading_minutes: int = 30
+    current_screen: int = 1
+    total_screens: int
+    has_access: bool = False
+    requires_payment: bool = True
+    checkout_service_slug: str | None = None
+    watermark_label: str
+    sections: list[PrivateResourceSectionItem]
+
+
 class PrivateSubscriptionPlanItem(BaseModel):
     id: str
     title: str

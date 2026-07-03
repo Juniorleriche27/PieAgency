@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { CopilotBanner } from "@/components/private/copilot-banner";
 import {
   BookOpen,
@@ -125,15 +126,10 @@ export function PrivateResourcesView() {
                 <div className="res-card-footer">
                   <span className="res-category-tag">{resource.category}</span>
                   {resource.url ? (
-                    <a
-                      className="res-action-btn"
-                      href={resource.url}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
+                    <Link className="res-action-btn" href={resource.url}>
                       <Download size={16} />
                       {resource.action_label}
-                    </a>
+                    </Link>
                   ) : (
                     <button className="res-action-btn" disabled type="button">
                       <Download size={16} />

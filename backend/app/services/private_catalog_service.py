@@ -9,8 +9,10 @@ from ..schemas import (
     PrivateOnboardingSubmitRequest,
     PrivateProfileResponse,
     PrivateProfileUpdateRequest,
+    PrivateResourceDetailResponse,
     PrivateResourceItem,
     PrivateResourceListResponse,
+    PrivateResourceSectionItem,
     PrivateSubscriptionListResponse,
     PrivateSubscriptionPlanItem,
     SubscriptionPlanCreateRequest,
@@ -183,12 +185,13 @@ RESOURCES = [
     PrivateResourceItem(
         id="res-001",
         title="Guide complet Campus France",
-        description="Tout ce que vous devez savoir sur la procédure Campus France",
+        description="Tunnel privé pour comprendre la procédure Études en France et éviter les erreurs qui affaiblissent le dossier.",
         category="Campus France",
         resource_type="guide",
-        badge_label="Guide PDF",
-        action_label="Télécharger",
-        access_level="free",
+        badge_label="Guide interactif",
+        action_label="Ouvrir",
+        access_level="student",
+        url="/espace-etudiant/ressources/guide-complet-campus-france",
     ),
     PrivateResourceItem(
         id="res-002",
@@ -283,6 +286,288 @@ RESOURCES = [
         access_level="free",
     ),
 ]
+
+
+RESOURCE_TUNNELS: dict[str, dict] = {
+    "guide-complet-campus-france": {
+        "id": "res-001",
+        "title": "Guide complet Campus France",
+        "slug": "guide-complet-campus-france",
+        "description": "Comprendre la procédure Études en France, préparer son dossier Campus France et avancer étape par étape sans improvisation.",
+        "category": "Campus France",
+        "reading_minutes": 30,
+        "checkout_service_slug": "resource-guide-campus-france",
+        "sections": [
+            {
+                "id": "res-001-preview",
+                "screen_number": 1,
+                "section_type": "preview",
+                "title": "Guide complet Campus France",
+                "subtitle": "Aperçu gratuit",
+                "body": "Comprends comment organiser ta procédure Campus France, préparer ton dossier, choisir tes formations, anticiper l’entretien et suivre les réponses sans avancer au hasard.",
+                "items": [
+                    "Comprendre le vrai rôle de Campus France.",
+                    "Préparer un projet d’études cohérent.",
+                    "Éviter les erreurs qui affaiblissent le dossier.",
+                    "Savoir quoi préparer avant l’entretien.",
+                ],
+                "is_preview": True,
+            },
+            {
+                "id": "res-001-paywall",
+                "screen_number": 2,
+                "section_type": "paywall",
+                "title": "Débloque le guide complet",
+                "subtitle": "Accès privé",
+                "body": "La suite contient le parcours guidé, les erreurs à éviter, la préparation entretien, la checklist interactive et les sources officielles. Aucun PDF, aucun téléchargement : tout se lit dans ton espace privé.",
+                "items": [
+                    "Méthode guidée écran par écran.",
+                    "Checklist interactive non téléchargeable.",
+                    "Contenu protégé par ton compte et un filigrane discret.",
+                    "Accès immédiat après paiement validé.",
+                ],
+                "is_locked": True,
+            },
+            {
+                "id": "res-001-role-campus-france",
+                "screen_number": 3,
+                "section_type": "chapter",
+                "title": "Comprendre Campus France",
+                "subtitle": "Ne confonds pas les rôles",
+                "body": "Campus France accompagne et encadre la procédure Études en France. Ce n’est ni une université, ni le consulat, ni une garantie d’admission ou de visa. La qualité de ton projet, la cohérence de ton dossier et tes réponses pendant l’entretien restent déterminantes.",
+                "items": [
+                    "Campus France organise une partie de la procédure.",
+                    "Les établissements décident de l’admission.",
+                    "Le consulat décide du visa.",
+                    "Ton dossier doit rester cohérent du début à la fin.",
+                ],
+            },
+            {
+                "id": "res-001-timeline",
+                "screen_number": 4,
+                "section_type": "timeline",
+                "title": "Les grandes étapes",
+                "subtitle": "La procédure en vision claire",
+                "body": "Le parcours doit être suivi avec méthode. Le plus grand danger est d’attendre la dernière minute ou de soumettre un dossier sans cohérence.",
+                "items": [
+                    "Construire ton projet d’études.",
+                    "Créer ou réutiliser ton compte Études en France.",
+                    "Remplir ton dossier et ajouter les justificatifs.",
+                    "Choisir des formations cohérentes.",
+                    "Soumettre le dossier et régler les frais.",
+                    "Préparer puis passer l’entretien Campus France.",
+                    "Suivre les réponses des établissements.",
+                    "Finaliser après acceptation puis préparer le visa.",
+                ],
+            },
+            {
+                "id": "res-001-project",
+                "screen_number": 5,
+                "section_type": "chapter",
+                "title": "Construire un projet solide",
+                "subtitle": "La base du dossier",
+                "body": "Un bon projet ne dit pas simplement : je veux partir en France. Il montre une logique entre ton niveau actuel, la formation demandée, ton objectif professionnel et ton choix de pays.",
+                "items": [
+                    "Quel est mon niveau actuel ?",
+                    "Pourquoi ce domaine ?",
+                    "Pourquoi cette formation ?",
+                    "Pourquoi ces établissements ?",
+                    "Quel est mon projet après les études ?",
+                ],
+            },
+            {
+                "id": "res-001-account",
+                "screen_number": 6,
+                "section_type": "chapter",
+                "title": "Créer ou utiliser son compte",
+                "subtitle": "Évite les erreurs de départ",
+                "body": "Utilise une adresse email fiable, conserve tes accès, vérifie régulièrement les messages officiels et évite de créer plusieurs comptes inutilement.",
+                "items": [
+                    "Adresse email stable.",
+                    "Identifiants conservés en sécurité.",
+                    "Messages officiels consultés régulièrement.",
+                    "Informations personnelles cohérentes.",
+                ],
+            },
+            {
+                "id": "res-001-documents",
+                "screen_number": 7,
+                "section_type": "checklist",
+                "title": "Préparer les documents",
+                "subtitle": "Ne cherche pas tes pièces au dernier moment",
+                "body": "Les justificatifs doivent être lisibles, cohérents et prêts avant la soumission. Un document flou ou une information contradictoire peut affaiblir tout le dossier.",
+                "items": [
+                    "Pièce d’identité.",
+                    "Diplômes et relevés.",
+                    "Attestations utiles.",
+                    "Justificatifs selon le profil.",
+                    "Traductions si nécessaire.",
+                ],
+            },
+            {
+                "id": "res-001-schools",
+                "screen_number": 8,
+                "section_type": "chapter",
+                "title": "Choisir ses formations",
+                "subtitle": "Le choix doit raconter une histoire cohérente",
+                "body": "Des choix dispersés donnent une impression d’improvisation. Des choix cohérents montrent que tu sais où tu vas et pourquoi.",
+                "items": [
+                    "Vérifier le niveau demandé.",
+                    "Lire les prérequis.",
+                    "Comparer les débouchés.",
+                    "Vérifier la langue de formation.",
+                    "Regarder les calendriers et éventuelles procédures parallèles.",
+                ],
+            },
+            {
+                "id": "res-001-interview",
+                "screen_number": 9,
+                "section_type": "chapter",
+                "title": "Préparer l’entretien",
+                "subtitle": "Comprendre son projet avant de parler",
+                "body": "L’entretien ne se prépare pas avec des phrases apprises par cœur. Il faut savoir expliquer ton parcours, tes choix, ton objectif et ton financement de façon simple et crédible.",
+                "items": [
+                    "Pourquoi la France ?",
+                    "Pourquoi cette formation ?",
+                    "Pourquoi cet établissement ?",
+                    "Que feras-tu après les études ?",
+                    "Comment finances-tu ton projet ?",
+                ],
+            },
+            {
+                "id": "res-001-mistakes",
+                "screen_number": 10,
+                "section_type": "mistakes",
+                "title": "Erreurs fréquentes",
+                "subtitle": "Ce qui affaiblit un dossier",
+                "body": "La plupart des dossiers faibles ne manquent pas seulement de documents. Ils manquent surtout de cohérence, de préparation et de précision.",
+                "items": [
+                    "Attendre la dernière semaine.",
+                    "Choisir des formations incohérentes.",
+                    "Envoyer des documents flous.",
+                    "Copier une motivation générique.",
+                    "Ne pas connaître les formations choisies.",
+                    "Croire que Campus France garantit l’admission ou le visa.",
+                ],
+            },
+            {
+                "id": "res-001-final-checklist",
+                "screen_number": 11,
+                "section_type": "checklist",
+                "title": "Checklist finale",
+                "subtitle": "Avant d’avancer",
+                "body": "Coche mentalement chaque point avant de considérer ton dossier prêt.",
+                "items": [
+                    "Je sais expliquer mon projet d’études.",
+                    "Mes formations sont cohérentes.",
+                    "Mes documents sont lisibles.",
+                    "Je connais les grandes dates.",
+                    "Je peux défendre mon choix à l’entretien.",
+                    "Je sais quoi faire après une réponse favorable.",
+                ],
+            },
+            {
+                "id": "res-001-sources",
+                "screen_number": 12,
+                "section_type": "sources",
+                "title": "Sources officielles",
+                "subtitle": "À consulter régulièrement",
+                "body": "Les informations officielles peuvent évoluer. Vérifie toujours les pages Campus France et France-Visas avant une décision importante.",
+                "items": [
+                    "Campus France — procédure Études en France.",
+                    "Campus France Togo — procédures et inscriptions.",
+                    "Campus France Togo — calendrier 2026-2027.",
+                    "Campus France Togo — documents requis.",
+                    "France-Visas — étudiant.",
+                ],
+            },
+        ],
+    }
+}
+
+
+def _masked_email(email: str | None) -> str:
+    if not email or "@" not in email:
+        return "compte PieAgency"
+    name, domain = email.split("@", 1)
+    visible = name[:2] if len(name) >= 2 else name[:1]
+    return f"{visible}***@{domain}"
+
+
+def _watermark_label(full_name: str | None, email: str | None) -> str:
+    display_name = (full_name or "Étudiant PieAgency").strip() or "Étudiant PieAgency"
+    return f"{display_name} · {_masked_email(email)}"
+
+
+def _resource_user_has_access(user_id: str, access_token: str | None = None) -> bool:
+    client = _client_or_none(access_token)
+    if client is None:
+        return False
+
+    try:
+        entitlement = (
+            client.table("user_resource_entitlements")
+            .select("id,status")
+            .eq("user_id", user_id)
+            .eq("resource_id", "res-001")
+            .eq("status", "active")
+            .limit(1)
+            .execute()
+        )
+        if entitlement.data:
+            return True
+    except Exception:
+        pass
+
+    try:
+        profile = (
+            client.table("profiles")
+            .select("current_plan_id")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        rows = profile.data or []
+        return bool(rows and rows[0].get("current_plan_id"))
+    except Exception:
+        return False
+
+
+def get_private_resource_tunnel(
+    slug: str,
+    user_id: str,
+    email: str | None = None,
+    full_name: str | None = None,
+    access_token: str | None = None,
+) -> PrivateResourceDetailResponse:
+    resource = RESOURCE_TUNNELS.get(slug)
+    if resource is None:
+        raise LookupError("Ressource introuvable.")
+
+    has_access = _resource_user_has_access(user_id, access_token)
+    sections: list[PrivateResourceSectionItem] = []
+    for raw_section in resource["sections"]:
+        section = PrivateResourceSectionItem(**raw_section)
+        if not has_access and not section.is_preview and section.section_type != "paywall":
+            continue
+        if has_access and section.section_type == "paywall":
+            continue
+        sections.append(section)
+
+    return PrivateResourceDetailResponse(
+        id=resource["id"],
+        title=resource["title"],
+        slug=resource["slug"],
+        description=resource["description"],
+        category=resource["category"],
+        reading_minutes=resource["reading_minutes"],
+        total_screens=len(resource["sections"]),
+        has_access=has_access,
+        requires_payment=not has_access,
+        checkout_service_slug=resource["checkout_service_slug"],
+        watermark_label=_watermark_label(full_name, email),
+        sections=sections,
+    )
 
 
 SUBSCRIPTION_PLANS = [

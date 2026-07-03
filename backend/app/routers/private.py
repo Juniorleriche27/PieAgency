@@ -13,6 +13,7 @@ from ..schemas import (
     PrivateProfileUpdateRequest,
     PrivateProductItem,
     PrivateProductListResponse,
+    PrivateResourceDetailResponse,
     PrivateResourceListResponse,
     PrivateSubscriptionListResponse,
     SubscriptionPlanSelectRequest,
@@ -25,6 +26,7 @@ from ..services.private_catalog_service import (
     get_private_onboarding_status,
     get_private_profile,
     get_private_product,
+    get_private_resource_tunnel,
     get_current_subscription,
     list_private_products,
     list_private_resources,
@@ -62,6 +64,26 @@ def private_resources(
     current_user: AuthUserProfile = Depends(get_current_user),
 ) -> PrivateResourceListResponse:
     return list_private_resources()
+
+
+
+
+@router.get("/private/resources/{slug}", response_model=PrivateResourceDetailResponse)
+def private_resource_detail(
+    slug: str,
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> PrivateResourceDetailResponse:
+    try:
+        return get_private_resource_tunnel(
+            slug=slug,
+            user_id=current_user.user_id,
+            email=current_user.email,
+            full_name=current_user.full_name,
+            access_token=access_token,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/private/subscriptions", response_model=PrivateSubscriptionListResponse)
