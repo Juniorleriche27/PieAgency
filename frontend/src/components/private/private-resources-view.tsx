@@ -5,7 +5,6 @@ import { CopilotBanner } from "@/components/private/copilot-banner";
 import {
   BookOpen,
   CheckSquare,
-  Download,
   FileText,
   Lightbulb,
   Play,
@@ -127,13 +126,13 @@ export function PrivateResourcesView() {
                   <span className="res-category-tag">{resource.category}</span>
                   {resource.url ? (
                     <Link className="res-action-btn" href={resource.url}>
-                      <Download size={16} />
-                      {resource.action_label}
+                      <BookOpen size={16} />
+                      {resource.action_label || "Ouvrir"}
                     </Link>
                   ) : (
                     <button className="res-action-btn" disabled type="button">
-                      <Download size={16} />
-                      {resource.action_label}
+                      <BookOpen size={16} />
+                      {resource.action_label || "Ouvrir"}
                     </button>
                   )}
                 </div>
@@ -144,8 +143,8 @@ export function PrivateResourcesView() {
       )}
 
       <div className="res-free-banner">
-        <strong>✓ Ressources gratuites :</strong> Ces ressources sont disponibles pour tous les
-        abonnés. Consultez-les régulièrement pour progresser dans votre procédure.
+        <strong>✓ Ressources privées :</strong> les aperçus sont visibles, puis l’accès complet
+        se débloque selon vos achats, abonnements ou droits actifs.
       </div>
     </div>
   );

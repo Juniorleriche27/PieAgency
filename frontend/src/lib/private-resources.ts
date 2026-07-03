@@ -223,7 +223,6 @@ export const RESOURCE_CATEGORIES = [
 export type ResourceCategory = (typeof RESOURCE_CATEGORIES)[number];
 
 export async function fetchPrivateResources(): Promise<PrivateResource[]> {
-  if (typeof window === "undefined") return MOCK_RESOURCES;
   try {
     const response = await authenticatedFetch("/api/private/resources", undefined, { requireAuth: true });
     if (response.ok) {
@@ -234,12 +233,7 @@ export async function fetchPrivateResources(): Promise<PrivateResource[]> {
     // keep the private area readable if the API is temporarily unavailable
   }
 
-  try {
-    const raw = localStorage.getItem("pie_admin_resources");
-    return raw ? (JSON.parse(raw) as PrivateResource[]) : MOCK_RESOURCES;
-  } catch {
-    return MOCK_RESOURCES;
-  }
+  return MOCK_RESOURCES;
 }
 
 export async function fetchPrivateResourceDetail(slug: string): Promise<PrivateResourceDetail> {

@@ -314,22 +314,23 @@ function toProduct(item: PrivateProductApiItem): Product {
   };
 }
 
-function live(): Product[] {
-  if (typeof window === "undefined") return MOCK_PRODUCTS;
-  try {
-    const raw = localStorage.getItem("pie_admin_products");
-    return raw ? (JSON.parse(raw) as Product[]) : MOCK_PRODUCTS;
-  } catch {
-    return MOCK_PRODUCTS;
-  }
-}
-
 export async function getProducts(): Promise<Product[]> {
-  return live();
+  try {
+    const response = await authenticatedFetch("/api/private/products", undefined, { requireAuth: true });
+    if (response.ok) {
+      const payload = (await response.json()) as PrivateProductListResponse;
+      return payload.products.map(toProduct);
+    }
+  } catch {
+    // keep the private area readable if the API is temporarily unavailable
+  }
+
+  return MOCK_PRODUCTS;
 }
 
 export async function getProduct(id: string): Promise<Product | null> {
-  return live().find((p) => p.id === id) ?? null;
+  const products = await getProducts();
+  return products.find((p) => p.id === id) ?? null;
 }
 
 export function getIncludedResources(product: Product): ProductIncludedResource[] {
