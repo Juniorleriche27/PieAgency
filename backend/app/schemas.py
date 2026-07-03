@@ -816,6 +816,14 @@ class PrivateProductListResponse(BaseModel):
     products: list[PrivateProductItem]
 
 
+class PrivateResourceVideoItem(BaseModel):
+    id: str
+    title: str
+    url: str
+    provider: Literal["youtube"] = "youtube"
+    source_label: str | None = None
+
+
 class PrivateResourceItem(BaseModel):
     id: str
     title: str
@@ -830,6 +838,7 @@ class PrivateResourceItem(BaseModel):
     video_url: str | None = None
     video_title: str | None = None
     video_provider: str | None = None
+    sidebar_videos: list[PrivateResourceVideoItem] = Field(default_factory=list)
 
 
 class PrivateResourceListResponse(BaseModel):

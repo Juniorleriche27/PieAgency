@@ -66,6 +66,10 @@ const EMPTY_FORM = {
   video_title: "",
   video_url: "",
   video_provider: "youtube",
+  sidebar_video_1_title: "",
+  sidebar_video_1_url: "",
+  sidebar_video_2_title: "",
+  sidebar_video_2_url: "",
 };
 
 type FormState = typeof EMPTY_FORM;
@@ -85,6 +89,14 @@ function formToResource(f: FormState, id: string): PrivateResource {
     video_title: f.video_title.trim() || null,
     video_url: f.video_url.trim() || null,
     video_provider: f.video_provider.trim() || null,
+    sidebar_videos: [
+      f.sidebar_video_1_url.trim()
+        ? { id: f.sidebar_video_1_url.trim(), title: f.sidebar_video_1_title.trim() || "Vidéo utile 1", url: f.sidebar_video_1_url.trim(), provider: "youtube" as const, source_label: "Sidebar" }
+        : null,
+      f.sidebar_video_2_url.trim()
+        ? { id: f.sidebar_video_2_url.trim(), title: f.sidebar_video_2_title.trim() || "Vidéo utile 2", url: f.sidebar_video_2_url.trim(), provider: "youtube" as const, source_label: "Sidebar" }
+        : null,
+    ].filter(Boolean) as PrivateResource["sidebar_videos"],
   };
 }
 
@@ -102,6 +114,10 @@ function resourceToForm(r: PrivateResource): FormState {
     video_title: r.video_title ?? "",
     video_url: r.video_url ?? "",
     video_provider: r.video_provider ?? "youtube",
+    sidebar_video_1_title: r.sidebar_videos?.[0]?.title ?? "",
+    sidebar_video_1_url: r.sidebar_videos?.[0]?.url ?? "",
+    sidebar_video_2_title: r.sidebar_videos?.[1]?.title ?? "",
+    sidebar_video_2_url: r.sidebar_videos?.[1]?.url ?? "",
   };
 }
 
@@ -252,6 +268,7 @@ export function AdminResourcesView() {
                       </td>
                       <td>
                         {r.video_url ? <span className="admin-res-video-chip">Vidéo</span> : null}
+                        {r.sidebar_videos?.length ? <span className="admin-res-video-chip">Sidebar {r.sidebar_videos.length}</span> : null}
                         {r.url ? (
                           <a
                             className="admin-res-link"
@@ -425,6 +442,48 @@ export function AdminResourcesView() {
                     <option value="youtube">YouTube</option>
                     <option value="none">Aucune vidéo</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="crud-row">
+                <div className="crud-field">
+                  <label>Sidebar vidéo 1 — titre</label>
+                  <input
+                    onChange={(e) => field("sidebar_video_1_title", e.target.value)}
+                    placeholder="Vidéo complémentaire 1"
+                    type="text"
+                    value={form.sidebar_video_1_title}
+                  />
+                </div>
+                <div className="crud-field">
+                  <label>Sidebar vidéo 1 — URL</label>
+                  <input
+                    onChange={(e) => field("sidebar_video_1_url", e.target.value)}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    type="url"
+                    value={form.sidebar_video_1_url}
+                  />
+                </div>
+              </div>
+
+              <div className="crud-row">
+                <div className="crud-field">
+                  <label>Sidebar vidéo 2 — titre</label>
+                  <input
+                    onChange={(e) => field("sidebar_video_2_title", e.target.value)}
+                    placeholder="Vidéo complémentaire 2"
+                    type="text"
+                    value={form.sidebar_video_2_title}
+                  />
+                </div>
+                <div className="crud-field">
+                  <label>Sidebar vidéo 2 — URL</label>
+                  <input
+                    onChange={(e) => field("sidebar_video_2_url", e.target.value)}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    type="url"
+                    value={form.sidebar_video_2_url}
+                  />
                 </div>
               </div>
 

@@ -11,6 +11,14 @@ export type PrivateResourceType =
 
 export type PrivateResourceAccessLevel = "free" | "student" | "premium";
 
+export type PrivateResourceVideo = {
+  id: string;
+  title: string;
+  url: string;
+  provider: "youtube";
+  source_label?: string | null;
+};
+
 export type PrivateResource = {
   id: string;
   title: string;
@@ -28,6 +36,7 @@ export type PrivateResource = {
   video_url?: string | null;
   video_title?: string | null;
   video_provider?: string | null;
+  sidebar_videos?: PrivateResourceVideo[];
 };
 
 export type PrivateResourceSectionType =
@@ -76,6 +85,7 @@ export type PrivateResourceDetail = {
   checkout_service_slug?: string | null;
   watermark_label: string;
   sections: PrivateResourceSection[];
+  sidebar_videos?: PrivateResourceVideo[];
 };
 
 type PrivateResourceListResponse = {
@@ -101,7 +111,8 @@ const MOCK_RESOURCES: PrivateResource[] = [
 
     video_url: "https://www.youtube.com/watch?v=-YqeTamtarQ",
     video_title: "Tuto - procédure de candidature",
-    video_provider: "youtube",  },
+    video_provider: "youtube",
+    sidebar_videos: [{"id": "iEYC7AgFa2o", "title": "Réussir la procédure Campus France", "url": "https://www.youtube.com/watch?v=iEYC7AgFa2o", "provider": "youtube", "source_label": "Conseils Campus France"}, {"id": "MUExy3LLmqk", "title": "Venir étudier en France : vue d’ensemble", "url": "https://www.youtube.com/watch?v=MUExy3LLmqk", "provider": "youtube", "source_label": "Conseils étudiants"}],  },
   {
     id: "res-002",
     title: "Modèle projet d'études",
@@ -113,7 +124,8 @@ const MOCK_RESOURCES: PrivateResource[] = [
     access_level: "student",
     url: "/espace-etudiant/ressources/modele-projet-etudes",
     slug: "modele-projet-etudes",
-  },
+
+    sidebar_videos: [{"id": "Cq7iwbD2DZU", "title": "Projet d’études et projet professionnel", "url": "https://www.youtube.com/watch?v=Cq7iwbD2DZU", "provider": "youtube", "source_label": "Méthode projet"}, {"id": "Ria41hipWiI", "title": "Choisir et justifier différents parcours", "url": "https://www.youtube.com/watch?v=Ria41hipWiI", "provider": "youtube", "source_label": "Projet cohérent"}],  },
   {
     id: "res-003",
     title: "Checklist dossier complet",
@@ -125,7 +137,8 @@ const MOCK_RESOURCES: PrivateResource[] = [
     access_level: "student",
     url: "/espace-etudiant/ressources/checklist-dossier-complet",
     slug: "checklist-dossier-complet",
-  },
+
+    sidebar_videos: [{"id": "srFd0CkS6TA", "title": "S’inscrire et remplir son compte Campus France", "url": "https://www.youtube.com/watch?v=srFd0CkS6TA", "provider": "youtube", "source_label": "Compte et dossier"}, {"id": "9Lte-lcI_cU", "title": "Erreurs à éviter dans le dossier Campus France", "url": "https://www.youtube.com/watch?v=9Lte-lcI_cU", "provider": "youtube", "source_label": "Pièges dossier"}],  },
   {
     id: "res-004",
     title: "Préparer votre entretien Campus France",
@@ -141,7 +154,8 @@ const MOCK_RESOURCES: PrivateResource[] = [
 
     video_url: "https://www.youtube.com/watch?v=SV2NRPB9NaU",
     video_title: "Campus France Tunisie répond à vos questions",
-    video_provider: "youtube",  },
+    video_provider: "youtube",
+    sidebar_videos: [{"id": "gUCAr637qQA", "title": "5 questions inévitables à l’entretien Campus France", "url": "https://www.youtube.com/watch?v=gUCAr637qQA", "provider": "youtube", "source_label": "Questions entretien"}, {"id": "t-BTyOnAxz8", "title": "10 questions Campus France à connaître", "url": "https://www.youtube.com/watch?v=t-BTyOnAxz8", "provider": "youtube", "source_label": "Préparation entretien"}],  },
   {
     id: "res-005",
     title: "Exemple projet d'études commenté",
@@ -153,7 +167,8 @@ const MOCK_RESOURCES: PrivateResource[] = [
     access_level: "student",
     url: "/espace-etudiant/ressources/exemple-projet-etudes-commente",
     slug: "exemple-projet-etudes-commente",
-  },
+
+    sidebar_videos: [{"id": "Cq7iwbD2DZU", "title": "Projet d’études et professionnel Campus France", "url": "https://www.youtube.com/watch?v=Cq7iwbD2DZU", "provider": "youtube", "source_label": "Exemple de logique"}, {"id": "QhznaUr8WJA", "title": "Lettre et projet : exemple expliqué", "url": "https://www.youtube.com/watch?v=QhznaUr8WJA", "provider": "youtube", "source_label": "Exemple rédaction"}],  },
   {
     id: "res-006",
     title: "Exercice : Structurer votre motivation",
@@ -165,7 +180,8 @@ const MOCK_RESOURCES: PrivateResource[] = [
     access_level: "student",
     url: "/espace-etudiant/ressources/structurer-motivation",
     slug: "structurer-motivation",
-  },
+
+    sidebar_videos: [{"id": "72V2rerdjZY", "title": "Rédiger une bonne motivation Campus France", "url": "https://www.youtube.com/watch?v=72V2rerdjZY", "provider": "youtube", "source_label": "Motivation"}, {"id": "QhznaUr8WJA", "title": "Exemple de motivation pour université", "url": "https://www.youtube.com/watch?v=QhznaUr8WJA", "provider": "youtube", "source_label": "Structure argumentaire"}],  },
   {
     id: "res-007",
     title: "Guide visa étudiant",
@@ -180,7 +196,8 @@ const MOCK_RESOURCES: PrivateResource[] = [
 
     video_url: "https://www.youtube.com/watch?v=F0s_OCyN4kk",
     video_title: "FranceVisas : compléter votre demande de visa en ligne",
-    video_provider: "youtube",  },
+    video_provider: "youtube",
+    sidebar_videos: [{"id": "NPXTytks7fk", "title": "Faire sa demande de visa étudiant France", "url": "https://www.youtube.com/watch?v=NPXTytks7fk", "provider": "youtube", "source_label": "Visa étudiant"}, {"id": "6GkaaMZ0K6g", "title": "Questions fréquentes visa France", "url": "https://www.youtube.com/watch?v=6GkaaMZ0K6g", "provider": "youtube", "source_label": "FAQ visa"}],  },
   {
     id: "res-008",
     title: "Modèle lettre de motivation",
@@ -192,7 +209,8 @@ const MOCK_RESOURCES: PrivateResource[] = [
     access_level: "student",
     url: "/espace-etudiant/ressources/modele-lettre-motivation",
     slug: "modele-lettre-motivation",
-  },
+
+    sidebar_videos: [{"id": "72V2rerdjZY", "title": "Lettre de motivation Campus France", "url": "https://www.youtube.com/watch?v=72V2rerdjZY", "provider": "youtube", "source_label": "Lettre de motivation"}, {"id": "QhznaUr8WJA", "title": "Exemple de lettre de motivation", "url": "https://www.youtube.com/watch?v=QhznaUr8WJA", "provider": "youtube", "source_label": "Exemple rédaction"}],  },
   {
     id: "res-009",
     title: "Checklist documents visa",
@@ -207,7 +225,8 @@ const MOCK_RESOURCES: PrivateResource[] = [
 
     video_url: "https://www.youtube.com/watch?v=f3PxLZDbfzw",
     video_title: "FranceVisas : numériser vos documents pour faire votre demande de visa étudiant",
-    video_provider: "youtube",  },
+    video_provider: "youtube",
+    sidebar_videos: [{"id": "k8KB3dg4kDg", "title": "Documents à fournir pour visa France", "url": "https://www.youtube.com/watch?v=k8KB3dg4kDg", "provider": "youtube", "source_label": "Documents visa"}, {"id": "RVZvmwUdiSM", "title": "Dossier visa France : documents et démarche", "url": "https://www.youtube.com/watch?v=RVZvmwUdiSM", "provider": "youtube", "source_label": "Checklist visa"}],  },
   {
     id: "res-010",
     title: "Questions fréquentes Campus France",
@@ -223,7 +242,8 @@ const MOCK_RESOURCES: PrivateResource[] = [
 
     video_url: "https://www.youtube.com/watch?v=SV2NRPB9NaU",
     video_title: "Campus France Tunisie répond à vos questions",
-    video_provider: "youtube",  },
+    video_provider: "youtube",
+    sidebar_videos: [{"id": "SSoMRH6pD64", "title": "100 questions essentielles Campus France", "url": "https://www.youtube.com/watch?v=SSoMRH6pD64", "provider": "youtube", "source_label": "FAQ Campus France"}, {"id": "DOKNS6GjYRU", "title": "Questions fréquentes entretien Campus France", "url": "https://www.youtube.com/watch?v=DOKNS6GjYRU", "provider": "youtube", "source_label": "FAQ entretien"}],  },
 ];
 
 export const RESOURCE_CATEGORIES = [
@@ -253,6 +273,7 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
   reading_minutes: number;
   checkout_service_slug: string;
   sections: PrivateResourceSection[];
+  sidebar_videos?: PrivateResourceVideo[];
 }> = {
   "guide-complet-campus-france": {
     "id": "res-001",
@@ -590,6 +611,22 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
           "France-Visas — étudiant : https://france-visas.gouv.fr/etudiant"
         ]
       }
+    ],
+    "sidebar_videos": [
+      {
+        "id": "iEYC7AgFa2o",
+        "title": "Réussir la procédure Campus France",
+        "url": "https://www.youtube.com/watch?v=iEYC7AgFa2o",
+        "provider": "youtube",
+        "source_label": "Conseils Campus France"
+      },
+      {
+        "id": "MUExy3LLmqk",
+        "title": "Venir étudier en France : vue d’ensemble",
+        "url": "https://www.youtube.com/watch?v=MUExy3LLmqk",
+        "provider": "youtube",
+        "source_label": "Conseils étudiants"
+      }
     ]
   },
   "modele-projet-etudes": {
@@ -874,6 +911,22 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
           "Campus France — Procédure Études en France : https://www.campusfrance.org/fr/candidature-procedure-etudes-en-france"
         ]
       }
+    ],
+    "sidebar_videos": [
+      {
+        "id": "Cq7iwbD2DZU",
+        "title": "Projet d’études et projet professionnel",
+        "url": "https://www.youtube.com/watch?v=Cq7iwbD2DZU",
+        "provider": "youtube",
+        "source_label": "Méthode projet"
+      },
+      {
+        "id": "Ria41hipWiI",
+        "title": "Choisir et justifier différents parcours",
+        "url": "https://www.youtube.com/watch?v=Ria41hipWiI",
+        "provider": "youtube",
+        "source_label": "Projet cohérent"
+      }
     ]
   },
   "checklist-dossier-complet": {
@@ -1151,6 +1204,22 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
           "Campus France Togo — Les procédures et inscriptions : https://www.togo.campusfrance.org/les-procedures-et-inscriptions",
           "Campus France — Procédure Études en France : https://www.campusfrance.org/fr/candidature-procedure-etudes-en-france"
         ]
+      }
+    ],
+    "sidebar_videos": [
+      {
+        "id": "srFd0CkS6TA",
+        "title": "S’inscrire et remplir son compte Campus France",
+        "url": "https://www.youtube.com/watch?v=srFd0CkS6TA",
+        "provider": "youtube",
+        "source_label": "Compte et dossier"
+      },
+      {
+        "id": "9Lte-lcI_cU",
+        "title": "Erreurs à éviter dans le dossier Campus France",
+        "url": "https://www.youtube.com/watch?v=9Lte-lcI_cU",
+        "provider": "youtube",
+        "source_label": "Pièges dossier"
       }
     ]
   },
@@ -1473,6 +1542,22 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
           "Campus France Togo — Calendrier 2026-2027 : https://www.togo.campusfrance.org/calendrier-de-la-procedure-2026-2027"
         ]
       }
+    ],
+    "sidebar_videos": [
+      {
+        "id": "gUCAr637qQA",
+        "title": "5 questions inévitables à l’entretien Campus France",
+        "url": "https://www.youtube.com/watch?v=gUCAr637qQA",
+        "provider": "youtube",
+        "source_label": "Questions entretien"
+      },
+      {
+        "id": "t-BTyOnAxz8",
+        "title": "10 questions Campus France à connaître",
+        "url": "https://www.youtube.com/watch?v=t-BTyOnAxz8",
+        "provider": "youtube",
+        "source_label": "Préparation entretien"
+      }
     ]
   },
   "exemple-projet-etudes-commente": {
@@ -1769,6 +1854,22 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
           "Campus France Togo — Guide Études en France : https://www.togo.campusfrance.org/le-guide-d-utilisation-de-la-plateforme-etudes-en-france",
           "Campus France — Procédure Études en France : https://www.campusfrance.org/fr/candidature-procedure-etudes-en-france"
         ]
+      }
+    ],
+    "sidebar_videos": [
+      {
+        "id": "Cq7iwbD2DZU",
+        "title": "Projet d’études et professionnel Campus France",
+        "url": "https://www.youtube.com/watch?v=Cq7iwbD2DZU",
+        "provider": "youtube",
+        "source_label": "Exemple de logique"
+      },
+      {
+        "id": "QhznaUr8WJA",
+        "title": "Lettre et projet : exemple expliqué",
+        "url": "https://www.youtube.com/watch?v=QhznaUr8WJA",
+        "provider": "youtube",
+        "source_label": "Exemple rédaction"
       }
     ]
   },
@@ -2067,6 +2168,22 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
           "Campus France Togo — Guide Études en France : https://www.togo.campusfrance.org/le-guide-d-utilisation-de-la-plateforme-etudes-en-france",
           "Campus France — Procédure Études en France : https://www.campusfrance.org/fr/candidature-procedure-etudes-en-france"
         ]
+      }
+    ],
+    "sidebar_videos": [
+      {
+        "id": "72V2rerdjZY",
+        "title": "Rédiger une bonne motivation Campus France",
+        "url": "https://www.youtube.com/watch?v=72V2rerdjZY",
+        "provider": "youtube",
+        "source_label": "Motivation"
+      },
+      {
+        "id": "QhznaUr8WJA",
+        "title": "Exemple de motivation pour université",
+        "url": "https://www.youtube.com/watch?v=QhznaUr8WJA",
+        "provider": "youtube",
+        "source_label": "Structure argumentaire"
       }
     ]
   },
@@ -2393,6 +2510,22 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
           "Service-Public — Visa de long séjour : https://www.service-public.gouv.fr/particuliers/vosdroits/F16162"
         ]
       }
+    ],
+    "sidebar_videos": [
+      {
+        "id": "NPXTytks7fk",
+        "title": "Faire sa demande de visa étudiant France",
+        "url": "https://www.youtube.com/watch?v=NPXTytks7fk",
+        "provider": "youtube",
+        "source_label": "Visa étudiant"
+      },
+      {
+        "id": "6GkaaMZ0K6g",
+        "title": "Questions fréquentes visa France",
+        "url": "https://www.youtube.com/watch?v=6GkaaMZ0K6g",
+        "provider": "youtube",
+        "source_label": "FAQ visa"
+      }
     ]
   },
   "modele-lettre-motivation": {
@@ -2689,6 +2822,22 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
           "Campus France Togo — Guide Études en France : https://www.togo.campusfrance.org/le-guide-d-utilisation-de-la-plateforme-etudes-en-france",
           "Campus France — Procédure Études en France : https://www.campusfrance.org/fr/candidature-procedure-etudes-en-france"
         ]
+      }
+    ],
+    "sidebar_videos": [
+      {
+        "id": "72V2rerdjZY",
+        "title": "Lettre de motivation Campus France",
+        "url": "https://www.youtube.com/watch?v=72V2rerdjZY",
+        "provider": "youtube",
+        "source_label": "Lettre de motivation"
+      },
+      {
+        "id": "QhznaUr8WJA",
+        "title": "Exemple de lettre de motivation",
+        "url": "https://www.youtube.com/watch?v=QhznaUr8WJA",
+        "provider": "youtube",
+        "source_label": "Exemple rédaction"
       }
     ]
   },
@@ -3007,6 +3156,22 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
           "Service-Public — Visa de long séjour : https://www.service-public.fr/particuliers/vosdroits/F16162"
         ]
       }
+    ],
+    "sidebar_videos": [
+      {
+        "id": "k8KB3dg4kDg",
+        "title": "Documents à fournir pour visa France",
+        "url": "https://www.youtube.com/watch?v=k8KB3dg4kDg",
+        "provider": "youtube",
+        "source_label": "Documents visa"
+      },
+      {
+        "id": "RVZvmwUdiSM",
+        "title": "Dossier visa France : documents et démarche",
+        "url": "https://www.youtube.com/watch?v=RVZvmwUdiSM",
+        "provider": "youtube",
+        "source_label": "Checklist visa"
+      }
     ]
   },
   "questions-frequentes-campus-france": {
@@ -3304,6 +3469,22 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
           "Campus France Mali — Préparer son projet d’études : https://www.mali.campusfrance.org/preparer-son-projet-d-etudes"
         ]
       }
+    ],
+    "sidebar_videos": [
+      {
+        "id": "SSoMRH6pD64",
+        "title": "100 questions essentielles Campus France",
+        "url": "https://www.youtube.com/watch?v=SSoMRH6pD64",
+        "provider": "youtube",
+        "source_label": "FAQ Campus France"
+      },
+      {
+        "id": "DOKNS6GjYRU",
+        "title": "Questions fréquentes entretien Campus France",
+        "url": "https://www.youtube.com/watch?v=DOKNS6GjYRU",
+        "provider": "youtube",
+        "source_label": "FAQ entretien"
+      }
     ]
   }
 };
@@ -3335,6 +3516,7 @@ function fallbackPrivateResourceDetail(slug: string): PrivateResourceDetail | nu
     checkout_service_slug: resource.checkout_service_slug,
     watermark_label: "PieAgency • espace privé",
     sections,
+    sidebar_videos: resource.sidebar_videos ?? [],
   };
 }
 

@@ -218,6 +218,30 @@ export function PrivateResourceTunnelView({ slug }: Props) {
               <span>{resource.reading_minutes} min</span>
               <span>{resource.has_access ? "Accès complet" : "Aperçu + paywall"}</span>
             </div>
+            {resource.sidebar_videos?.length ? (
+              <div className="resource-sidebar-videos">
+                <div className="resource-sidebar-videos-head">
+                  <strong>Vidéos utiles</strong>
+                  <span>Compléments</span>
+                </div>
+                {resource.sidebar_videos.slice(0, 2).map((video) => (
+                  <div className="resource-sidebar-video" key={video.id}>
+                    <iframe
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      loading="lazy"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      src={youtubeEmbedUrl(video.url) ?? video.url}
+                      title={video.title}
+                    />
+                    <div>
+                      <strong>{video.title}</strong>
+                      {video.source_label ? <span>{video.source_label}</span> : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </aside>
 
           {section.section_type === "paywall" ? (

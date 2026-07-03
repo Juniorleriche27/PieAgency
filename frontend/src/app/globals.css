@@ -15074,3 +15074,56 @@ html[data-theme="dark"]:not(:has(.private-app-shell)) .btn-outline:hover {
   font-size: 0.73rem;
   font-weight: 800;
 }
+
+
+/* Sidebar videos inside private resource reader */
+.resource-sidebar-videos {
+  margin-top: 18px;
+  display: grid;
+  gap: 12px;
+}
+.resource-sidebar-videos-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.resource-sidebar-videos-head strong {
+  color: var(--navy);
+  font-size: 0.95rem;
+}
+.resource-sidebar-videos-head span {
+  color: var(--gold);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.resource-sidebar-video {
+  overflow: hidden;
+  border: 1px solid rgba(20, 32, 58, 0.1);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+.resource-sidebar-video iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  background: #0f172a;
+}
+.resource-sidebar-video div {
+  display: grid;
+  gap: 3px;
+  padding: 10px 11px;
+}
+.resource-sidebar-video strong {
+  color: var(--navy);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+.resource-sidebar-video span {
+  color: var(--gray-500);
+  font-size: 0.73rem;
+}
