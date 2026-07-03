@@ -823,10 +823,13 @@ class PrivateResourceItem(BaseModel):
     category: str
     resource_type: Literal["guide", "template", "video", "checklist", "example", "exercise", "link"]
     badge_label: str
-    action_label: str = "Télécharger"
+    action_label: str = "Ouvrir"
     duration_label: str | None = None
     access_level: Literal["free", "student", "premium"] = "student"
     url: str | None = None
+    video_url: str | None = None
+    video_title: str | None = None
+    video_provider: str | None = None
 
 
 class PrivateResourceListResponse(BaseModel):
@@ -854,6 +857,10 @@ class PrivateResourceSectionItem(BaseModel):
     items: list[str] = Field(default_factory=list)
     is_preview: bool = False
     is_locked: bool = False
+    video_url: str | None = None
+    video_title: str | None = None
+    video_provider: str | None = None
+    video_source_label: str | None = None
 
 
 class PrivateResourceDetailResponse(BaseModel):

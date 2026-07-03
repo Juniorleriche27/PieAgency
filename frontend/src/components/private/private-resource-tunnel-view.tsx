@@ -22,6 +22,12 @@ type Props = {
   slug: string;
 };
 
+function youtubeEmbedUrl(url?: string | null) {
+  if (!url) return null;
+  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/);
+  return match ? `https://www.youtube.com/embed/${match[1]}` : null;
+}
+
 function sectionEyebrow(section: PrivateResourceSection) {
   if (section.section_type === "paywall") return "Accès complet";
   if (section.section_type === "preview") return "Aperçu gratuit";
@@ -72,6 +78,22 @@ function SectionCard({ section }: { section: PrivateResourceSection }) {
       <h1>{section.title}</h1>
       {section.subtitle ? <p className="resource-slide-subtitle">{section.subtitle}</p> : null}
       {section.body ? <p className="resource-slide-body">{section.body}</p> : null}
+      {section.video_url ? (
+        <div className="resource-video-wrap">
+          <iframe
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            loading="lazy"
+            referrerPolicy="strict-origin-when-cross-origin"
+            src={youtubeEmbedUrl(section.video_url) ?? section.video_url}
+            title={section.video_title ?? section.title}
+          />
+          <div className="resource-video-caption">
+            <strong>{section.video_title ?? "Vidéo intégrée"}</strong>
+            {section.video_source_label ? <span>{section.video_source_label}</span> : null}
+          </div>
+        </div>
+      ) : null}
       {section.items.length ? (
         <div className="resource-slide-items">
           {section.items.map((item) => (

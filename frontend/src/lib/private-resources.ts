@@ -25,6 +25,9 @@ export type PrivateResource = {
   slug?: string | null;
   is_active?: boolean;
   publication_status?: "published" | "draft" | "archived";
+  video_url?: string | null;
+  video_title?: string | null;
+  video_provider?: string | null;
 };
 
 export type PrivateResourceSectionType =
@@ -49,6 +52,10 @@ export type PrivateResourceSection = {
   items: string[];
   is_preview?: boolean;
   is_locked?: boolean;
+  video_url?: string | null;
+  video_title?: string | null;
+  video_provider?: string | null;
+  video_source_label?: string | null;
 };
 
 export type PrivateResourceDetail = {
@@ -91,7 +98,10 @@ const MOCK_RESOURCES: PrivateResource[] = [
     access_level: "student",
     url: "/espace-etudiant/ressources/guide-complet-campus-france",
     slug: "guide-complet-campus-france",
-  },
+
+    video_url: "https://www.youtube.com/watch?v=-YqeTamtarQ",
+    video_title: "Tuto - procédure de candidature",
+    video_provider: "youtube",  },
   {
     id: "res-002",
     title: "Modèle projet d'études",
@@ -128,7 +138,10 @@ const MOCK_RESOURCES: PrivateResource[] = [
     access_level: "student",
     url: "/espace-etudiant/ressources/preparer-entretien-campus-france",
     slug: "preparer-entretien-campus-france",
-  },
+
+    video_url: "https://www.youtube.com/watch?v=SV2NRPB9NaU",
+    video_title: "Campus France Tunisie répond à vos questions",
+    video_provider: "youtube",  },
   {
     id: "res-005",
     title: "Exemple projet d'études commenté",
@@ -164,7 +177,10 @@ const MOCK_RESOURCES: PrivateResource[] = [
     access_level: "student",
     url: "/espace-etudiant/ressources/guide-visa-etudiant",
     slug: "guide-visa-etudiant",
-  },
+
+    video_url: "https://www.youtube.com/watch?v=F0s_OCyN4kk",
+    video_title: "FranceVisas : compléter votre demande de visa en ligne",
+    video_provider: "youtube",  },
   {
     id: "res-008",
     title: "Modèle lettre de motivation",
@@ -188,7 +204,10 @@ const MOCK_RESOURCES: PrivateResource[] = [
     access_level: "student",
     url: "/espace-etudiant/ressources/checklist-documents-visa",
     slug: "checklist-documents-visa",
-  },
+
+    video_url: "https://www.youtube.com/watch?v=f3PxLZDbfzw",
+    video_title: "FranceVisas : numériser vos documents pour faire votre demande de visa étudiant",
+    video_provider: "youtube",  },
   {
     id: "res-010",
     title: "Questions fréquentes Campus France",
@@ -201,7 +220,10 @@ const MOCK_RESOURCES: PrivateResource[] = [
     access_level: "student",
     url: "/espace-etudiant/ressources/questions-frequentes-campus-france",
     slug: "questions-frequentes-campus-france",
-  },
+
+    video_url: "https://www.youtube.com/watch?v=SV2NRPB9NaU",
+    video_title: "Campus France Tunisie répond à vos questions",
+    video_provider: "youtube",  },
 ];
 
 export const RESOURCE_CATEGORIES = [
@@ -535,8 +557,25 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
         ]
       },
       {
-        "id": "res-001-sources",
+        "id": "res-001-video-candidature",
         "screen_number": 20,
+        "section_type": "video",
+        "title": "Vidéo — procédure de candidature",
+        "subtitle": "Tutoriel Campus France Maroc",
+        "body": "Cette vidéo officielle complète le tunnel : elle montre la logique de candidature sur Études en France. Regarde-la après avoir compris les étapes écrites, puis reviens à la checklist.",
+        "items": [
+          "Repérer les étapes de candidature.",
+          "Comprendre la logique de la plateforme.",
+          "Ne pas remplacer les consignes locales par la vidéo."
+        ],
+        "video_title": "Tuto - procédure de candidature",
+        "video_url": "https://www.youtube.com/watch?v=-YqeTamtarQ",
+        "video_provider": "youtube",
+        "video_source_label": "Campus France Maroc"
+      },
+      {
+        "id": "res-001-sources",
+        "screen_number": 21,
         "section_type": "sources",
         "title": "Sources officielles à vérifier",
         "subtitle": "Les règles peuvent évoluer",
@@ -1403,8 +1442,25 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
         ]
       },
       {
-        "id": "res-004-sources",
+        "id": "res-004-video-faq-entretien",
         "screen_number": 19,
+        "section_type": "video",
+        "title": "Vidéo — questions fréquentes et entretien",
+        "subtitle": "Repères Campus France Tunisie",
+        "body": "Cette vidéo répond à des questions courantes sur Campus France, dont l’entretien. Elle sert de repère rapide avant de travailler tes réponses avec la méthode du tunnel.",
+        "items": [
+          "Identifier les questions fréquentes.",
+          "Comprendre le rôle de l’entretien.",
+          "Préparer des réponses personnelles, pas récitées."
+        ],
+        "video_title": "Campus France Tunisie répond à vos questions",
+        "video_url": "https://www.youtube.com/watch?v=SV2NRPB9NaU",
+        "video_provider": "youtube",
+        "video_source_label": "Campus France Tunisie"
+      },
+      {
+        "id": "res-004-sources",
+        "screen_number": 20,
         "section_type": "sources",
         "title": "Sources officielles à vérifier",
         "subtitle": "Les consignes peuvent varier selon le pays",
@@ -2287,8 +2343,42 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
         ]
       },
       {
-        "id": "res-007-sources",
+        "id": "res-007-video-francevisas-form",
         "screen_number": 18,
+        "section_type": "video",
+        "title": "Vidéo — compléter la demande France-Visas",
+        "subtitle": "Tutoriel Campus France Maroc",
+        "body": "Cette vidéo montre le remplissage de la demande France-Visas. Utilise-la comme aide visuelle, puis vérifie toujours la liste générée par France-Visas selon ta situation.",
+        "items": [
+          "Voir la logique du formulaire France-Visas.",
+          "Préparer les informations avant saisie.",
+          "Vérifier chaque donnée avant validation."
+        ],
+        "video_title": "FranceVisas : compléter votre demande de visa en ligne",
+        "video_url": "https://www.youtube.com/watch?v=F0s_OCyN4kk",
+        "video_provider": "youtube",
+        "video_source_label": "Campus France Maroc"
+      },
+      {
+        "id": "res-007-video-francevisas-documents",
+        "screen_number": 19,
+        "section_type": "video",
+        "title": "Vidéo — numériser les documents visa",
+        "subtitle": "Tutoriel Campus France Maroc",
+        "body": "Cette vidéo complète la partie documents : elle aide à comprendre la préparation des copies numériques avant la demande visa étudiant.",
+        "items": [
+          "Préparer des scans lisibles.",
+          "Classer les justificatifs demandés.",
+          "Éviter les fichiers incomplets ou flous."
+        ],
+        "video_title": "FranceVisas : numériser vos documents pour faire votre demande de visa étudiant",
+        "video_url": "https://www.youtube.com/watch?v=f3PxLZDbfzw",
+        "video_provider": "youtube",
+        "video_source_label": "Campus France Maroc"
+      },
+      {
+        "id": "res-007-sources",
+        "screen_number": 20,
         "section_type": "sources",
         "title": "Sources officielles à vérifier",
         "subtitle": "La liste exacte dépend de ta situation",
@@ -2884,8 +2974,25 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
         ]
       },
       {
-        "id": "res-009-sources",
+        "id": "res-009-video-documents-visa",
         "screen_number": 18,
+        "section_type": "video",
+        "title": "Vidéo — documents numériques visa",
+        "subtitle": "Tutoriel Campus France Maroc",
+        "body": "Cette vidéo est placée ici pour renforcer le contrôle des documents visa : scans, lisibilité, classement et préparation avant dépôt.",
+        "items": [
+          "Contrôler la qualité des fichiers.",
+          "Préparer les documents avant rendez-vous.",
+          "Garder les originaux et copies organisés."
+        ],
+        "video_title": "FranceVisas : numériser vos documents pour faire votre demande de visa étudiant",
+        "video_url": "https://www.youtube.com/watch?v=f3PxLZDbfzw",
+        "video_provider": "youtube",
+        "video_source_label": "Campus France Maroc"
+      },
+      {
+        "id": "res-009-sources",
+        "screen_number": 19,
         "section_type": "sources",
         "title": "Sources officielles à vérifier",
         "subtitle": "La liste dépend de ta situation",
@@ -3164,8 +3271,25 @@ const FALLBACK_RESOURCE_TUNNELS: Record<string, {
         ]
       },
       {
-        "id": "res-010-sources",
+        "id": "res-010-video-faq-campus-france",
         "screen_number": 17,
+        "section_type": "video",
+        "title": "Vidéo — FAQ Campus France",
+        "subtitle": "Réponses rapides aux questions fréquentes",
+        "body": "Cette vidéo complète la FAQ écrite. Elle donne un aperçu rapide des questions fréquentes autour de Campus France, de la procédure et de l’entretien.",
+        "items": [
+          "Clarifier les rôles Campus France.",
+          "Comprendre les questions récurrentes.",
+          "Revenir ensuite aux réponses structurées du tunnel."
+        ],
+        "video_title": "Campus France Tunisie répond à vos questions",
+        "video_url": "https://www.youtube.com/watch?v=SV2NRPB9NaU",
+        "video_provider": "youtube",
+        "video_source_label": "Campus France Tunisie"
+      },
+      {
+        "id": "res-010-sources",
+        "screen_number": 18,
         "section_type": "sources",
         "title": "Sources officielles à vérifier",
         "subtitle": "Les consignes varient selon le pays",

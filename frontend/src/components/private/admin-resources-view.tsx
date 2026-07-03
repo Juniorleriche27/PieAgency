@@ -63,6 +63,9 @@ const EMPTY_FORM = {
   duration_label: "",
   access_level: "student" as PrivateResource["access_level"],
   url: "",
+  video_title: "",
+  video_url: "",
+  video_provider: "youtube",
 };
 
 type FormState = typeof EMPTY_FORM;
@@ -79,6 +82,9 @@ function formToResource(f: FormState, id: string): PrivateResource {
     duration_label: f.duration_label.trim() || null,
     access_level: f.access_level,
     url: f.url.trim() || null,
+    video_title: f.video_title.trim() || null,
+    video_url: f.video_url.trim() || null,
+    video_provider: f.video_provider.trim() || null,
   };
 }
 
@@ -93,6 +99,9 @@ function resourceToForm(r: PrivateResource): FormState {
     duration_label: r.duration_label ?? "",
     access_level: r.access_level,
     url: r.url ?? "",
+    video_title: r.video_title ?? "",
+    video_url: r.video_url ?? "",
+    video_provider: r.video_provider ?? "youtube",
   };
 }
 
@@ -242,6 +251,7 @@ export function AdminResourcesView() {
                         </span>
                       </td>
                       <td>
+                        {r.video_url ? <span className="admin-res-video-chip">Vidéo</span> : null}
                         {r.url ? (
                           <a
                             className="admin-res-link"
@@ -384,6 +394,37 @@ export function AdminResourcesView() {
                     type="text"
                     value={form.duration_label}
                   />
+                </div>
+              </div>
+
+              <div className="crud-row">
+                <div className="crud-field">
+                  <label>Titre vidéo</label>
+                  <input
+                    onChange={(e) => field("video_title", e.target.value)}
+                    placeholder="Ex : tutoriel Campus France"
+                    type="text"
+                    value={form.video_title}
+                  />
+                </div>
+                <div className="crud-field">
+                  <label>URL vidéo YouTube</label>
+                  <input
+                    onChange={(e) => field("video_url", e.target.value)}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    type="url"
+                    value={form.video_url}
+                  />
+                </div>
+                <div className="crud-field">
+                  <label>Provider</label>
+                  <select
+                    onChange={(e) => field("video_provider", e.target.value)}
+                    value={form.video_provider}
+                  >
+                    <option value="youtube">YouTube</option>
+                    <option value="none">Aucune vidéo</option>
+                  </select>
                 </div>
               </div>
 
