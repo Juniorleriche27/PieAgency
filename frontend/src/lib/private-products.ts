@@ -128,7 +128,8 @@ export const RESOURCE_LIBRARY: Record<string, ProductIncludedResource> = {
     title: "Checklist documents visa",
     description: "Contrôle guidé des pièces visa.",
     category: "Visa",
-    status: "coming",
+    href: "/espace-etudiant/ressources/checklist-documents-visa",
+    status: "ready",
   },
   "res-010": {
     id: "res-010",
