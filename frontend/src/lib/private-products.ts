@@ -88,7 +88,8 @@ export const RESOURCE_LIBRARY: Record<string, ProductIncludedResource> = {
     title: "Préparer l'entretien Campus France",
     description: "Questions, méthode de réponse et préparation orale.",
     category: "Entretien",
-    status: "coming",
+    href: "/espace-etudiant/ressources/preparer-entretien-campus-france",
+    status: "ready",
   },
   "res-005": {
     id: "res-005",

@@ -120,9 +120,10 @@ const MOCK_RESOURCES: PrivateResource[] = [
     resource_type: "video",
     badge_label: "Parcours entretien",
     action_label: "Ouvrir",
-    duration_label: "15 min",
+    duration_label: "35 min",
     access_level: "student",
-    url: null,
+    url: "/espace-etudiant/ressources/preparer-entretien-campus-france",
+    slug: "preparer-entretien-campus-france",
   },
   {
     id: "res-005",
