@@ -195,9 +195,10 @@ const MOCK_RESOURCES: PrivateResource[] = [
     resource_type: "video",
     badge_label: "FAQ interactive",
     action_label: "Ouvrir",
-    duration_label: "20 min",
+    duration_label: "35 min",
     access_level: "student",
-    url: null,
+    url: "/espace-etudiant/ressources/questions-frequentes-campus-france",
+    slug: "questions-frequentes-campus-france",
   },
 ];
 

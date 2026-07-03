@@ -136,7 +136,8 @@ export const RESOURCE_LIBRARY: Record<string, ProductIncludedResource> = {
     title: "Questions fréquentes Campus France",
     description: "Réponses aux blocages les plus courants.",
     category: "Campus France",
-    status: "coming",
+    href: "/espace-etudiant/ressources/questions-frequentes-campus-france",
+    status: "ready",
   },
 };
 
