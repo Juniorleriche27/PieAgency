@@ -120,7 +120,8 @@ export const RESOURCE_LIBRARY: Record<string, ProductIncludedResource> = {
     title: "Modèle lettre de motivation",
     description: "Trame guidée pour rédiger une lettre personnalisée.",
     category: "Lettres",
-    status: "coming",
+    href: "/espace-etudiant/ressources/modele-lettre-motivation",
+    status: "ready",
   },
   "res-009": {
     id: "res-009",

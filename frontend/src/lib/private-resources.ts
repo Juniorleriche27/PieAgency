@@ -172,7 +172,8 @@ const MOCK_RESOURCES: PrivateResource[] = [
     badge_label: "Modèle interactif",
     action_label: "Ouvrir",
     access_level: "student",
-    url: null,
+    url: "/espace-etudiant/ressources/modele-lettre-motivation",
+    slug: "modele-lettre-motivation",
   },
   {
     id: "res-009",
