@@ -1630,3 +1630,32 @@ on conflict (id) do update set
   target_path = excluded.target_path,
   is_active = true,
   updated_at = timezone('utc', now());
+
+
+create table if not exists public.user_resource_entitlements (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  resource_id text not null,
+  product_id text,
+  payment_provider text,
+  payment_cart_id text,
+  payment_id text,
+  source text not null default 'payment',
+  granted_at timestamptz not null default timezone('utc', now()),
+  expires_at timestamptz,
+  unique (user_id, resource_id)
+);
+
+create index if not exists user_resource_entitlements_user_id_idx
+  on public.user_resource_entitlements (user_id);
+
+create index if not exists user_resource_entitlements_resource_id_idx
+  on public.user_resource_entitlements (resource_id);
+
+alter table public.user_resource_entitlements enable row level security;
+
+drop policy if exists "Users can read own resource entitlements" on public.user_resource_entitlements;
+create policy "Users can read own resource entitlements"
+  on public.user_resource_entitlements
+  for select
+  using (auth.uid() = user_id);

@@ -43,6 +43,16 @@ type PrivateProductListResponse = {
   products: PrivateProductApiItem[];
 };
 
+export type ProductAccess = {
+  product_id: string;
+  service_slug: string;
+  included_resource_ids: string[];
+  unlocked_resource_ids: string[];
+  has_access: boolean;
+  storage_ready: boolean;
+  message: string;
+};
+
 export const PRODUCT_CATEGORIES = [
   "Tous",
   "Campus France",
@@ -277,6 +287,13 @@ const MOCK_PRODUCTS: Product[] = [
   },
 ];
 
+export function getProductPaymentOptions() {
+  return MOCK_PRODUCTS.map((product) => ({
+    slug: product.serviceSlug ?? product.id,
+    label: product.title,
+  }));
+}
+
 function toProduct(item: PrivateProductApiItem): Product {
   return {
     id: item.id,
@@ -320,4 +337,17 @@ export function getIncludedResources(product: Product): ProductIncludedResource[
 /** Synchronous lookup — used only for generateStaticParams. */
 export function getAllProductIds(): string[] {
   return MOCK_PRODUCTS.map((p) => p.id);
+}
+
+
+export async function getProductAccess(productId: string): Promise<ProductAccess | null> {
+  try {
+    const response = await authenticatedFetch(`/api/private/products/${encodeURIComponent(productId)}/access`, {
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    return (await response.json()) as ProductAccess;
+  } catch {
+    return null;
+  }
 }

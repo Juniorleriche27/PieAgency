@@ -249,6 +249,7 @@ class PaymentStatusResponse(BaseModel):
     message: str
     payment_id: str | None = None
     reference: str | None = None
+    service_slug: str | None = None
 
 
 class PaymentReceiptRequest(BaseModel):
@@ -874,6 +875,20 @@ class PrivateResourceDetailResponse(BaseModel):
     watermark_label: str
     sections: list[PrivateResourceSectionItem]
 
+
+class PrivateProductAccessActivateRequest(BaseModel):
+    cart_id: str = Field(min_length=3, max_length=200)
+    service_slug: str | None = Field(default=None, max_length=80)
+
+
+class PrivateProductAccessResponse(BaseModel):
+    product_id: str
+    service_slug: str
+    included_resource_ids: list[str] = Field(default_factory=list)
+    unlocked_resource_ids: list[str] = Field(default_factory=list)
+    has_access: bool = False
+    storage_ready: bool = True
+    message: str
 
 class PrivateSubscriptionPlanItem(BaseModel):
     id: str

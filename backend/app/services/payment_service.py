@@ -146,13 +146,26 @@ def _build_checkout_meta(payload: PaymentIntentCreateRequest) -> dict[str, str]:
     return meta
 
 
-def _extract_reference(payload: dict[str, Any]) -> str | None:
-    meta = payload.get("meta")
-    if isinstance(meta, dict):
-        reference = meta.get("dossierReference")
-        if isinstance(reference, str) and reference.strip():
-            return reference.strip()
+def _extract_meta_value(payload: dict[str, Any], key: str) -> str | None:
+    candidates = [payload.get("meta")]
+    cart = payload.get("cart")
+    if isinstance(cart, dict):
+        candidates.append(cart.get("meta"))
+
+    for meta in candidates:
+        if isinstance(meta, dict):
+            value = meta.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
     return None
+
+
+def _extract_reference(payload: dict[str, Any]) -> str | None:
+    return _extract_meta_value(payload, "dossierReference")
+
+
+def _extract_service_slug(payload: dict[str, Any]) -> str | None:
+    return _extract_meta_value(payload, "serviceSlug")
 
 
 def _normalize_status(raw_status: str | None) -> str:
@@ -282,6 +295,7 @@ def fetch_payment_status(cart_id: str) -> PaymentStatusResponse:
     raw_status = _extract_string(data, "status")
     payment_id = _extract_string(data, "paymentId")
     reference = _extract_reference(data)
+    service_slug = _extract_service_slug(data)
 
     return PaymentStatusResponse(
         provider="maketou",
@@ -290,4 +304,5 @@ def fetch_payment_status(cart_id: str) -> PaymentStatusResponse:
         message="Statut du panier MakeTou recupere.",
         payment_id=payment_id,
         reference=reference,
+        service_slug=service_slug,
     )

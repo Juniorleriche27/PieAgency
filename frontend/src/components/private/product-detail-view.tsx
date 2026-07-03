@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, CreditCard, ShoppingCart } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getIncludedResources, getProduct, type Product } from "@/lib/private-products";
+import { getIncludedResources, getProduct, getProductAccess, type Product, type ProductAccess } from "@/lib/private-products";
 
 type Props = {
   product: Product;
@@ -18,8 +18,10 @@ function badgeLabel(badge: Product["badge"]) {
 
 export function ProductDetailView({ product }: Props) {
   const [liveProduct, setLiveProduct] = useState(product);
+  const [productAccess, setProductAccess] = useState<ProductAccess | null>(null);
   const label = badgeLabel(liveProduct.badge);
   const includedResources = getIncludedResources(liveProduct);
+  const hasProductAccess = Boolean(productAccess?.has_access);
   const paymentHref = `/paiement?service=${encodeURIComponent(
     liveProduct.serviceSlug ?? liveProduct.id,
   )}&amount=${encodeURIComponent(String(liveProduct.price))}&reason=${encodeURIComponent(
@@ -143,14 +145,25 @@ export function ProductDetailView({ product }: Props) {
                 </li>
               </ul>
 
-              <Link
-                className="btn btn-primary"
-                style={{ width: "100%", gap: 8 }}
-                href={paymentHref}
-              >
-                <ShoppingCart size={16} aria-hidden />
-                Acheter maintenant
-              </Link>
+              {hasProductAccess ? (
+                <Link
+                  className="btn btn-primary"
+                  style={{ width: "100%", gap: 8 }}
+                  href="/espace-etudiant/ressources"
+                >
+                  <ShoppingCart size={16} aria-hidden />
+                  Ouvrir mes ressources
+                </Link>
+              ) : (
+                <Link
+                  className="btn btn-primary"
+                  style={{ width: "100%", gap: 8 }}
+                  href={paymentHref}
+                >
+                  <ShoppingCart size={16} aria-hidden />
+                  Acheter maintenant
+                </Link>
+              )}
 
               <Link
                 className="btn btn-outline"
@@ -160,6 +173,14 @@ export function ProductDetailView({ product }: Props) {
                 <CreditCard size={16} aria-hidden />
                 S&apos;abonner
               </Link>
+
+              {productAccess?.message ? (
+                <div className="prod-cta-tip">
+                  <strong>{hasProductAccess ? "✅ Accès actif" : "ℹ️ Accès"}</strong>
+                  <br />
+                  {productAccess.message}
+                </div>
+              ) : null}
 
               <div className="prod-cta-tip">
                 <strong>💡 Conseil</strong>

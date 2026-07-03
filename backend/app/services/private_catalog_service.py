@@ -3,6 +3,7 @@ from ..schemas import (
     CurrentSubscriptionResponse,
     OnboardingStatus,
     PrivateOnboardingStatusResponse,
+    PrivateProductAccessResponse,
     PrivateProductItem,
     PrivateProductListResponse,
     PrivateDiagnosticResponse,
@@ -754,8 +755,120 @@ def get_private_product(product_id: str) -> PrivateProductItem:
     raise LookupError("Produit introuvable.")
 
 
+def get_private_product_by_service_slug(service_slug: str) -> PrivateProductItem:
+    for product in PRODUCTS:
+        if product.service_slug == service_slug or product.id == service_slug:
+            return product
+    raise LookupError("Produit introuvable pour ce paiement.")
+
+
 def list_private_resources() -> PrivateResourceListResponse:
     return PrivateResourceListResponse(resources=RESOURCES)
+
+
+def _fetch_user_entitlement_resource_ids(user_id: str, resource_ids: list[str], access_token: str | None = None) -> tuple[set[str], bool]:
+    if not resource_ids:
+        return set(), True
+    client = _client_or_none(access_token)
+    if client is None:
+        return set(), False
+    try:
+        response = (
+            client.table("user_resource_entitlements")
+            .select("resource_id")
+            .eq("user_id", user_id)
+            .in_("resource_id", resource_ids)
+            .execute()
+        )
+        return {str(row.get("resource_id")) for row in (response.data or []) if row.get("resource_id")}, True
+    except Exception:
+        return set(), False
+
+
+def get_private_product_access(product_id: str, user_id: str, access_token: str | None = None) -> PrivateProductAccessResponse:
+    product = get_private_product(product_id)
+    unlocked, storage_ready = _fetch_user_entitlement_resource_ids(
+        user_id,
+        product.included_resource_ids,
+        access_token,
+    )
+    unlocked_resource_ids = [resource_id for resource_id in product.included_resource_ids if resource_id in unlocked]
+    has_access = bool(product.included_resource_ids) and len(unlocked_resource_ids) == len(product.included_resource_ids)
+    return PrivateProductAccessResponse(
+        product_id=product.id,
+        service_slug=product.service_slug,
+        included_resource_ids=product.included_resource_ids,
+        unlocked_resource_ids=unlocked_resource_ids,
+        has_access=has_access,
+        storage_ready=storage_ready,
+        message=(
+            "Produit déjà débloqué."
+            if has_access
+            else "Droits partiels ou absents pour ce produit."
+        ),
+    )
+
+
+def grant_product_resource_entitlements(
+    *,
+    user_id: str,
+    service_slug: str,
+    payment_provider: str,
+    cart_id: str,
+    payment_id: str | None = None,
+) -> PrivateProductAccessResponse:
+    product = get_private_product_by_service_slug(service_slug)
+    client = _client_or_none()
+    if client is None:
+        return PrivateProductAccessResponse(
+            product_id=product.id,
+            service_slug=product.service_slug,
+            included_resource_ids=product.included_resource_ids,
+            unlocked_resource_ids=[],
+            has_access=False,
+            storage_ready=False,
+            message="Paiement confirmé, mais Supabase n'est pas configuré pour enregistrer les droits.",
+        )
+
+    rows = [
+        {
+            "user_id": user_id,
+            "resource_id": resource_id,
+            "product_id": product.id,
+            "payment_provider": payment_provider,
+            "payment_cart_id": cart_id,
+            "payment_id": payment_id,
+            "source": "payment",
+        }
+        for resource_id in product.included_resource_ids
+    ]
+
+    if rows:
+        try:
+            client.table("user_resource_entitlements").upsert(
+                rows,
+                on_conflict="user_id,resource_id",
+            ).execute()
+        except Exception:
+            return PrivateProductAccessResponse(
+                product_id=product.id,
+                service_slug=product.service_slug,
+                included_resource_ids=product.included_resource_ids,
+                unlocked_resource_ids=[],
+                has_access=False,
+                storage_ready=False,
+                message="Paiement confirmé, mais la table user_resource_entitlements n'est pas encore disponible.",
+            )
+
+    return PrivateProductAccessResponse(
+        product_id=product.id,
+        service_slug=product.service_slug,
+        included_resource_ids=product.included_resource_ids,
+        unlocked_resource_ids=product.included_resource_ids,
+        has_access=True,
+        storage_ready=True,
+        message="Paiement confirmé : les ressources incluses sont maintenant débloquées.",
+    )
 
 
 def list_private_subscriptions() -> PrivateSubscriptionListResponse:

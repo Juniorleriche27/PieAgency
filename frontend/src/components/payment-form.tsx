@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { servicePages } from "@/content/site";
-import { getApiBaseUrl } from "@/lib/auth";
+import { authenticatedFetch, getApiBaseUrl } from "@/lib/auth";
+import { getProductPaymentOptions } from "@/lib/private-products";
 
 type PaymentConfig = {
   enabled: boolean;
@@ -32,6 +33,7 @@ type PaymentStatusResponse = {
   message: string;
   payment_id?: string | null;
   reference?: string | null;
+  service_slug?: string | null;
 };
 
 type PaymentFormState = {
@@ -48,10 +50,13 @@ type PaymentFormErrors = Partial<Record<keyof PaymentFormState, string>>;
 
 const LAST_CHECKOUT_STORAGE_KEY = "pieagency.payment.lastCheckout";
 
-const serviceOptions = servicePages.map((service) => ({
-  slug: service.slug,
-  label: service.shortTitle,
-}));
+const serviceOptions = [
+  ...servicePages.map((service) => ({
+    slug: service.slug,
+    label: service.shortTitle,
+  })),
+  ...getProductPaymentOptions(),
+];
 
 const initialState: PaymentFormState = {
   fullName: "",
@@ -104,6 +109,34 @@ export function PaymentForm() {
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+
+  async function activateProductAccess(
+    cartId: string,
+    serviceSlug: string,
+  ): Promise<string | null> {
+    if (!serviceSlug.startsWith("prod-")) {
+      return null;
+    }
+
+    const response = await authenticatedFetch("/api/private/products/activate-access", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cart_id: cartId, service_slug: serviceSlug }),
+    });
+
+    const payload = (await response.json().catch(() => null)) as
+      | { message?: string; detail?: string }
+      | null;
+
+    if (!response.ok) {
+      throw new Error(
+        payload?.detail ??
+          "Paiement confirmé, mais l'activation automatique des ressources a échoué.",
+      );
+    }
+
+    return payload?.message ?? "Ressources incluses débloquées.";
+  }
 
   useEffect(() => {
     const matchedService = serviceOptions.find((item) => item.slug === serviceFromQuery);
@@ -251,7 +284,7 @@ export function PaymentForm() {
         window.localStorage.removeItem(LAST_CHECKOUT_STORAGE_KEY);
       }
 
-      // Send receipt email when payment is confirmed
+      // Send receipt email and activate product resources when payment is confirmed
       if (payload.status === "completed") {
         const savedRaw = typeof window !== "undefined"
           ? window.localStorage.getItem("pieagency.payment.lastForm")
@@ -274,6 +307,25 @@ export function PaymentForm() {
               payment_id: payload.payment_id ?? null,
             }),
           }).catch(() => null);
+
+          const serviceSlug = payload.service_slug ?? savedForm.serviceSlug;
+          if (payload.cart_id && serviceSlug) {
+            try {
+              const activationMessage = await activateProductAccess(payload.cart_id, serviceSlug);
+              if (activationMessage) {
+                setFeedback({ type: "success", message: activationMessage });
+              }
+            } catch (activationError) {
+              setFeedback({
+                type: "info",
+                message:
+                  activationError instanceof Error
+                    ? activationError.message
+                    : "Paiement confirmé. Connectez-vous à votre espace étudiant pour finaliser l'accès aux ressources.",
+              });
+            }
+          }
+
           window.localStorage.removeItem("pieagency.payment.lastForm");
         }
       }

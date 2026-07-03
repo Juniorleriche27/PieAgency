@@ -9,6 +9,8 @@ from ..schemas import (
     PrivateDiagnosticResponse,
     PrivateOnboardingStatusResponse,
     PrivateOnboardingSubmitRequest,
+    PrivateProductAccessActivateRequest,
+    PrivateProductAccessResponse,
     PrivateProfileResponse,
     PrivateProfileUpdateRequest,
     PrivateProductItem,
@@ -20,13 +22,16 @@ from ..schemas import (
     StudentDocumentItem,
     StudentDocumentListResponse,
 )
+from ..services.payment_service import MaketouNotConfiguredError, MaketouRequestError, fetch_payment_status
 from ..services.private_catalog_service import (
     add_student_document,
     get_private_diagnostic,
     get_private_onboarding_status,
     get_private_profile,
     get_private_product,
+    get_private_product_access,
     get_private_resource_tunnel,
+    grant_product_resource_entitlements,
     get_current_subscription,
     list_private_products,
     list_private_resources,
@@ -55,6 +60,55 @@ def private_product_detail(
 ) -> PrivateProductItem:
     try:
         return get_private_product(product_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/private/products/{product_id}/access", response_model=PrivateProductAccessResponse)
+def private_product_access(
+    product_id: str,
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> PrivateProductAccessResponse:
+    try:
+        return get_private_product_access(product_id, current_user.user_id, access_token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/private/products/activate-access", response_model=PrivateProductAccessResponse)
+def activate_private_product_access(
+    payload: PrivateProductAccessActivateRequest,
+    current_user: AuthUserProfile = Depends(get_current_user),
+) -> PrivateProductAccessResponse:
+    try:
+        payment_status = fetch_payment_status(payload.cart_id)
+    except MaketouNotConfiguredError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except MaketouRequestError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    if payment_status.status != "completed":
+        raise HTTPException(
+            status_code=409,
+            detail="Le paiement n'est pas encore confirmé par MakeTou.",
+        )
+
+    service_slug = payment_status.service_slug or payload.service_slug
+    if not service_slug:
+        raise HTTPException(
+            status_code=400,
+            detail="Impossible d'identifier le produit payé.",
+        )
+
+    try:
+        return grant_product_resource_entitlements(
+            user_id=current_user.user_id,
+            service_slug=service_slug,
+            payment_provider=payment_status.provider,
+            cart_id=payment_status.cart_id,
+            payment_id=payment_status.payment_id,
+        )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
