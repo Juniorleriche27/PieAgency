@@ -1,9 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, CreditCard, ShoppingCart } from "lucide-react";
-import { useEffect, useState } from "react";
-import { getIncludedResources, getProduct, getProductAccess, type Product, type ProductAccess } from "@/lib/private-products";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  CreditCard,
+  LockKeyhole,
+  ShieldCheck,
+  ShoppingCart,
+  Sparkles,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  getIncludedResources,
+  getProduct,
+  getProductAccess,
+  type Product,
+  type ProductAccess,
+  type ProductIncludedResource,
+} from "@/lib/private-products";
 
 type Props = {
   product: Product;
@@ -16,11 +32,47 @@ function badgeLabel(badge: Product["badge"]) {
   return null;
 }
 
+function resourceState(
+  resource: ProductIncludedResource,
+  unlockedResourceIds: Set<string>,
+) {
+  if (unlockedResourceIds.has(resource.id)) {
+    return {
+      label: "Débloquée",
+      className: "is-unlocked",
+      action: "Ouvrir",
+      icon: <CheckCircle2 size={16} aria-hidden />,
+    };
+  }
+
+  if (resource.status === "coming") {
+    return {
+      label: "En préparation",
+      className: "is-coming",
+      action: "Bientôt",
+      icon: <Sparkles size={16} aria-hidden />,
+    };
+  }
+
+  return {
+    label: "Incluse après paiement",
+    className: "is-locked",
+    action: "Voir l’aperçu",
+    icon: <LockKeyhole size={16} aria-hidden />,
+  };
+}
+
 export function ProductDetailView({ product }: Props) {
   const [liveProduct, setLiveProduct] = useState(product);
   const [productAccess, setProductAccess] = useState<ProductAccess | null>(null);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const label = badgeLabel(liveProduct.badge);
   const includedResources = getIncludedResources(liveProduct);
+  const unlockedResourceIds = useMemo(
+    () => new Set(productAccess?.unlocked_resource_ids ?? []),
+    [productAccess?.unlocked_resource_ids],
+  );
+  const unlockedCount = includedResources.filter((resource) => unlockedResourceIds.has(resource.id)).length;
   const hasProductAccess = Boolean(productAccess?.has_access);
   const paymentHref = `/paiement?service=${encodeURIComponent(
     liveProduct.serviceSlug ?? liveProduct.id,
@@ -32,10 +84,21 @@ export function ProductDetailView({ product }: Props) {
     let active = true;
 
     async function loadProduct() {
-      const nextProduct = await getProduct(product.id);
-      if (active && nextProduct) {
+      setIsCheckingAccess(true);
+      const [nextProduct, access] = await Promise.all([
+        getProduct(product.id),
+        getProductAccess(product.id),
+      ]);
+
+      if (!active) {
+        return;
+      }
+
+      if (nextProduct) {
         setLiveProduct(nextProduct);
       }
+      setProductAccess(access);
+      setIsCheckingAccess(false);
     }
 
     void loadProduct();
@@ -45,47 +108,62 @@ export function ProductDetailView({ product }: Props) {
   }, [product.id]);
 
   return (
-    <div>
+    <div className="prod-premium-page">
       <Link className="prod-detail-back" href="/espace-etudiant/produits">
         <ArrowLeft size={18} aria-hidden />
         Retour aux produits
       </Link>
 
-      <div className="prod-detail-head">
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h1>{liveProduct.title}</h1>
-            <p>{liveProduct.description}</p>
+      <section className="prod-premium-hero">
+        <div className="prod-premium-hero-copy">
+          <div className="prod-premium-kicker">
+            <Sparkles size={16} aria-hidden />
+            Produit digital privé
           </div>
-          {label && liveProduct.badge ? (
-            <div
-              className={`prod-card-badge ${liveProduct.badge}`}
-              style={{ position: "static", flexShrink: 0 }}
-            >
-              {label}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h1>{liveProduct.title}</h1>
+              <p>{liveProduct.description}</p>
             </div>
-          ) : null}
+            {label && liveProduct.badge ? (
+              <div className={`prod-card-badge ${liveProduct.badge}`} style={{ position: "static" }}>
+                {label}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="prod-premium-meta">
+            <span>{includedResources.length} ressources incluses</span>
+            <span>{hasProductAccess ? "Accès actif" : "Paiement unique"}</span>
+            <span>Contenu privé protégé</span>
+          </div>
         </div>
 
-        <div className="prod-detail-price">
-          <strong>{liveProduct.price.toFixed(2)}</strong>
-          <span>€</span>
+        <div className="prod-premium-price-card">
+          <span>Prix</span>
+          <strong>{liveProduct.price.toFixed(2)} €</strong>
+          <p>{hasProductAccess ? "Vous avez déjà accès à ce produit." : "Débloque toutes les ressources listées ci-dessous."}</p>
         </div>
-      </div>
+      </section>
 
       <div className="prod-detail-layout">
-        {/* Colonne principale */}
         <div className="prod-detail-main">
-          <section className="prod-detail-section">
-            <h2>Présentation</h2>
+          <section className="prod-detail-section prod-premium-section">
+            <div className="prod-section-headline">
+              <span>Présentation</span>
+              <h2>Ce que ce produit vous permet de faire</h2>
+            </div>
             <p>{liveProduct.longDescription}</p>
           </section>
 
-          <section className="prod-detail-section">
-            <h2>Ce que vous allez trouver</h2>
-            <ul className="prod-detail-list">
-              {liveProduct.whatYouGet.map((item, i) => (
-                <li key={i}>
+          <section className="prod-detail-section prod-premium-section">
+            <div className="prod-section-headline">
+              <span>Contenu</span>
+              <h2>Ce que vous allez trouver</h2>
+            </div>
+            <ul className="prod-detail-list prod-premium-list">
+              {liveProduct.whatYouGet.map((item) => (
+                <li key={item}>
                   <CheckCircle2 size={18} aria-hidden />
                   {item}
                 </li>
@@ -93,100 +171,121 @@ export function ProductDetailView({ product }: Props) {
             </ul>
           </section>
 
-          <section className="prod-detail-section">
-            <h2>À qui ce produit s&apos;adresse</h2>
+          <section className="prod-detail-section prod-premium-section">
+            <div className="prod-section-headline">
+              <span>Profil</span>
+              <h2>À qui ce produit s’adresse</h2>
+            </div>
             <p>{liveProduct.targetAudience}</p>
           </section>
 
-          <section className="prod-detail-section">
-            <h2>Ressources privées incluses</h2>
-            <div className="prod-preview-grid">
+          <section className="prod-detail-section prod-premium-section">
+            <div className="prod-section-headline">
+              <span>Ressources incluses</span>
+              <h2>Une bibliothèque privée, pas un fichier à partager</h2>
+            </div>
+            <p>
+              Chaque ressource s’ouvre dans l’espace étudiant. Les aperçus restent visibles,
+              puis l’accès complet se débloque automatiquement après paiement confirmé.
+            </p>
+
+            <div className="prod-premium-resource-grid">
               {includedResources.map((resource) => {
-                const card = (
-                  <div className="prod-preview-item">
-                    <div className="prod-preview-icon" aria-hidden />
-                    <p>{resource.title}</p>
-                    <span>{resource.status === "ready" ? "Disponible" : "En préparation"}</span>
+                const state = resourceState(resource, unlockedResourceIds);
+                const content = (
+                  <div className={`prod-premium-resource ${state.className}`}>
+                    <div className="prod-premium-resource-top">
+                      <span className="prod-premium-resource-icon">{state.icon}</span>
+                      <span className="prod-premium-resource-status">{state.label}</span>
+                    </div>
+                    <h3>{resource.title}</h3>
+                    <p>{resource.description}</p>
+                    <div className="prod-premium-resource-foot">
+                      <span>{resource.category}</span>
+                      <strong>
+                        {state.action}
+                        {resource.href && resource.status === "ready" ? <ArrowRight size={14} aria-hidden /> : null}
+                      </strong>
+                    </div>
                   </div>
                 );
 
-                return resource.href ? (
-                  <Link key={resource.id} href={resource.href} className="prod-preview-link">
-                    {card}
+                return resource.href && resource.status === "ready" ? (
+                  <Link key={resource.id} href={resource.href} className="prod-premium-resource-link">
+                    {content}
                   </Link>
                 ) : (
-                  <div key={resource.id}>{card}</div>
+                  <div key={resource.id}>{content}</div>
                 );
               })}
             </div>
           </section>
         </div>
 
-        {/* Sidebar CTA */}
         <aside className="prod-detail-sidebar" aria-label="Acheter ce produit">
-          <div className="prod-cta-card">
+          <div className="prod-cta-card prod-premium-cta">
             <div className="prod-cta-head">
+              <span>{hasProductAccess ? "Accès actif" : "Accès produit"}</span>
               <strong>{liveProduct.price.toFixed(2)} €</strong>
-              <span>Accès aux ressources incluses</span>
+              <p>
+                {isCheckingAccess
+                  ? "Vérification de vos droits…"
+                  : hasProductAccess
+                    ? `${unlockedCount}/${includedResources.length} ressources débloquées.`
+                    : `${includedResources.length} ressources incluses après paiement.`}
+              </p>
             </div>
+
             <div className="prod-cta-body">
+              <div className="prod-access-meter" aria-label="Progression des ressources débloquées">
+                <span style={{ width: `${includedResources.length ? (unlockedCount / includedResources.length) * 100 : 0}%` }} />
+              </div>
+
               <ul className="prod-cta-benefits">
                 <li>
+                  <ShieldCheck size={16} aria-hidden />
+                  Activation liée à votre compte
+                </li>
+                <li>
                   <CheckCircle2 size={16} aria-hidden />
-                  Accès immédiat
+                  Ressources consultables dans l’espace étudiant
                 </li>
                 <li>
                   <CheckCircle2 size={16} aria-hidden />
                   Mises à jour incluses
                 </li>
-                <li>
-                  <CheckCircle2 size={16} aria-hidden />
-                  Support client
-                </li>
               </ul>
 
               {hasProductAccess ? (
-                <Link
-                  className="btn btn-primary"
-                  style={{ width: "100%", gap: 8 }}
-                  href="/espace-etudiant/ressources"
-                >
+                <Link className="btn btn-primary" style={{ width: "100%", gap: 8 }} href="/espace-etudiant/ressources">
                   <ShoppingCart size={16} aria-hidden />
                   Ouvrir mes ressources
                 </Link>
               ) : (
-                <Link
-                  className="btn btn-primary"
-                  style={{ width: "100%", gap: 8 }}
-                  href={paymentHref}
-                >
+                <Link className="btn btn-primary" style={{ width: "100%", gap: 8 }} href={paymentHref}>
                   <ShoppingCart size={16} aria-hidden />
-                  Acheter maintenant
+                  Acheter et débloquer
                 </Link>
               )}
 
-              <Link
-                className="btn btn-outline"
-                style={{ width: "100%", gap: 8 }}
-                href="/espace-etudiant/abonnement"
-              >
+              <Link className="btn btn-outline" style={{ width: "100%", gap: 8 }} href="/espace-etudiant/abonnement">
                 <CreditCard size={16} aria-hidden />
-                S&apos;abonner
+                Voir les abonnements
               </Link>
 
               {productAccess?.message ? (
-                <div className="prod-cta-tip">
-                  <strong>{hasProductAccess ? "✅ Accès actif" : "ℹ️ Accès"}</strong>
+                <div className={`prod-cta-tip ${hasProductAccess ? "is-success" : ""}`}>
+                  <strong>{hasProductAccess ? "✅ Accès actif" : "ℹ️ État d’accès"}</strong>
                   <br />
                   {productAccess.message}
                 </div>
               ) : null}
 
               <div className="prod-cta-tip">
-                <strong>💡 Conseil</strong>
+                <strong>Après paiement</strong>
                 <br />
-                Ce produit ne garantit pas une admission, mais vous donne une
-                méthode claire pour avancer.
+                Revenez sur la page paiement pour vérifier MakeTou. Les ressources incluses
+                sont ensuite activées côté backend sur votre compte.
               </div>
             </div>
           </div>
