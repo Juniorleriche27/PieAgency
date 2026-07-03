@@ -10,6 +10,7 @@ import {
   type Product,
   type ProductCategory,
 } from "@/lib/private-products";
+import { formatEuro, formatEuroToXof } from "@/lib/currency";
 
 type Props = {
   products: Product[];
@@ -114,9 +115,9 @@ export function ProductsCatalogue({ products }: Props) {
                 </div>
 
                 <div className="prod-card-foot">
-                  <div className="prod-price">
-                    <strong>{product.price.toFixed(2)}</strong>
-                    <span>€</span>
+                  <div className="prod-price prod-price-dual">
+                    <strong>{formatEuro(product.price)}</strong>
+                    <span>{formatEuroToXof(product.price)}</span>
                   </div>
                   <div className="prod-card-actions">
                     <span className="btn btn-outline" role="presentation">

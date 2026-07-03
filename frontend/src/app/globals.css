@@ -15127,3 +15127,29 @@ html[data-theme="dark"]:not(:has(.private-app-shell)) .btn-outline:hover {
   color: var(--gray-500);
   font-size: 0.73rem;
 }
+
+
+.payment-amount-helper {
+  margin-top: 6px;
+  color: var(--green);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+.prod-price-dual {
+  display: grid;
+  gap: 2px;
+}
+.prod-price-dual span {
+  color: var(--gray-600);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+.prod-premium-price-card em,
+.prod-premium-cta .prod-cta-head em {
+  display: block;
+  margin-top: -4px;
+  color: var(--green);
+  font-style: normal;
+  font-size: 0.95rem;
+  font-weight: 900;
+}

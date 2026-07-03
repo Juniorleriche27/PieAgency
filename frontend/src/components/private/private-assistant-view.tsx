@@ -173,7 +173,7 @@ function AssistantViewInner() {
         {
           role: "assistant",
           content:
-            "Je ne peux pas répondre correctement maintenant. Vous pouvez continuer votre préparation et contacter PieAgency si la question est urgente.",
+            "Pour étudier en France, commencez par définir votre projet, choisir des formations cohérentes, vérifier la procédure Campus France/Études en France selon votre pays, préparer les documents, soumettre les candidatures, préparer l’entretien puis anticiper le visa. Donnez-moi votre pays, votre niveau et la formation visée pour une réponse plus précise.",
           time: nowTime(),
         },
       ]);

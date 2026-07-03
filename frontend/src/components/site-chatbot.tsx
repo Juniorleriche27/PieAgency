@@ -432,7 +432,7 @@ export function SiteChatbot() {
       stopFlushLoop();
       chunkQueueRef.current = [];
       setAssistantMessage(
-        "Je ne peux pas repondre proprement pour le moment. Vous pouvez remplir le formulaire de contact sur pieagency.fr/contact ou prendre un rendez-vous avec un conseiller PieAgency.",
+        "Pour étudier en France, commencez par définir votre projet, choisir des formations cohérentes, vérifier la procédure Campus France/Études en France selon votre pays, préparer vos documents, soumettre les candidatures, préparer l’entretien puis anticiper le visa étudiant. Donnez votre pays, votre niveau et la formation visée pour une orientation plus précise.",
       );
     } finally {
       setIsSending(false);

@@ -1,3 +1,4 @@
+import { euroToXof } from "@/lib/currency";
 import { authenticatedFetch } from "@/lib/auth";
 
 export type ProductBadge = "recommended" | "popular" | "included";
@@ -295,6 +296,8 @@ export function getProductPaymentOptions() {
   return MOCK_PRODUCTS.map((product) => ({
     slug: product.serviceSlug ?? product.id,
     label: product.title,
+    priceEuro: product.price,
+    priceCfa: euroToXof(product.price),
   }));
 }
 

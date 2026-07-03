@@ -20,6 +20,7 @@ import {
   type ProductAccess,
   type ProductIncludedResource,
 } from "@/lib/private-products";
+import { euroToXof, formatEuro, formatEuroToXof } from "@/lib/currency";
 
 type Props = {
   product: Product;
@@ -74,9 +75,10 @@ export function ProductDetailView({ product }: Props) {
   );
   const unlockedCount = includedResources.filter((resource) => unlockedResourceIds.has(resource.id)).length;
   const hasProductAccess = Boolean(productAccess?.has_access);
+  const paymentAmountCfa = euroToXof(liveProduct.price);
   const paymentHref = `/paiement?service=${encodeURIComponent(
     liveProduct.serviceSlug ?? liveProduct.id,
-  )}&amount=${encodeURIComponent(String(liveProduct.price))}&reason=${encodeURIComponent(
+  )}&amount=${encodeURIComponent(String(paymentAmountCfa))}&reason=${encodeURIComponent(
     `Paiement pour ${liveProduct.title}`,
   )}`;
 
@@ -141,7 +143,8 @@ export function ProductDetailView({ product }: Props) {
 
         <div className="prod-premium-price-card">
           <span>Prix</span>
-          <strong>{liveProduct.price.toFixed(2)} €</strong>
+          <strong>{formatEuro(liveProduct.price)}</strong>
+          <em>{formatEuroToXof(liveProduct.price)}</em>
           <p>{hasProductAccess ? "Vous avez déjà accès à ce produit." : "Débloque toutes les ressources listées ci-dessous."}</p>
         </div>
       </section>
@@ -226,7 +229,8 @@ export function ProductDetailView({ product }: Props) {
           <div className="prod-cta-card prod-premium-cta">
             <div className="prod-cta-head">
               <span>{hasProductAccess ? "Accès actif" : "Accès produit"}</span>
-              <strong>{liveProduct.price.toFixed(2)} €</strong>
+              <strong>{formatEuro(liveProduct.price)}</strong>
+              <em>{formatEuroToXof(liveProduct.price)}</em>
               <p>
                 {isCheckingAccess
                   ? "Vérification de vos droits…"

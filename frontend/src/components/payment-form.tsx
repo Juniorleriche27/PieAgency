@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { servicePages } from "@/content/site";
 import { authenticatedFetch, getApiBaseUrl } from "@/lib/auth";
 import { getProductPaymentOptions } from "@/lib/private-products";
+import { formatEuro, formatXof, xofToEuro } from "@/lib/currency";
 
 type PaymentConfig = {
   enabled: boolean;
@@ -450,7 +451,17 @@ export function PaymentForm() {
   }
 
   const currentService = serviceOptions.find((item) => item.slug === form.serviceSlug);
+  const productPayment = currentService && "priceCfa" in currentService
+    ? (currentService as { slug: string; label: string; priceEuro: number; priceCfa: number })
+    : null;
   const displayCurrency = config?.display_currency ?? "XOF";
+  const amountNumber = Number(form.amount);
+  const amountHelper =
+    Number.isFinite(amountNumber) && amountNumber > 0
+      ? productPayment
+        ? `${formatXof(amountNumber)} · ${formatEuro(productPayment.priceEuro)}`
+        : `${formatXof(amountNumber)} · environ ${formatEuro(xofToEuro(amountNumber))}`
+      : "";
   const progressStep =
     paymentResult || statusResult || checkoutReturn
       ? 3
@@ -477,7 +488,7 @@ export function PaymentForm() {
   const trustItems = [
     "Paiement traite sur la page securisee MakeTou.",
     `Devise affichee : ${displayCurrency}.`,
-    "Montant libre, mais deja valide avec PieAgency avant paiement.",
+    productPayment ? `Montant produit : ${formatXof(productPayment.priceCfa)} (${formatEuro(productPayment.priceEuro)}).` : "Montant libre, mais deja valide avec PieAgency avant paiement.",
     currentService ? `Service concerne : ${currentService.label}.` : "Reference dossier facultative mais recommandee.",
   ];
 
@@ -656,7 +667,7 @@ export function PaymentForm() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="payment-amount">
-                  Montant convenu ({displayCurrency})
+Montant à payer ({displayCurrency})
                 </label>
                 <input
                   aria-invalid={Boolean(errors.amount)}
@@ -669,6 +680,7 @@ export function PaymentForm() {
                   type="number"
                   value={form.amount}
                 />
+                {amountHelper ? <div className="payment-amount-helper">{amountHelper}</div> : null}
                 {errors.amount ? <div className="form-error">{errors.amount}</div> : null}
               </div>
 
@@ -695,8 +707,8 @@ export function PaymentForm() {
               {isSubmitting ? "Creation du panier..." : "Continuer vers le paiement"}
             </button>
             <div className="payment-footnote">
-              Le paiement est finalise sur la page securisee MakeTou. Le montant saisi doit
-              correspondre au montant deja confirme avec PieAgency.
+              Le paiement est finalisé sur la page sécurisée MakeTou. Pour les produits digitaux,
+              le montant est envoyé en FCFA et le service produit est transmis pour débloquer les ressources.
             </div>
           </div>
         </form>
