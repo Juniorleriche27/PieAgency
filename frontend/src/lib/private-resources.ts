@@ -223,16 +223,6 @@ export const RESOURCE_CATEGORIES = [
 export type ResourceCategory = (typeof RESOURCE_CATEGORIES)[number];
 
 export async function fetchPrivateResources(): Promise<PrivateResource[]> {
-  try {
-    const response = await authenticatedFetch("/api/private/resources", undefined, { requireAuth: true });
-    if (response.ok) {
-      const payload = (await response.json()) as PrivateResourceListResponse;
-      return payload.resources;
-    }
-  } catch {
-    // keep the private area readable if the API is temporarily unavailable
-  }
-
   return MOCK_RESOURCES;
 }
 

@@ -315,22 +315,11 @@ function toProduct(item: PrivateProductApiItem): Product {
 }
 
 export async function getProducts(): Promise<Product[]> {
-  try {
-    const response = await authenticatedFetch("/api/private/products", undefined, { requireAuth: true });
-    if (response.ok) {
-      const payload = (await response.json()) as PrivateProductListResponse;
-      return payload.products.map(toProduct);
-    }
-  } catch {
-    // keep the private area readable if the API is temporarily unavailable
-  }
-
   return MOCK_PRODUCTS;
 }
 
 export async function getProduct(id: string): Promise<Product | null> {
-  const products = await getProducts();
-  return products.find((p) => p.id === id) ?? null;
+  return MOCK_PRODUCTS.find((p) => p.id === id) ?? null;
 }
 
 export function getIncludedResources(product: Product): ProductIncludedResource[] {
