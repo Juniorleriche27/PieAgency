@@ -134,7 +134,8 @@ const MOCK_RESOURCES: PrivateResource[] = [
     badge_label: "Exemple commenté",
     action_label: "Ouvrir",
     access_level: "student",
-    url: null,
+    url: "/espace-etudiant/ressources/exemple-projet-etudes-commente",
+    slug: "exemple-projet-etudes-commente",
   },
   {
     id: "res-006",

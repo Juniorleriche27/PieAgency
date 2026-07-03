@@ -96,7 +96,8 @@ export const RESOURCE_LIBRARY: Record<string, ProductIncludedResource> = {
     title: "Exemple projet d'études commenté",
     description: "Exemple expliqué phrase par phrase.",
     category: "Projet d'études",
-    status: "coming",
+    href: "/espace-etudiant/ressources/exemple-projet-etudes-commente",
+    status: "ready",
   },
   "res-006": {
     id: "res-006",
