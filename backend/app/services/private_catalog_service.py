@@ -659,12 +659,13 @@ def get_private_resource_tunnel(
     email: str | None = None,
     full_name: str | None = None,
     access_token: str | None = None,
+    is_admin: bool = False,
 ) -> PrivateResourceDetailResponse:
     resource = RESOURCE_TUNNELS.get(slug)
     if resource is None:
         raise LookupError("Ressource introuvable.")
 
-    has_access = _resource_user_has_access(resource["id"], user_id, access_token)
+    has_access = is_admin or _resource_user_has_access(resource["id"], user_id, access_token)
     sections: list[PrivateResourceSectionItem] = []
     for raw_section in resource["sections"]:
         section = PrivateResourceSectionItem(**raw_section)

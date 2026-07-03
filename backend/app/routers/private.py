@@ -135,6 +135,7 @@ def private_resource_detail(
             email=current_user.email,
             full_name=current_user.full_name,
             access_token=access_token,
+            is_admin=current_user.role == "admin",
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

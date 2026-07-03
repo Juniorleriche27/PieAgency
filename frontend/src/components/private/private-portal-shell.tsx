@@ -117,7 +117,7 @@ export function PrivatePortalShell({
 
   useEffect(() => {
     let active = true;
-    if (!isReady || !session || requiredRole !== "student") {
+    if (!isReady || !session || requiredRole !== "student" || session.user.role === "admin") {
       window.setTimeout(() => {
         if (active) setOnboardingChecked(true);
       }, 0);
@@ -143,13 +143,18 @@ export function PrivatePortalShell({
   useEffect(() => {
     if (!onboardingChecked) return;
     if (requiredRole !== "student") return;
+    if (session?.user.role === "admin") return;
     if (onboardingStatus === null) return; // backend not ready yet — don't block
     if (onboardingStatus === "validated") return;
     if (ONBOARDING_ALLOWED_PATHS.some((p) => pathname.startsWith(p))) return;
     router.replace("/espace-etudiant/onboarding");
-  }, [onboardingChecked, onboardingStatus, pathname, requiredRole, router]);
+  }, [onboardingChecked, onboardingStatus, pathname, requiredRole, router, session?.user.role]);
 
-  const isGated = requiredRole === "student" && onboardingStatus !== null && onboardingStatus !== "validated";
+  const isGated =
+    requiredRole === "student" &&
+    session?.user.role !== "admin" &&
+    onboardingStatus !== null &&
+    onboardingStatus !== "validated";
 
   const navItems = requiredRole === "admin" ? adminNav : studentNav;
   const title = requiredRole === "admin" ? "Admin PieAgency" : "Espace candidat";

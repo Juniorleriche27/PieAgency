@@ -1,4 +1,4 @@
-import { authenticatedFetch } from "@/lib/auth";
+import { authenticatedFetch, readStoredSession } from "@/lib/auth";
 
 export type PrivateResourceType =
   | "guide"
@@ -3188,9 +3188,9 @@ function fallbackPrivateResourceDetail(slug: string): PrivateResourceDetail | nu
   const resource = FALLBACK_RESOURCE_TUNNELS[slug];
   if (!resource) return null;
 
-  const hasAccess = false;
+  const hasAccess = readStoredSession()?.user.role === "admin";
   const sections = resource.sections.filter((section) =>
-    hasAccess || section.is_preview || section.section_type === "paywall",
+    hasAccess ? section.section_type !== "paywall" : section.is_preview || section.section_type === "paywall",
   );
 
   return {
