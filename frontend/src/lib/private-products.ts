@@ -80,7 +80,8 @@ export const RESOURCE_LIBRARY: Record<string, ProductIncludedResource> = {
     title: "Checklist dossier complet",
     description: "Contrôle guidé des pièces avant soumission.",
     category: "Dossier",
-    status: "coming",
+    href: "/espace-etudiant/ressources/checklist-dossier-complet",
+    status: "ready",
   },
   "res-004": {
     id: "res-004",

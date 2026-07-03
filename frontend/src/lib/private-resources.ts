@@ -109,7 +109,8 @@ const MOCK_RESOURCES: PrivateResource[] = [
     badge_label: "Checklist interactive",
     action_label: "Ouvrir",
     access_level: "student",
-    url: null,
+    url: "/espace-etudiant/ressources/checklist-dossier-complet",
+    slug: "checklist-dossier-complet",
   },
   {
     id: "res-004",
