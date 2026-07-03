@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, CreditCard, ShoppingCart } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getProduct, type Product } from "@/lib/private-products";
+import { getIncludedResources, getProduct, type Product } from "@/lib/private-products";
 
 type Props = {
   product: Product;
@@ -19,6 +19,7 @@ function badgeLabel(badge: Product["badge"]) {
 export function ProductDetailView({ product }: Props) {
   const [liveProduct, setLiveProduct] = useState(product);
   const label = badgeLabel(liveProduct.badge);
+  const includedResources = getIncludedResources(liveProduct);
   const paymentHref = `/paiement?service=${encodeURIComponent(
     liveProduct.serviceSlug ?? liveProduct.id,
   )}&amount=${encodeURIComponent(String(liveProduct.price))}&reason=${encodeURIComponent(
@@ -96,14 +97,25 @@ export function ProductDetailView({ product }: Props) {
           </section>
 
           <section className="prod-detail-section">
-            <h2>Aperçu des ressources incluses</h2>
+            <h2>Ressources privées incluses</h2>
             <div className="prod-preview-grid">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="prod-preview-item">
-                  <div className="prod-preview-icon" aria-hidden />
-                  <p>Ressource {i}</p>
-                </div>
-              ))}
+              {includedResources.map((resource) => {
+                const card = (
+                  <div className="prod-preview-item">
+                    <div className="prod-preview-icon" aria-hidden />
+                    <p>{resource.title}</p>
+                    <span>{resource.status === "ready" ? "Disponible" : "En préparation"}</span>
+                  </div>
+                );
+
+                return resource.href ? (
+                  <Link key={resource.id} href={resource.href} className="prod-preview-link">
+                    {card}
+                  </Link>
+                ) : (
+                  <div key={resource.id}>{card}</div>
+                );
+              })}
             </div>
           </section>
         </div>
@@ -113,7 +125,7 @@ export function ProductDetailView({ product }: Props) {
           <div className="prod-cta-card">
             <div className="prod-cta-head">
               <strong>{liveProduct.price.toFixed(2)} €</strong>
-              <span>Accès illimité à toutes les ressources</span>
+              <span>Accès aux ressources incluses</span>
             </div>
             <div className="prod-cta-body">
               <ul className="prod-cta-benefits">
@@ -123,7 +135,7 @@ export function ProductDetailView({ product }: Props) {
                 </li>
                 <li>
                   <CheckCircle2 size={16} aria-hidden />
-                  Mises à jour gratuites
+                  Mises à jour incluses
                 </li>
                 <li>
                   <CheckCircle2 size={16} aria-hidden />

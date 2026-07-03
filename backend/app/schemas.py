@@ -808,6 +808,7 @@ class PrivateProductItem(BaseModel):
     what_you_get: list[str] = Field(default_factory=list)
     badge: Literal["recommended", "popular", "included"] | None = None
     service_slug: str
+    included_resource_ids: list[str] = Field(default_factory=list)
 
 
 class PrivateProductListResponse(BaseModel):
