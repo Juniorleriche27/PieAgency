@@ -58,10 +58,10 @@ const EMPTY_FORM = {
   description: "",
   category: RESOURCE_CATEGORIES[1] as string,
   resource_type: "guide" as PrivateResourceType,
-  badge_label: "Guide PDF",
-  action_label: "Télécharger",
+  badge_label: "Guide interactif",
+  action_label: "Ouvrir",
   duration_label: "",
-  access_level: "free" as PrivateResource["access_level"],
+  access_level: "student" as PrivateResource["access_level"],
   url: "",
 };
 
@@ -358,7 +358,7 @@ export function AdminResourcesView() {
                   <label>Label badge</label>
                   <input
                     onChange={(e) => field("badge_label", e.target.value)}
-                    placeholder="Ex : Guide PDF"
+                    placeholder="Ex : Guide interactif"
                     type="text"
                     value={form.badge_label}
                   />
@@ -370,9 +370,9 @@ export function AdminResourcesView() {
                     onChange={(e) => field("action_label", e.target.value)}
                     value={form.action_label}
                   >
-                    <option value="Télécharger">Télécharger</option>
-                    <option value="Regarder">Regarder</option>
                     <option value="Ouvrir">Ouvrir</option>
+                    <option value="Lire">Lire</option>
+                    <option value="Prévisualiser">Prévisualiser</option>
                   </select>
                 </div>
 
@@ -380,7 +380,7 @@ export function AdminResourcesView() {
                   <label>Durée (ex : 15 min)</label>
                   <input
                     onChange={(e) => field("duration_label", e.target.value)}
-                    placeholder="Optionnel, pour les vidéos"
+                    placeholder="Optionnel, ex : 35 min"
                     type="text"
                     value={form.duration_label}
                   />
@@ -388,10 +388,10 @@ export function AdminResourcesView() {
               </div>
 
               <div className="crud-field">
-                <label>URL du fichier / lien</label>
+                <label>URL privée / route ressource</label>
                 <input
                   onChange={(e) => field("url", e.target.value)}
-                  placeholder="https://... (laisser vide si pas encore disponible)"
+                  placeholder="/espace-etudiant/ressources/..."
                   type="url"
                   value={form.url}
                 />

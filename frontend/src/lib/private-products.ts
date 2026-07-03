@@ -1,6 +1,7 @@
 import { authenticatedFetch } from "@/lib/auth";
 
 export type ProductBadge = "recommended" | "popular" | "included";
+export type ProductPublicationStatus = "published" | "draft" | "archived";
 
 export type ProductIncludedResource = {
   id: string;
@@ -23,6 +24,9 @@ export type Product = {
   category: string;
   serviceSlug?: string;
   includedResourceIds?: string[];
+  isActive?: boolean;
+  publicationStatus?: ProductPublicationStatus;
+  futurePrice?: number | null;
 };
 
 type PrivateProductApiItem = {

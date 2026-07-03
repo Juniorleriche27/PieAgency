@@ -23,6 +23,8 @@ export type PrivateResource = {
   access_level: PrivateResourceAccessLevel;
   url?: string | null;
   slug?: string | null;
+  is_active?: boolean;
+  publication_status?: "published" | "draft" | "archived";
 };
 
 export type PrivateResourceSectionType =
