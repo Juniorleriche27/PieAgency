@@ -112,7 +112,8 @@ export const RESOURCE_LIBRARY: Record<string, ProductIncludedResource> = {
     title: "Guide visa étudiant",
     description: "Parcours privé pour préparer la phase visa.",
     category: "Visa",
-    status: "coming",
+    href: "/espace-etudiant/ressources/guide-visa-etudiant",
+    status: "ready",
   },
   "res-008": {
     id: "res-008",

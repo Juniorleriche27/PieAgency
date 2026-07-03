@@ -160,7 +160,8 @@ const MOCK_RESOURCES: PrivateResource[] = [
     badge_label: "Guide interactif",
     action_label: "Ouvrir",
     access_level: "student",
-    url: null,
+    url: "/espace-etudiant/ressources/guide-visa-etudiant",
+    slug: "guide-visa-etudiant",
   },
   {
     id: "res-008",
