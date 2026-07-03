@@ -104,7 +104,8 @@ export const RESOURCE_LIBRARY: Record<string, ProductIncludedResource> = {
     title: "Structurer votre motivation",
     description: "Exercice guidé pour clarifier les arguments.",
     category: "Motivation",
-    status: "coming",
+    href: "/espace-etudiant/ressources/structurer-motivation",
+    status: "ready",
   },
   "res-007": {
     id: "res-007",

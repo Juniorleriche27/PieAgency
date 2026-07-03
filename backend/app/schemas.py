@@ -843,6 +843,8 @@ class PrivateResourceSectionItem(BaseModel):
         "checklist",
         "mistakes",
         "video",
+        "example",
+        "exercise",
         "sources",
     ]
     title: str

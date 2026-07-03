@@ -33,6 +33,8 @@ export type PrivateResourceSectionType =
   | "checklist"
   | "mistakes"
   | "video"
+  | "example"
+  | "exercise"
   | "sources";
 
 export type PrivateResourceSection = {
@@ -146,7 +148,8 @@ const MOCK_RESOURCES: PrivateResource[] = [
     badge_label: "Exercice interactif",
     action_label: "Ouvrir",
     access_level: "student",
-    url: null,
+    url: "/espace-etudiant/ressources/structurer-motivation",
+    slug: "structurer-motivation",
   },
   {
     id: "res-007",
