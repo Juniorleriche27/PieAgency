@@ -136,8 +136,9 @@ export function PrivateResourceTunnelView({ slug }: Props) {
   const section = resource?.sections[currentIndex] ?? null;
   const progress = useMemo(() => {
     if (!resource?.sections.length) return 0;
-    return Math.round(((currentIndex + 1) / resource.sections.length) * 100);
-  }, [currentIndex, resource?.sections.length]);
+    const currentScreen = resource.sections[currentIndex]?.screen_number ?? currentIndex + 1;
+    return Math.min(100, Math.round((currentScreen / resource.total_screens) * 100));
+  }, [currentIndex, resource]);
 
   if (error) {
     return (
