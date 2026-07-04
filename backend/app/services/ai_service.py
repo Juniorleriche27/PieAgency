@@ -79,46 +79,19 @@ def _get_last_user_message(request: AIChatRequest) -> str:
 
 def _chat_fallback(request: AIChatRequest) -> AIChatResponse:
     page = get_page_context(request.page_path)
-    last_user_message = _get_last_user_message(request)
-    normalized = last_user_message.lower()
-    answer = (
-        "Pour étudier en France, commencez par clarifier votre niveau actuel, votre domaine cible et votre projet professionnel. "
-        "Ensuite, identifiez les formations cohérentes, vérifiez si votre pays passe par Études en France / Campus France, préparez les documents académiques, "
-        "rédigez un projet d’études défendable, soumettez les candidatures dans les délais, préparez l’entretien, puis anticipez la demande de visa étudiant. "
-        "PieAgency peut vous aider à structurer le dossier, les lettres, les ressources financières, l’entretien et la phase visa."
-    )
-    if any(keyword in normalized for keyword in ("comment", "etudier", "étudier", "france", "campus france", "procedure", "procédure")):
-        answer = (
-            "Voici la méthode simple pour étudier en France :\n\n"
-            "1. Définir votre projet : domaine, niveau visé, métier ou objectif après les études.\n"
-            "2. Choisir des formations cohérentes avec votre parcours.\n"
-            "3. Vérifier la procédure de votre pays : Campus France / Études en France ou candidature directe.\n"
-            "4. Préparer les documents : passeport, diplômes, relevés, attestations, CV, lettres et justificatifs.\n"
-            "5. Soumettre les candidatures dans les délais et suivre les réponses.\n"
-            "6. Préparer l’entretien Campus France si votre pays le demande.\n"
-            "7. Après admission, préparer le visa étudiant : financement, hébergement, assurance et pièces France-Visas.\n\n"
-            "Si vous voulez avancer vite, commencez par votre niveau actuel, votre pays de résidence et la formation visée."
-        )
-    if "visa" in normalized:
-        answer = (
-            "Pour le visa étudiant France, préparez d’abord l’admission, puis vérifiez France-Visas selon votre pays. "
-            "Les points sensibles sont le passeport, l’attestation d’admission, les ressources financières, l’hébergement, l’assurance si demandée, les copies lisibles et la cohérence avec le projet d’études. "
-            "PieAgency peut vous aider à contrôler les pièces avant dépôt."
-        )
-    if any(keyword in normalized for keyword in ("paiement", "payer", "acompte", "prix", "tarif", "cfa", "fcfa")):
-        answer = (
-            "Les produits digitaux PieAgency affichent le prix en euro et en FCFA. Le paiement en ligne passe par MakeTou en FCFA. "
-            "Après un paiement confirmé, les ressources incluses dans le produit doivent être débloquées dans l’espace étudiant."
-        )
     return AIChatResponse(
-        answer=answer,
+        answer=(
+            "L'assistant IA est indisponible pour le moment : la configuration IA du backend production "
+            "n'est pas active. Ce message n'est pas une réponse automatique au dossier ; il signale "
+            "un problème technique à corriger côté serveur."
+        ),
         suggested_actions=[
-            "Ouvrir la page paiement" if "paiement" in last_user_message.lower() else str(page["cta_label"]),
-            "Ouvrir le formulaire",
-            "Remplir le formulaire de contact",
+            "Réessayer plus tard",
+            str(page["cta_label"]),
+            "Contacter PieAgency",
         ],
         escalation_recommended=True,
-        source="fallback",
+        source="fallback_unconfigured_ai",
     )
 
 

@@ -173,7 +173,7 @@ function AssistantViewInner() {
         {
           role: "assistant",
           content:
-            "Pour étudier en France, commencez par définir votre projet, choisir des formations cohérentes, vérifier la procédure Campus France/Études en France selon votre pays, préparer les documents, soumettre les candidatures, préparer l’entretien puis anticiper le visa. Donnez-moi votre pays, votre niveau et la formation visée pour une réponse plus précise.",
+            "L’assistant IA est indisponible pour le moment. Ce n’est pas une réponse de dossier : le backend ne fournit pas de réponse IA active. Merci de réessayer après correction serveur.",
           time: nowTime(),
         },
       ]);
