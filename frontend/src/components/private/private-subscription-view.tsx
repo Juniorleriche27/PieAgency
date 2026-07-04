@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { CopilotBanner } from "@/components/private/copilot-banner";
-import { euroToXof } from "@/lib/currency";
+import { euroToXof, formatXof } from "@/lib/currency";
 import { CheckCircle2, Minus, Star } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -130,7 +130,7 @@ export function PrivateSubscriptionView() {
           <div className="sub-cards-grid">
             {sortedPlans.map((plan) => {
               const isCurrent = plan.id === currentPlanId;
-              const isRecommended = plan.recommended;
+              const isRecommended = plan.service_slug === "standard-mensuel";
               return (
                 <article
                   className={`sub-card${isRecommended ? " sub-card-recommended" : ""}${isCurrent ? " sub-card-current" : ""}`}
@@ -154,6 +154,13 @@ export function PrivateSubscriptionView() {
                       <span className="sub-price-period">{billingLabel(plan.billing_period)}</span>
                     )}
                   </div>
+                  {plan.price > 0 ? (
+                    <div className="sub-price-converted">
+                      ≈ {formatXof(euroToXof(plan.price))} / mois
+                    </div>
+                  ) : (
+                    <div className="sub-price-converted">Sans paiement</div>
+                  )}
 
                   <ul className="sub-card-features">
                     {plan.features.map((f) => (

@@ -1458,14 +1458,14 @@ values
     'Pour avancer avec méthode',
     9.99, 'EUR', 'monthly',
     '["Guides pratiques","Checklists détaillées","Modèles de base","Ressources Campus France"]'::jsonb,
-    true, 'essentiel-mensuel', 1
+    false, 'essentiel-mensuel', 1
   ),
   (
     'Standard',
     'Accès complet aux outils',
     19.99, 'EUR', 'monthly',
     '["Tous les guides","Générateurs projet d''études et professionnel","Simulateur entretien","Bibliothèque de motivations"]'::jsonb,
-    false, 'standard-mensuel', 2
+    true, 'standard-mensuel', 2
   ),
   (
     'Premium digital',

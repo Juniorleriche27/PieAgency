@@ -11509,6 +11509,7 @@ body.chat-open .wa-float {
 .sub-price-amount { font-size: 2.2rem; font-weight: 900; line-height: 1; }
 .sub-price-currency { font-size: 1.1rem; font-weight: 700; align-self: flex-start; margin-top: 6px; }
 .sub-price-period { font-size: 0.82rem; color: var(--gray-500,#6b7280); margin-left: 4px; }
+.sub-price-converted { margin: -6px 0 8px; font-size: 0.82rem; font-weight: 700; color: #10b981; }
 
 .sub-card-features { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; flex: 1; }
 .sub-card-features li { display: flex; align-items: flex-start; gap: 8px; font-size: 0.875rem; }
