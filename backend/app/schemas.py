@@ -411,7 +411,7 @@ class AIChatResponse(BaseModel):
     conversation_id: str | None = None
     suggested_actions: list[str] = []
     escalation_recommended: bool = False
-    source: Literal["cohere", "fallback"]
+    source: Literal["cohere", "ai_gateway", "fallback"]
 
 
 class AIPageInsightResponse(BaseModel):
@@ -420,7 +420,7 @@ class AIPageInsightResponse(BaseModel):
     bullets: list[str]
     cta_label: str
     cta_href: str
-    source: Literal["cohere", "fallback"]
+    source: Literal["cohere", "ai_gateway", "fallback"]
 
 
 class CommunityAIReplyRequest(BaseModel):
@@ -442,7 +442,7 @@ class CommunityAIReplyRequest(BaseModel):
 
 class CommunityAIReplyResponse(BaseModel):
     reply: str
-    source: Literal["cohere", "fallback"]
+    source: Literal["cohere", "ai_gateway", "fallback"]
 
 
 class CommunityProfileItem(BaseModel):
@@ -575,7 +575,7 @@ class CommunityAssistantThreadMessageItem(BaseModel):
 class CommunityAssistantThreadResponse(BaseModel):
     conversation_id: str | None = None
     messages: list[CommunityAssistantThreadMessageItem] = Field(default_factory=list)
-    source: Literal["cohere", "fallback"] | None = None
+    source: Literal["cohere", "ai_gateway", "fallback"] | None = None
 
 
 class StudentStepStatus(str, Enum):
@@ -611,6 +611,32 @@ class OnboardingStatus(str, Enum):
     VALIDATED = "validated"
     REJECTED = "rejected"
 
+
+class CandidateAssistantResourceItem(BaseModel):
+    id: str | None = None
+    title: str
+    type: str | None = None
+    access: Literal["free", "included", "premium_locked"] | None = None
+    target_path: str | None = None
+    summary: str | None = None
+
+
+class CandidateAssistantChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=3000)
+    context_source: str | None = Field(default="progressive_path", max_length=80)
+    current_step_id: str | None = Field(default=None, max_length=80)
+
+    @field_validator("message", mode="before")
+    @classmethod
+    def strip_candidate_assistant_message(cls, value: str) -> str:
+        return str(value).strip()
+
+
+class CandidateAssistantChatResponse(BaseModel):
+    answer: str
+    used_prompt: str | None = None
+    used_context: dict[str, bool] = Field(default_factory=dict)
+    rag: dict[str, Any] = Field(default_factory=dict)
 
 class ProgressivePathStepStatus(str, Enum):
     NOT_STARTED = "not_started"
@@ -1269,4 +1295,4 @@ class CommunityAIRewriteRequest(BaseModel):
 
 class CommunityAIRewriteResponse(BaseModel):
     rewritten: str
-    source: Literal["cohere", "fallback"]
+    source: Literal["cohere", "ai_gateway", "fallback"]

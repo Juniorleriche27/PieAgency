@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..dependencies.auth import get_current_access_token, get_current_user
-from ..schemas import AuthUserProfile, OfficialDepositRequest, ProgressivePathResponse
+from ..schemas import AuthUserProfile, CandidateAssistantChatRequest, CandidateAssistantChatResponse, OfficialDepositRequest, ProgressivePathResponse
+from ..services.ai_service import generate_candidate_assistant_response
 from ..services.progressive_path_service import (
     complete_candidate_progressive_path_step,
     declare_candidate_official_deposit,
@@ -94,3 +95,12 @@ def declare_official_deposit(
         body,
         access_token,
     )
+
+
+@router.post("/candidate/assistant/chat", response_model=CandidateAssistantChatResponse)
+def candidate_assistant_chat(
+    body: CandidateAssistantChatRequest,
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> CandidateAssistantChatResponse:
+    return generate_candidate_assistant_response(body, current_user, access_token)

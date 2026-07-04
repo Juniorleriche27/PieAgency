@@ -4,6 +4,7 @@ from collections.abc import Iterator
 from functools import lru_cache
 from typing import Any
 
+import httpx
 import cohere
 
 from ..config import settings
@@ -14,6 +15,8 @@ from ..schemas import (
     AIChatResponse,
     AIPageInsightResponse,
     AuthUserProfile,
+    CandidateAssistantChatRequest,
+    CandidateAssistantChatResponse,
     CommunityAIReplyRequest,
     CommunityAIReplyResponse,
 )
@@ -54,6 +57,154 @@ def _chat_json(client: cohere.ClientV2, messages: list[dict[str, str]]) -> dict[
     return json.loads(_extract_text_from_response(response))
 
 
+
+
+def _gateway_url() -> str:
+    base = settings.ai_gateway_base_url.strip().rstrip("/")
+    path = settings.ai_gateway_chat_path.strip() or "/v1/chat/completions"
+    if base.endswith("/chat/completions") or base.endswith("/responses"):
+        return base
+    return f"{base}/{path.lstrip('/')}"
+
+
+def _gateway_headers() -> dict[str, str]:
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    if settings.ai_gateway_api_key.strip():
+        headers["Authorization"] = f"Bearer {settings.ai_gateway_api_key.strip()}"
+    return headers
+
+
+def _gateway_payload(messages: list[dict[str, str]], *, stream: bool = False, json_mode: bool = False) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "model": settings.ai_gateway_model,
+        "messages": messages,
+        "temperature": 0.25,
+        "stream": stream,
+    }
+    if json_mode:
+        payload["response_format"] = {"type": "json_object"}
+    return payload
+
+
+def _extract_gateway_text(payload: dict[str, Any]) -> str:
+    if isinstance(payload.get("answer"), str):
+        return payload["answer"].strip()
+    if isinstance(payload.get("text"), str):
+        return payload["text"].strip()
+    choices = payload.get("choices")
+    if isinstance(choices, list) and choices:
+        first = choices[0]
+        if isinstance(first, dict):
+            message = first.get("message")
+            if isinstance(message, dict) and isinstance(message.get("content"), str):
+                return message["content"].strip()
+            if isinstance(first.get("text"), str):
+                return first["text"].strip()
+    output = payload.get("output")
+    if isinstance(output, list):
+        parts: list[str] = []
+        for item in output:
+            if not isinstance(item, dict):
+                continue
+            content = item.get("content")
+            if isinstance(content, list):
+                for chunk in content:
+                    if isinstance(chunk, dict) and isinstance(chunk.get("text"), str):
+                        parts.append(chunk["text"])
+        if parts:
+            return "".join(parts).strip()
+    return ""
+
+
+def _parse_json_text(text: str) -> dict[str, Any]:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.strip("`")
+        if cleaned.lower().startswith("json"):
+            cleaned = cleaned[4:].strip()
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        start = cleaned.find("{")
+        end = cleaned.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            return json.loads(cleaned[start : end + 1])
+        raise
+
+
+def _gateway_chat_text(messages: list[dict[str, str]], *, json_mode: bool = False) -> str:
+    if not settings.ai_gateway_enabled:
+        raise RuntimeError("AI Gateway is not configured")
+    with httpx.Client(timeout=settings.ai_gateway_request_timeout_seconds) as client:
+        response = client.post(
+            _gateway_url(),
+            headers=_gateway_headers(),
+            json=_gateway_payload(messages, stream=False, json_mode=json_mode),
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise RuntimeError("Invalid AI Gateway response")
+        text = _extract_gateway_text(payload)
+        if not text:
+            raise RuntimeError("Empty AI Gateway response")
+        return text
+
+
+def _gateway_chat_json(messages: list[dict[str, str]]) -> dict[str, Any]:
+    return _parse_json_text(_gateway_chat_text(messages, json_mode=True))
+
+
+def _gateway_chat_stream(messages: list[dict[str, str]]) -> Iterator[str]:
+    if not settings.ai_gateway_enabled:
+        raise RuntimeError("AI Gateway is not configured")
+
+    with httpx.stream(
+        "POST",
+        _gateway_url(),
+        headers=_gateway_headers(),
+        json=_gateway_payload(messages, stream=True),
+        timeout=settings.ai_gateway_request_timeout_seconds,
+    ) as response:
+        response.raise_for_status()
+        content_type = response.headers.get("content-type", "")
+        if "text/event-stream" not in content_type:
+            data = response.read()
+            payload = json.loads(data.decode("utf-8"))
+            text = _extract_gateway_text(payload if isinstance(payload, dict) else {})
+            if text:
+                yield text
+            return
+
+        for line in response.iter_lines():
+            if not line:
+                continue
+            if line.startswith("data:"):
+                data = line[5:].strip()
+            else:
+                continue
+            if data == "[DONE]":
+                break
+            try:
+                payload = json.loads(data)
+            except json.JSONDecodeError:
+                continue
+            choices = payload.get("choices")
+            if isinstance(choices, list) and choices:
+                delta = choices[0].get("delta") if isinstance(choices[0], dict) else None
+                if isinstance(delta, dict) and isinstance(delta.get("content"), str):
+                    yield delta["content"]
+                    continue
+                text = choices[0].get("text") if isinstance(choices[0], dict) else None
+                if isinstance(text, str):
+                    yield text
+                    continue
+            if isinstance(payload.get("text"), str):
+                yield payload["text"]
+
 def _format_sse(event: str, payload: dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
@@ -91,7 +242,7 @@ def _chat_fallback(request: AIChatRequest) -> AIChatResponse:
             "Contacter PieAgency",
         ],
         escalation_recommended=True,
-        source="fallback_unconfigured_ai",
+        source="fallback",
     )
 
 
@@ -337,8 +488,7 @@ def _iter_text_chunks(text: str, size: int = 8) -> Iterator[str]:
 
 def generate_page_insight(path: str) -> AIPageInsightResponse:
     fallback = _page_fallback(path)
-    client = _get_cohere_client()
-    if client is None:
+    if not settings.ai_gateway_enabled:
         return fallback
 
     page = get_page_context(path)
@@ -376,12 +526,11 @@ Structure JSON attendue:
 """.strip()
 
     try:
-        payload = _chat_json(
-            client,
+        payload = _gateway_chat_json(
             [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
-            ],
+            ]
         )
         return AIPageInsightResponse(
             title=str(payload["title"]),
@@ -389,17 +538,16 @@ Structure JSON attendue:
             bullets=[str(item) for item in payload["bullets"]][:3],
             cta_label=str(payload["cta_label"]),
             cta_href=str(payload["cta_href"]),
-            source="cohere",
+            source="ai_gateway",
         )
     except Exception:
-        logger.exception("Unable to generate Cohere page insight")
+        logger.exception("Unable to generate AI Gateway page insight")
         return fallback
 
 
 def generate_community_reply(request: CommunityAIReplyRequest) -> CommunityAIReplyResponse:
     fallback = _community_reply_fallback(request)
-    client = _get_cohere_client()
-    if client is None:
+    if not settings.ai_gateway_enabled:
         return fallback
 
     context_lines = request.thread_context[:4]
@@ -414,21 +562,11 @@ Contexte global:
 Ta mission:
 - repondre comme un profil officiel utile, humain et clair dans une discussion communautaire;
 - expliquer concretement comment PieAgency aide;
-- orienter intelligemment vers le formulaire de contact (pieagency.fr/contact) ou la communaute si pertinent;
+- orienter intelligemment vers le formulaire de contact ou la communaute si pertinent;
 - ne jamais inventer de prix, delais officiels, garanties ou promesses d'admission.
 
-Retourne uniquement un JSON valide:
-{{
-  "reply": "string"
-}}
-
-Contraintes:
-- reponse en francais;
-- ton naturel, pas robotique;
-- 50 a 120 mots maximum;
-- pas de listes a puces;
-- si l'utilisateur demande "comment ca marche", explique le diagnostic, l'orientation et la suite concrete;
-- termine idealement par une orientation simple vers l'action.
+Retourne uniquement un JSON valide: {{"reply": "string"}}
+Contraintes: francais, naturel, 50 a 120 mots, pas de listes.
 """.strip()
 
     user_prompt = f"""
@@ -440,19 +578,15 @@ Contexte de discussion:
 """.strip()
 
     try:
-        payload = _chat_json(
-            client,
+        payload = _gateway_chat_json(
             [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
-            ],
+            ]
         )
-        return CommunityAIReplyResponse(
-            reply=str(payload["reply"]).strip(),
-            source="cohere",
-        )
+        return CommunityAIReplyResponse(reply=str(payload["reply"]).strip(), source="ai_gateway")
     except Exception:
-        logger.exception("Unable to generate Cohere community reply")
+        logger.exception("Unable to generate AI Gateway community reply")
         return fallback
 
 
@@ -463,39 +597,25 @@ def generate_chat_response(
 ) -> AIChatResponse:
     fallback = _chat_fallback(request)
     conversation_id = _prepare_conversation(request, current_user, access_token)
-    client = _get_cohere_client()
-    if client is None:
-        try:
-            store_chat_message(
-                conversation_id=conversation_id,
-                sender_role="assistant",
-                body=fallback.answer,
-                current_user=current_user,
-                model_source=fallback.source,
-                metadata={"page_path": request.page_path},
-                access_token=access_token,
-            )
-        except Exception:
-            logger.warning("Unable to persist fallback assistant response")
+    if not settings.ai_gateway_enabled:
         fallback.conversation_id = conversation_id
         return fallback
 
     _, history = _build_chat_context(request)
 
     try:
-        payload = _chat_json(
-            client,
+        payload = _gateway_chat_json(
             [
                 {"role": "system", "content": _build_json_chat_system_prompt(request)},
                 *history,
-            ],
+            ]
         )
         response = AIChatResponse(
             answer=str(payload["answer"]),
             conversation_id=conversation_id,
-            suggested_actions=[str(item) for item in payload["suggested_actions"]][:3],
-            escalation_recommended=bool(payload["escalation_recommended"]),
-            source="cohere",
+            suggested_actions=[str(item) for item in payload.get("suggested_actions", [])][:3],
+            escalation_recommended=bool(payload.get("escalation_recommended", False)),
+            source="ai_gateway",
         )
         try:
             store_chat_message(
@@ -511,19 +631,7 @@ def generate_chat_response(
             logger.warning("Chat persistence unavailable: %s", exc)
         return response
     except Exception:
-        logger.exception("Unable to generate Cohere chat response")
-        try:
-            store_chat_message(
-                conversation_id=conversation_id,
-                sender_role="assistant",
-                body=fallback.answer,
-                current_user=current_user,
-                model_source=fallback.source,
-                metadata={"page_path": request.page_path},
-                access_token=access_token,
-            )
-        except Exception:
-            logger.warning("Unable to persist fallback assistant response")
+        logger.exception("Unable to generate AI Gateway chat response")
         fallback.conversation_id = conversation_id
         return fallback
 
@@ -542,77 +650,38 @@ def stream_chat_response(
         "source": fallback.source,
     }
 
-    client = _get_cohere_client()
-    if client is None:
+    if not settings.ai_gateway_enabled:
         yield _format_sse("start", {"source": "fallback", "conversation_id": conversation_id})
-        for chunk in _iter_text_chunks(fallback.answer, size=1):
+        for chunk in _iter_text_chunks(fallback.answer, size=8):
             yield _format_sse("chunk", {"text": chunk})
-        try:
-            store_chat_message(
-                conversation_id=conversation_id,
-                sender_role="assistant",
-                body=fallback.answer,
-                current_user=current_user,
-                model_source=fallback.source,
-                metadata={"page_path": request.page_path},
-                access_token=access_token,
-            )
-        except Exception:
-            logger.warning("Unable to persist fallback assistant stream")
         yield _format_sse("done", fallback_done_payload)
         return
 
     _, history = _build_chat_context(request)
-
     try:
-        yielded_content = False
         chunks: list[str] = []
-        yield _format_sse("start", {"source": "cohere", "conversation_id": conversation_id})
-
-        response = client.chat_stream(
-            model=settings.cohere_model,
-            messages=[
+        yield _format_sse("start", {"source": "ai_gateway", "conversation_id": conversation_id})
+        for text in _gateway_chat_stream(
+            [
                 {"role": "system", "content": _build_stream_chat_system_prompt(request)},
                 *history,
-            ],
-        )
-
-        for event in response:
-            text = _extract_stream_delta_text(event)
+            ]
+        ):
             if not text:
                 continue
-
-            yielded_content = True
-            # Track the full response so it can be stored once the stream ends.
             chunks.append(text)
             yield _format_sse("chunk", {"text": text})
 
-        if not yielded_content:
-            for chunk in _iter_text_chunks(fallback.answer, size=1):
-                yield _format_sse("chunk", {"text": chunk})
-            try:
-                store_chat_message(
-                    conversation_id=conversation_id,
-                    sender_role="assistant",
-                    body=fallback.answer,
-                    current_user=current_user,
-                    model_source=fallback.source,
-                    metadata={"page_path": request.page_path},
-                    access_token=access_token,
-                )
-            except Exception:
-                logger.warning("Unable to persist empty Cohere fallback stream")
-            yield _format_sse("done", fallback_done_payload)
-            return
-
         assistant_answer = "".join(chunks).strip()
+        if not assistant_answer:
+            raise RuntimeError("Empty AI Gateway stream")
         try:
             store_chat_message(
                 conversation_id=conversation_id,
                 sender_role="assistant",
                 body=assistant_answer,
                 current_user=current_user,
-                model_source="cohere",
+                model_source="ai_gateway",
                 metadata={"page_path": request.page_path},
                 access_token=access_token,
             )
@@ -622,26 +691,76 @@ def stream_chat_response(
             "done",
             {
                 "conversation_id": conversation_id,
-                "suggested_actions": fallback.suggested_actions,
+                "suggested_actions": ["Commencer mon dossier", "Voir les services", "Parler a un conseiller"],
                 "escalation_recommended": False,
-                "source": "cohere",
+                "source": "ai_gateway",
             },
         )
     except Exception:
-        logger.exception("Unable to stream Cohere chat response")
+        logger.exception("Unable to stream AI Gateway chat response")
         yield _format_sse("start", {"source": "fallback", "conversation_id": conversation_id})
-        for chunk in _iter_text_chunks(fallback.answer, size=1):
+        for chunk in _iter_text_chunks(fallback.answer, size=8):
             yield _format_sse("chunk", {"text": chunk})
-        try:
-            store_chat_message(
-                conversation_id=conversation_id,
-                sender_role="assistant",
-                body=fallback.answer,
-                current_user=current_user,
-                model_source=fallback.source,
-                metadata={"page_path": request.page_path},
-                access_token=access_token,
-            )
-        except Exception:
-            logger.warning("Unable to persist fallback assistant stream after error")
         yield _format_sse("done", fallback_done_payload)
+
+
+def generate_candidate_assistant_response(
+    request: CandidateAssistantChatRequest,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> CandidateAssistantChatResponse:
+    if not settings.ai_gateway_enabled:
+        return CandidateAssistantChatResponse(
+            answer=(
+                "L'assistant dossier est indisponible pour le moment : l'AI Gateway du backend "
+                "n'est pas configurée ou joignable."
+            ),
+            used_prompt="fallback_unconfigured_gateway",
+            used_context={"candidate_profile": False, "progressive_path": False, "recommendations": False, "resources": False},
+            rag={"used": False, "resources": []},
+        )
+
+    rag_context = retrieve_rag_context(request.message) if request.message else ""
+    system_prompt = f"""
+Tu es l'assistant dossier privé de PieAgency.
+Tu aides un candidat connecté à comprendre sa procédure, structurer son dossier, ses motivations, son entretien, ses documents et son visa.
+Tu réponds en français, de manière concrète, utile et directe.
+Tu n'inventes pas de garantie d'admission ou de visa.
+Tu peux proposer les ressources PieAgency pertinentes si utile.
+
+Contexte global PieAgency:
+{SITE_KNOWLEDGE}
+
+Contexte RAG éventuel:
+{rag_context or 'Aucun extrait RAG disponible.'}
+""".strip()
+    user_prompt = f"""
+Utilisateur: {current_user.full_name or current_user.email or current_user.user_id}
+Contexte source: {request.context_source or 'progressive_path'}
+Etape actuelle: {request.current_step_id or 'non précisée'}
+Question: {request.message}
+
+Retourne une réponse claire et actionnable. Pas de JSON.
+""".strip()
+
+    try:
+        answer = _gateway_chat_text(
+            [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ]
+        )
+        return CandidateAssistantChatResponse(
+            answer=answer,
+            used_prompt="ai_gateway_candidate_assistant",
+            used_context={"candidate_profile": True, "progressive_path": bool(request.current_step_id), "recommendations": True, "resources": bool(rag_context)},
+            rag={"used": bool(rag_context), "resources": []},
+        )
+    except Exception:
+        logger.exception("Unable to generate candidate assistant response through AI Gateway")
+        return CandidateAssistantChatResponse(
+            answer="L'assistant dossier est momentanément indisponible : l'AI Gateway n'a pas répondu correctement.",
+            used_prompt="fallback_gateway_error",
+            used_context={"candidate_profile": False, "progressive_path": False, "recommendations": False, "resources": False},
+            rag={"used": False, "resources": []},
+        )

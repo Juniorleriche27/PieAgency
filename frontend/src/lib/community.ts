@@ -93,7 +93,7 @@ export type CommunityThreadMessage = {
 export type CommunityThreadData = {
   conversationId: string | null;
   messages: CommunityThreadMessage[];
-  source?: "cohere" | "fallback" | null;
+  source?: "cohere" | "ai_gateway" | "fallback" | null;
 };
 
 type CommunityGroupApi = {
@@ -204,7 +204,7 @@ type CommunityThreadApi = {
     text: string;
     time: string;
   }>;
-  source?: "cohere" | "fallback" | null;
+  source?: "cohere" | "ai_gateway" | "fallback" | null;
 };
 
 function inferTagFromText(text: string, fallback: CommunityTag = "vie"): CommunityTag {

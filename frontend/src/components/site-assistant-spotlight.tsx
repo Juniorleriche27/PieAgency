@@ -11,7 +11,7 @@ type InsightPayload = {
   bullets: string[];
   cta_label: string;
   cta_href: string;
-  source: "cohere" | "fallback";
+  source: "cohere" | "ai_gateway" | "fallback";
 };
 
 const defaultInsight: InsightPayload = {
@@ -76,7 +76,7 @@ export function SiteAssistantSpotlight() {
         <div className="assistant-spotlight">
           <div className="assistant-spotlight-copy">
             <div className="assistant-kicker">
-              Assistant IA {insight.source === "cohere" ? "Cohere" : "PieAgency"}
+              Assistant IA {insight.source === "ai_gateway" ? "AI Gateway" : insight.source === "cohere" ? "Cohere" : "PieAgency"}
             </div>
             <h2>{insight.title}</h2>
             <p>{isLoading ? "Chargement du conseil contextuel..." : insight.summary}</p>

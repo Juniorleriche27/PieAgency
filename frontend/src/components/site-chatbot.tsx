@@ -17,7 +17,7 @@ type ChatResponse = {
   conversation_id?: string | null;
   suggested_actions: string[];
   escalation_recommended: boolean;
-  source: "cohere" | "fallback";
+  source: "cohere" | "ai_gateway" | "fallback";
 };
 
 const initialMessages: ChatMessage[] = [

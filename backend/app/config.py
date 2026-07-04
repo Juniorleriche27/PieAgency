@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://localhost:3000"
     cohere_api_key: str = ""
     cohere_model: str = "command-a-03-2025"
+
+    ai_gateway_base_url: str = "http://ai-gateway:8000"
+    ai_gateway_api_key: str = ""
+    ai_gateway_model: str = "koryxa-default"
+    ai_gateway_chat_path: str = "/v1/chat/completions"
+    ai_gateway_request_timeout_seconds: float = 45.0
     supabase_url: str = ""
     supabase_secret_key: str = ""
     supabase_service_role_key: str = ""
@@ -74,6 +80,10 @@ class Settings(BaseSettings):
     @property
     def cohere_enabled(self) -> bool:
         return bool(self.cohere_api_key)
+
+    @property
+    def ai_gateway_enabled(self) -> bool:
+        return bool(self.ai_gateway_base_url.strip())
 
     @property
     def admin_email_list(self) -> set[str]:

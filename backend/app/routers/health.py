@@ -12,4 +12,5 @@ def healthcheck() -> dict[str, bool | str]:
         "environment": settings.environment,
         "supabaseConfigured": settings.supabase_enabled,
         "cohereConfigured": settings.cohere_enabled,
+        "aiGatewayConfigured": settings.ai_gateway_enabled,
     }
