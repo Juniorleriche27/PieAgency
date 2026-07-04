@@ -20,6 +20,7 @@ import {
   toggleCommunityEventAttendance,
   sendCommunityAssistantMessage,
   toggleCommunityReaction,
+  toggleCommunityProfileFollow,
   voteCommunityPoll,
   fetchCommunityAds,
   createCommunityAd,
@@ -56,6 +57,7 @@ type UserProfile = {
   following: number;
   posts: number;
   tags: string[];
+  viewerIsFollowing?: boolean;
 };
 
 type SocialComment = {
@@ -495,9 +497,6 @@ const COMPOSE_HINTS: Record<ComposeMode, string> = {
   story: "Partagez votre story avec la communaute...",
 };
 
-const FOLLOWING_STORAGE_KEY = "piehub-following";
-const GROUP_STORAGE_KEY = "piehub-groups";
-const EVENT_STORAGE_KEY = "piehub-events";
 
 const GROUP_TAG_MAP: Record<string, TagKey> = {
   "Campus France — Entraide": "campus",
@@ -721,9 +720,7 @@ export function CommunityNetwork() {
   const [feedFromApi, setFeedFromApi] = useState(false);
   const [likedPostIds, setLikedPostIds] = useState<number[]>([]);
   const [savedPostIds, setSavedPostIds] = useState<number[]>([]);
-  const [followingIds, setFollowingIds] = useState<string[]>(() =>
-    readStoredArray(FOLLOWING_STORAGE_KEY, ["piehub", "ibrahim", "junior"]),
-  );
+  const [followingIds, setFollowingIds] = useState<string[]>([]);
   const [pollVotes, setPollVotes] = useState<Record<number, number>>({});
   const [localStories, setLocalStories] = useState<StoryItem[]>(() => {
     // Charger les statuts depuis localStorage et filtrer ceux > 24H
@@ -738,18 +735,8 @@ export function CommunityNetwork() {
     }
   });
   const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
-  const [groupState, setGroupState] = useState<Record<string, boolean>>(() =>
-    readStoredBooleanMap(
-      GROUP_STORAGE_KEY,
-      Object.fromEntries(GROUPS.map((group) => [group.name, group.joined])),
-    ),
-  );
-  const [eventState, setEventState] = useState<Record<string, boolean>>(() =>
-    readStoredBooleanMap(
-      EVENT_STORAGE_KEY,
-      Object.fromEntries(EVENTS.map((event) => [event.name, event.joined])),
-    ),
-  );
+  const [groupState, setGroupState] = useState<Record<string, boolean>>(Object.fromEntries(GROUPS.map((group) => [group.name, false])));
+  const [eventState, setEventState] = useState<Record<string, boolean>>(Object.fromEntries(EVENTS.map((event) => [event.name, false])));
   const [messageOpen, setMessageOpen] = useState(false);
   const [messageTargetId, setMessageTargetId] = useState("piehub");
   const [messages, setMessages] = useState<MessageItem[]>(() => createConversationStarter("piehub"));
@@ -813,8 +800,8 @@ export function CommunityNetwork() {
   const likedSet = new Set(likedPostIds);
   const savedSet = new Set(savedPostIds);
   const followingSet = new Set(followingIds);
-  const joinedGroupCount = Object.values(groupState).filter(Boolean).length;
-  const joinedEventCount = Object.values(eventState).filter(Boolean).length;
+  const joinedGroupCount = apiGroups.filter((group) => group.isMember).length;
+  const joinedEventCount = apiEvents.filter((event) => event.isAttending).length;
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
 
   function findCommunityUser(userId: string) {
@@ -894,7 +881,9 @@ export function CommunityNetwork() {
         }
         USERS.push(user);
       });
-      setCommunityUsers(payload.users.length ? payload.users : USERS);
+      const nextUsers = payload.users.length ? payload.users : USERS;
+      setCommunityUsers(nextUsers);
+      setFollowingIds(nextUsers.filter((user) => user.viewerIsFollowing).map((user) => user.id));
       setPosts(payload.posts.length ? payload.posts : copyPosts(INITIAL_POSTS));
       setLikedPostIds(
         payload.posts.filter((post) => post.viewerHasLiked).map((post) => post.id),
@@ -975,26 +964,6 @@ export function CommunityNetwork() {
     return unsubscribe;
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    window.localStorage.setItem(FOLLOWING_STORAGE_KEY, JSON.stringify(followingIds));
-  }, [followingIds]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    window.localStorage.setItem(GROUP_STORAGE_KEY, JSON.stringify(groupState));
-  }, [groupState]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    window.localStorage.setItem(EVENT_STORAGE_KEY, JSON.stringify(eventState));
-  }, [eventState]);
 
   function pushToast(text: string) {
     const id = toastIdRef.current;
@@ -1479,48 +1448,38 @@ export function CommunityNetwork() {
       setAiReplyingPostIds((current) => current.filter((id) => id !== postId));
     }
   }
-  function toggleFollow(userId: string) {
+  async function toggleFollow(userId: string) {
     const user = findCommunityUser(userId);
-    const isFollowing = followingSet.has(userId);
-    setFollowingIds((current) =>
-      current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId],
-    );
-    setCommunityUsers((current) =>
-      current.map((entry) => {
-        if (entry.id === userId) {
-          return {
-            ...entry,
-            followers: Math.max(0, entry.followers + (isFollowing ? -1 : 1)),
-          };
-        }
-
-        if (entry.id === currentProfileId) {
-          return {
-            ...entry,
-            following: Math.max(0, entry.following + (isFollowing ? -1 : 1)),
-          };
-        }
-
-        return entry;
-      }),
-    );
-    pushToast(
-      isFollowing
-        ? `Abonnement annule pour ${user.name}.`
-        : `✅ Vous suivez maintenant ${user.name}.`,
-    );
+    try {
+      const result = await toggleCommunityProfileFollow(userId);
+      setCommunityUsers((current) =>
+        current.map((entry) => {
+          if (entry.id === result.profile.id) return result.profile;
+          if (result.currentProfile && entry.id === result.currentProfile.id) return result.currentProfile;
+          return entry;
+        }),
+      );
+      setFollowingIds((current) =>
+        result.isFollowing
+          ? Array.from(new Set([...current, userId]))
+          : current.filter((id) => id !== userId),
+      );
+      pushToast(
+        result.isFollowing
+          ? `✅ Vous suivez maintenant ${result.profile.name}.`
+          : `Abonnement annulé pour ${result.profile.name}.`,
+      );
+    } catch {
+      pushToast(`Connectez-vous pour suivre ${user.name}.`);
+    }
   }
 
   function toggleGroup(name: string) {
-    const nextState = !groupState[name];
-    setGroupState((current) => ({ ...current, [name]: nextState }));
-    pushToast(nextState ? `✅ Groupe rejoint : ${name}` : `Groupe quitte : ${name}`);
+    pushToast(`Connectez-vous puis rejoignez le groupe officiel ${name}.`);
   }
 
   function toggleEvent(name: string) {
-    const nextState = !eventState[name];
-    setEventState((current) => ({ ...current, [name]: nextState }));
-    pushToast(nextState ? `✅ Inscrit a : ${name}` : `Inscription annulee : ${name}`);
+    pushToast(`Connectez-vous puis inscrivez-vous à l'événement officiel ${name}.`);
   }
 
   function openTrend(tag: string) {
@@ -1572,26 +1531,16 @@ export function CommunityNetwork() {
       return;
     }
 
-    setMessages((current) => [...current, { from: "me", text, time: currentClock() }]);
+    setMessages((current) => [
+      ...current,
+      { from: "me", text, time: currentClock() },
+      {
+        from: "them",
+        text: "Les messages privés entre membres seront activés après validation. Pour une réponse fiable maintenant, contactez Guide PieHUB ou répondez publiquement dans le fil.",
+        time: currentClock(),
+      },
+    ]);
     setMessageDraft("");
-
-    window.setTimeout(() => {
-      const replies = [
-        "Je comprends. Je vous reponds bientot.",
-        "Tres bien note.",
-        "Merci pour votre message 🙏",
-        "Bonne question, je verifie et je reviens vers vous.",
-      ];
-
-      setMessages((current) => [
-        ...current,
-        {
-          from: "them",
-          text: replies[Math.floor(Math.random() * replies.length)],
-          time: currentClock(),
-        },
-      ]);
-    }, 1200);
   }
 
   function loadMore() {
@@ -2189,7 +2138,7 @@ export function CommunityNetwork() {
                     </button>
                   </div>
                   <div className="social-stack">
-                    {GROUPS.map((group) => (
+                    {(apiGroups.length ? [] : GROUPS).map((group) => (
                       <div className="social-list-card" key={`static-${group.name}`}>
                         <span className="social-list-icon" style={{ background: group.color }}>
                           {group.icon}
@@ -2331,7 +2280,7 @@ export function CommunityNetwork() {
                     </button>
                   </div>
                   <div className="social-stack">
-                    {EVENTS.map((event) => (
+                    {(apiEvents.length ? [] : EVENTS).map((event) => (
                       <div className="social-event-card" key={`static-${event.name}`}>
                         <div className="social-event-date">
                           <strong>{event.day}</strong>

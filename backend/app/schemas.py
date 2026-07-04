@@ -460,6 +460,13 @@ class CommunityProfileItem(BaseModel):
     tags: list[str] = Field(default_factory=list)
     is_official: bool = False
     is_ai: bool = False
+    viewer_is_following: bool = False
+
+
+class CommunityFollowResponse(BaseModel):
+    profile: CommunityProfileItem
+    current_profile: CommunityProfileItem | None = None
+    is_following: bool
 
 
 class CommunityPollOptionItem(BaseModel):

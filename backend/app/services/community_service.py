@@ -18,6 +18,7 @@ from ..schemas import (
     CommunityEventAttendanceResponse,
     CommunityEventCalendarItem,
     CommunityEventCreateRequest,
+    CommunityFollowResponse,
     CommunityGroupCreateRequest,
     CommunityGroupItem,
     CommunityGroupMembershipResponse,
@@ -303,6 +304,86 @@ SEED_COMMENTS: list[dict[str, Any]] = [
     },
 ]
 
+SEED_GROUPS: list[dict[str, Any]] = [
+    {
+        "name": "Campus France — Entraide",
+        "description": "Questions, retours et conseils pour préparer la procédure Campus France.",
+        "icon": "🇫🇷",
+        "category": "campus",
+        "member_count": 1240,
+        "is_official": True,
+        "created_by_profile_id": PIEHUB_PROFILE_ID,
+    },
+    {
+        "name": "Visa Étudiant — Conseils",
+        "description": "Préparation du dossier visa, justificatifs, hébergement et ressources.",
+        "icon": "📋",
+        "category": "visa",
+        "member_count": 876,
+        "is_official": True,
+        "created_by_profile_id": PIEHUB_PROFILE_ID,
+    },
+    {
+        "name": "Études en Belgique",
+        "description": "Communauté des étudiants qui préparent ou vivent un projet Belgique.",
+        "icon": "🇧🇪",
+        "category": "belgique",
+        "member_count": 432,
+        "is_official": True,
+        "created_by_profile_id": PIEHUB_PROFILE_ID,
+    },
+    {
+        "name": "Logement Étudiant France",
+        "description": "Bons plans, retours d’expérience et entraide logement avant le départ.",
+        "icon": "🏠",
+        "category": "logement",
+        "member_count": 1650,
+        "is_official": True,
+        "created_by_profile_id": PIEHUB_PROFILE_ID,
+    },
+]
+
+
+def _future_date(days_from_now: int) -> str:
+    return (datetime.now(timezone.utc).date() + timedelta(days=days_from_now)).isoformat()
+
+
+SEED_EVENTS: list[dict[str, Any]] = [
+    {
+        "name": "Webinaire : Réussir son entretien Campus France",
+        "description": "Session live avec l'équipe PieAgency : questions-réponses et simulation.",
+        "event_date": _future_date(10),
+        "event_time": "18h00 — GMT+1",
+        "location_type": "online",
+        "location_detail": "Lien envoyé après inscription",
+        "attendee_count": 87,
+        "is_official": True,
+        "created_by_profile_id": PIEHUB_PROFILE_ID,
+    },
+    {
+        "name": "Atelier Visa : Préparer son dossier complet",
+        "description": "Comment structurer les justificatifs, les lettres et les preuves financières.",
+        "event_date": _future_date(17),
+        "event_time": "17h30 — GMT+1",
+        "location_type": "online",
+        "location_detail": "Lien envoyé après inscription",
+        "attendee_count": 54,
+        "is_official": True,
+        "created_by_profile_id": PIEHUB_PROFILE_ID,
+    },
+    {
+        "name": "Live : Témoignages d'étudiants en France",
+        "description": "Des étudiants partagent leur parcours de A à Z, de la candidature à l'arrivée.",
+        "event_date": _future_date(25),
+        "event_time": "19h00 — GMT+1",
+        "location_type": "online",
+        "location_detail": "Live PieHUB",
+        "attendee_count": 213,
+        "is_official": True,
+        "created_by_profile_id": PIEHUB_PROFILE_ID,
+    },
+]
+
 
 def _build_initials(name: str) -> str:
     parts = [part for part in name.replace("-", " ").split() if part]
@@ -373,9 +454,33 @@ def _normalize_post_tag(raw_tag: str | None, *, post_type: str, content: str, qu
     )
 
 
-def _build_profile_item(row: dict[str, Any]) -> CommunityProfileItem:
+def _load_following_profile_ids(client, viewer_user_id: str | None) -> set[str]:
+    if not viewer_user_id:
+        return set()
+    try:
+        response = (
+            client.table("community_follows")
+            .select("target_profile_id")
+            .eq("follower_user_id", viewer_user_id)
+            .execute()
+        )
+    except Exception:
+        return set()
+    return {
+        str(item.get("target_profile_id"))
+        for item in (response.data or [])
+        if item.get("target_profile_id")
+    }
+
+
+def _build_profile_item(
+    row: dict[str, Any],
+    *,
+    following_profile_ids: set[str] | None = None,
+) -> CommunityProfileItem:
+    profile_id = str(row.get("id", ""))
     return CommunityProfileItem(
-        id=str(row.get("id", "")),
+        id=profile_id,
         name=str(row.get("display_name") or "Membre PieHUB"),
         tag=str(row.get("handle") or "@piehub_member"),
         country=str(row.get("country") or "Afrique francophone"),
@@ -389,6 +494,7 @@ def _build_profile_item(row: dict[str, Any]) -> CommunityProfileItem:
         tags=[str(item) for item in (row.get("tags") or [])],
         is_official=bool(row.get("is_official", False)),
         is_ai=bool(row.get("is_ai", False)),
+        viewer_is_following=profile_id in (following_profile_ids or set()),
     )
 
 
@@ -492,6 +598,28 @@ def _ensure_seed_data(client) -> bool:
 
         if comment_payloads:
             client.table("community_comments").upsert(comment_payloads, on_conflict="seed_key").execute()
+
+        for group in SEED_GROUPS:
+            existing_group = (
+                client.table("community_groups")
+                .select("id")
+                .eq("name", group["name"])
+                .limit(1)
+                .execute()
+            )
+            if not existing_group.data:
+                client.table("community_groups").insert(group, returning="minimal").execute()
+
+        for event in SEED_EVENTS:
+            existing_event = (
+                client.table("community_events_calendar")
+                .select("id")
+                .eq("name", event["name"])
+                .limit(1)
+                .execute()
+            )
+            if not existing_event.data:
+                client.table("community_events_calendar").insert(event, returning="minimal").execute()
     except Exception:
         return False
 
@@ -558,7 +686,7 @@ def _ensure_user_profile(client, current_user: AuthUserProfile) -> CommunityProf
     return _build_profile_item(data[0])
 
 
-def _load_profiles(client) -> list[CommunityProfileItem]:
+def _load_profiles(client, viewer_user_id: str | None = None) -> list[CommunityProfileItem]:
     response = (
         client.table("community_profiles")
         .select("*")
@@ -567,7 +695,11 @@ def _load_profiles(client) -> list[CommunityProfileItem]:
         .limit(40)
         .execute()
     )
-    return [_build_profile_item(item) for item in (response.data or [])]
+    following_profile_ids = _load_following_profile_ids(client, viewer_user_id)
+    return [
+        _build_profile_item(item, following_profile_ids=following_profile_ids)
+        for item in (response.data or [])
+    ]
 
 
 def _load_post_rows(client, limit: int = 20, post_ids: list[int] | None = None) -> list[dict[str, Any]]:
@@ -818,7 +950,7 @@ def get_community_bootstrap(
         current_profile = _ensure_user_profile(client, current_user)
         current_profile_id = current_profile.id
 
-    profiles = _load_profiles(client)
+    profiles = _load_profiles(client, current_user.user_id if current_user is not None else None)
     posts = _load_post_items(
         client,
         limit=24,
@@ -1187,6 +1319,85 @@ def _load_notifications(client, viewer_user_id: str) -> tuple[list[CommunityNoti
         return items, unread
     except Exception:
         return [], 0
+
+
+def toggle_community_profile_follow(
+    target_profile_id: str,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> CommunityFollowResponse:
+    client = _get_client(access_token)
+    _ensure_community_tables(client)
+    current_profile = _ensure_user_profile(client, current_user)
+    if target_profile_id == current_profile.id:
+        raise LookupError("Vous ne pouvez pas vous suivre vous-même.")
+
+    target_response = (
+        client.table("community_profiles")
+        .select("*")
+        .eq("id", target_profile_id)
+        .limit(1)
+        .execute()
+    )
+    target_rows = target_response.data or []
+    if not target_rows:
+        raise LookupError("Profil communautaire introuvable.")
+    target_row = target_rows[0]
+
+    existing_response = (
+        client.table("community_follows")
+        .select("id")
+        .eq("follower_user_id", current_user.user_id)
+        .eq("target_profile_id", target_profile_id)
+        .limit(1)
+        .execute()
+    )
+    existing_rows = existing_response.data or []
+    is_following = not bool(existing_rows)
+
+    if existing_rows:
+        client.table("community_follows").delete().eq("id", existing_rows[0]["id"]).execute()
+        target_followers = max(int(target_row.get("follower_count") or 0) - 1, 0)
+        current_following = max(current_profile.following - 1, 0)
+    else:
+        client.table("community_follows").insert(
+            {
+                "follower_user_id": current_user.user_id,
+                "target_profile_id": target_profile_id,
+            },
+        ).execute()
+        target_followers = int(target_row.get("follower_count") or 0) + 1
+        current_following = current_profile.following + 1
+
+    client.table("community_profiles").update({"follower_count": target_followers}).eq("id", target_profile_id).execute()
+    client.table("community_profiles").update({"following_count": current_following}).eq("id", current_profile.id).execute()
+
+    refreshed_target = (
+        client.table("community_profiles")
+        .select("*")
+        .eq("id", target_profile_id)
+        .limit(1)
+        .execute()
+    )
+    refreshed_current = (
+        client.table("community_profiles")
+        .select("*")
+        .eq("id", current_profile.id)
+        .limit(1)
+        .execute()
+    )
+    following_ids = _load_following_profile_ids(client, current_user.user_id)
+    return CommunityFollowResponse(
+        profile=_build_profile_item(
+            (refreshed_target.data or [target_row])[0],
+            following_profile_ids=following_ids,
+        ),
+        current_profile=_build_profile_item(
+            refreshed_current.data[0],
+            following_profile_ids=following_ids,
+        ) if refreshed_current.data else None,
+        is_following=is_following,
+    )
 
 
 def get_community_groups(

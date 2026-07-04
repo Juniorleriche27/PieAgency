@@ -17,6 +17,7 @@ export type CommunityUser = {
   tags: string[];
   isOfficial?: boolean;
   isAi?: boolean;
+  viewerIsFollowing?: boolean;
 };
 
 export type CommunityComment = {
@@ -150,6 +151,7 @@ type CommunityBootstrapApi = {
     tags: string[];
     is_official?: boolean;
     is_ai?: boolean;
+    viewer_is_following?: boolean;
   }>;
   posts: CommunityPostApi[];
   groups?: CommunityGroupApi[];
@@ -288,6 +290,38 @@ function normalizeTag(
   );
 }
 
+type CommunityFollowApi = {
+  profile: CommunityBootstrapApi["profiles"][number];
+  current_profile?: CommunityBootstrapApi["profiles"][number] | null;
+  is_following: boolean;
+};
+
+export type CommunityFollowData = {
+  profile: CommunityUser;
+  currentProfile: CommunityUser | null;
+  isFollowing: boolean;
+};
+
+function mapUser(item: CommunityBootstrapApi["profiles"][number]): CommunityUser {
+  return {
+    id: item.id,
+    name: item.name,
+    tag: item.tag,
+    country: item.country,
+    city: item.city,
+    bio: item.bio,
+    avatar: item.avatar,
+    color: item.color,
+    followers: item.followers,
+    following: item.following,
+    posts: item.posts,
+    tags: item.tags || [],
+    isOfficial: item.is_official,
+    isAi: item.is_ai,
+    viewerIsFollowing: item.viewer_is_following,
+  };
+}
+
 function mapComment(item: CommunityCommentApi): CommunityComment {
   return {
     id: item.id,
@@ -364,22 +398,7 @@ export async function fetchCommunityBootstrap(): Promise<CommunityBootstrapData>
   const payload = (await response.json()) as CommunityBootstrapApi;
   return {
     currentProfileId: payload.current_profile_id,
-    users: payload.profiles.map((item) => ({
-      id: item.id,
-      name: item.name,
-      tag: item.tag,
-      country: item.country,
-      city: item.city,
-      bio: item.bio,
-      avatar: item.avatar,
-      color: item.color,
-      followers: item.followers,
-      following: item.following,
-      posts: item.posts,
-      tags: item.tags || [],
-      isOfficial: item.is_official,
-      isAi: item.is_ai,
-    })),
+    users: payload.profiles.map(mapUser),
     posts: payload.posts.map(mapPost),
     groups: (payload.groups || []).map(mapGroup),
     eventsCalendar: (payload.events_calendar || []).map(mapEventCalendar),
@@ -492,6 +511,27 @@ export async function voteCommunityPoll(
   }
 
   return mapMutation((await response.json()) as CommunityMutationApi);
+}
+
+export async function toggleCommunityProfileFollow(
+  profileId: string,
+): Promise<CommunityFollowData> {
+  const response = await authenticatedFetch(
+    `/api/community/profiles/${encodeURIComponent(profileId)}/follow`,
+    { method: "POST" },
+    { requireAuth: true },
+  );
+
+  if (!response.ok) {
+    throw new Error("COMMUNITY_FOLLOW_FAILED");
+  }
+
+  const payload = (await response.json()) as CommunityFollowApi;
+  return {
+    profile: mapUser(payload.profile),
+    currentProfile: payload.current_profile ? mapUser(payload.current_profile) : null,
+    isFollowing: payload.is_following,
+  };
 }
 
 export async function fetchCommunityAssistantThread(): Promise<CommunityThreadData> {

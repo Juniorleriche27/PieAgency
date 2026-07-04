@@ -20,6 +20,7 @@ from ..schemas import (
     CommunityEventAttendanceResponse,
     CommunityEventCalendarItem,
     CommunityEventCreateRequest,
+    CommunityFollowResponse,
     CommunityGroupCreateRequest,
     CommunityGroupItem,
     CommunityGroupMembershipResponse,
@@ -49,6 +50,7 @@ from ..services.community_service import (
     toggle_community_event_attendance,
     toggle_community_group_membership,
     toggle_community_post_reaction,
+    toggle_community_profile_follow,
     vote_community_poll,
 )
 
@@ -117,6 +119,20 @@ def community_vote_poll(
 ) -> CommunityMutationResponse:
     try:
         return vote_community_poll(post_id, payload, current_user, access_token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except CommunityDataUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.post("/community/profiles/{profile_id}/follow", response_model=CommunityFollowResponse)
+def community_toggle_profile_follow(
+    profile_id: str,
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> CommunityFollowResponse:
+    try:
+        return toggle_community_profile_follow(profile_id, current_user, access_token)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except CommunityDataUnavailableError as exc:
