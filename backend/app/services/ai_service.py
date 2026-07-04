@@ -61,7 +61,7 @@ def _chat_json(client: cohere.ClientV2, messages: list[dict[str, str]]) -> dict[
 
 def _gateway_url() -> str:
     base = settings.ai_gateway_base_url.strip().rstrip("/")
-    path = settings.ai_gateway_chat_path.strip() or "/v1/chat/completions"
+    path = settings.ai_gateway_chat_path.strip() or "/v1/chat"
     if base.endswith("/chat/completions") or base.endswith("/responses"):
         return base
     return f"{base}/{path.lstrip('/')}"
@@ -79,11 +79,13 @@ def _gateway_headers() -> dict[str, str]:
 
 def _gateway_payload(messages: list[dict[str, str]], *, stream: bool = False, json_mode: bool = False) -> dict[str, Any]:
     payload: dict[str, Any] = {
-        "model": settings.ai_gateway_model,
         "messages": messages,
         "temperature": 0.25,
         "stream": stream,
     }
+    model = settings.ai_gateway_model.strip()
+    if model:
+        payload["model"] = model
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
     return payload
@@ -94,6 +96,8 @@ def _extract_gateway_text(payload: dict[str, Any]) -> str:
         return payload["answer"].strip()
     if isinstance(payload.get("text"), str):
         return payload["text"].strip()
+    if isinstance(payload.get("response"), str):
+        return payload["response"].strip()
     choices = payload.get("choices")
     if isinstance(choices, list) and choices:
         first = choices[0]
