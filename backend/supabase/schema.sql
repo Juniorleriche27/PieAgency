@@ -1478,6 +1478,8 @@ on conflict (service_slug) do update set
   title = excluded.title,
   description = excluded.description,
   price = excluded.price,
+  currency = excluded.currency,
+  billing_period = excluded.billing_period,
   features = excluded.features,
   recommended = excluded.recommended,
   sort_order = excluded.sort_order,

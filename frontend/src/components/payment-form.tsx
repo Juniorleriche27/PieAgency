@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { servicePages } from "@/content/site";
 import { authenticatedFetch, getApiBaseUrl } from "@/lib/auth";
 import { getProductPaymentOptions } from "@/lib/private-products";
+import { SUBSCRIPTION_PAYMENT_OPTIONS } from "@/lib/private-subscriptions";
 import { formatEuro, formatXof, xofToEuro } from "@/lib/currency";
 
 type PaymentConfig = {
@@ -56,6 +57,7 @@ const serviceOptions = [
     slug: service.slug,
     label: service.shortTitle,
   })),
+  ...SUBSCRIPTION_PAYMENT_OPTIONS,
   ...getProductPaymentOptions(),
 ];
 
@@ -68,6 +70,12 @@ const initialState: PaymentFormState = {
   dossierReference: "",
   reason: "Acompte convenu avec PieAgency",
 };
+
+function isPricedServiceOption(
+  item: (typeof serviceOptions)[number] | undefined,
+): item is (typeof serviceOptions)[number] & { priceEuro: number; priceCfa: number } {
+  return Boolean(item && "priceCfa" in item && typeof item.priceCfa === "number");
+}
 
 function getServiceReason(serviceSlug: string) {
   const service = serviceOptions.find((item) => item.slug === serviceSlug);
@@ -150,11 +158,14 @@ export function PaymentForm() {
         !current.reason.trim() ||
         current.reason === initialState.reason ||
         current.reason === getServiceReason(current.serviceSlug);
+      const matchedAmount = isPricedServiceOption(matchedService)
+        ? String(matchedService.priceCfa)
+        : "";
 
       return {
         ...current,
         serviceSlug: matchedService.slug,
-        amount: amountFromQuery || current.amount,
+        amount: amountFromQuery || matchedAmount || current.amount,
         reason: shouldUpdateReason ? getServiceReason(matchedService.slug) : current.reason,
       };
     });
@@ -451,9 +462,7 @@ export function PaymentForm() {
   }
 
   const currentService = serviceOptions.find((item) => item.slug === form.serviceSlug);
-  const productPayment = currentService && "priceCfa" in currentService
-    ? (currentService as { slug: string; label: string; priceEuro: number; priceCfa: number })
-    : null;
+  const productPayment = isPricedServiceOption(currentService) ? currentService : null;
   const displayCurrency = config?.display_currency ?? "XOF";
   const amountNumber = Number(form.amount);
   const amountHelper =
@@ -620,14 +629,26 @@ export function PaymentForm() {
                   id="payment-service"
                   onChange={(event) => {
                     const nextServiceSlug = event.target.value;
+                    const nextService = serviceOptions.find((item) => item.slug === nextServiceSlug);
                     const shouldUpdateReason =
                       !form.reason.trim() ||
                       form.reason === initialState.reason ||
                       form.reason === getServiceReason(form.serviceSlug);
-                    updateField("serviceSlug", nextServiceSlug);
-                    if (shouldUpdateReason) {
-                      updateField("reason", getServiceReason(nextServiceSlug));
-                    }
+                    setForm((current) => ({
+                      ...current,
+                      serviceSlug: nextServiceSlug,
+                      amount: isPricedServiceOption(nextService)
+                        ? String(nextService.priceCfa)
+                        : current.amount,
+                      reason: shouldUpdateReason ? getServiceReason(nextServiceSlug) : current.reason,
+                    }));
+                    setErrors((current) => ({
+                      ...current,
+                      serviceSlug: undefined,
+                      amount: undefined,
+                      reason: undefined,
+                    }));
+                    setFeedback(null);
                   }}
                   value={form.serviceSlug}
                 >

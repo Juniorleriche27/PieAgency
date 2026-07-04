@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CopilotBanner } from "@/components/private/copilot-banner";
+import { euroToXof } from "@/lib/currency";
 import { CheckCircle2, Minus, Star } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -56,6 +57,15 @@ function formatPrice(plan: PrivateSubscriptionPlan) {
 function featureIncluded(plan: PrivateSubscriptionPlan, feature: string): boolean {
   const key = feature.toLowerCase().split(" ")[0];
   return plan.features.some((f) => f.toLowerCase().includes(key));
+}
+
+function buildPaymentHref(plan: PrivateSubscriptionPlan) {
+  const params = new URLSearchParams({
+    service: plan.service_slug,
+    amount: String(euroToXof(plan.price)),
+    reason: `Abonnement ${plan.title}`,
+  });
+  return `/paiement?${params.toString()}`;
 }
 
 export function PrivateSubscriptionView() {
@@ -157,10 +167,14 @@ export function PrivateSubscriptionView() {
                   <div className="sub-card-actions">
                     {isCurrent ? (
                       <span className="btn sub-btn-active">Plan actuel</span>
+                    ) : plan.price === 0 ? (
+                      <Link className="btn btn-primary" href="/espace-etudiant">
+                        Choisir cette offre →
+                      </Link>
                     ) : (
                       <Link
                         className={`btn${isRecommended ? " sub-btn-recommended" : " btn-primary"}`}
-                        href={`/paiement?service=${encodeURIComponent(plan.service_slug)}`}
+                        href={buildPaymentHref(plan)}
                       >
                         Choisir cette offre →
                       </Link>

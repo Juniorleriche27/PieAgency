@@ -1,4 +1,5 @@
 import { authenticatedFetch } from "@/lib/auth";
+import { euroToXof } from "@/lib/currency";
 
 export type PrivateSubscriptionPlan = {
   id: string;
@@ -27,6 +28,27 @@ export type UserSubscription = {
   current_plan_id: string | null;
   plan: PrivateSubscriptionPlan | null;
 };
+
+export const SUBSCRIPTION_PAYMENT_OPTIONS = [
+  {
+    slug: "essentiel-mensuel",
+    label: "Abonnement Essentiel",
+    priceEuro: 9.99,
+    priceCfa: euroToXof(9.99),
+  },
+  {
+    slug: "standard-mensuel",
+    label: "Abonnement Standard",
+    priceEuro: 19.99,
+    priceCfa: euroToXof(19.99),
+  },
+  {
+    slug: "premium-digital-mensuel",
+    label: "Abonnement Premium digital",
+    priceEuro: 34.99,
+    priceCfa: euroToXof(34.99),
+  },
+] as const;
 
 type PrivateSubscriptionListResponse = {
   plans: PrivateSubscriptionPlan[];
