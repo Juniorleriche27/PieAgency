@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     ai_gateway_base_url: str = "http://ai-gateway:8000"
     ai_gateway_api_key: str = ""
     ai_gateway_model: str = "koryxa-default"
-    ai_gateway_chat_path: str = "/v1/chat/completions"
+    ai_gateway_chat_path: str = "/v1/chat"
     ai_gateway_request_timeout_seconds: float = 45.0
     supabase_url: str = ""
     supabase_secret_key: str = ""
