@@ -424,7 +424,7 @@ Retourne uniquement un JSON valide:
 Contraintes:
 - reponse en francais;
 - concise mais utile;
-- maximum 220 mots;
+- réponse courte et directe : 80 à 120 mots maximum;
 - texte propre uniquement, sans markdown, sans **, sans listes markdown;
 - ne pas afficher d'URL brute dans la reponse;
 - suggested_actions: 2 ou 3 actions concretes;
@@ -459,7 +459,7 @@ Ta mission:
 
 Contraintes:
 - concise mais utile;
-- maximum 220 mots;
+- réponse courte et directe : 80 à 120 mots maximum;
 - texte propre uniquement, sans markdown, sans **, sans listes markdown;
 - ne pas afficher d'URL brute dans la reponse;
 - si l'utilisateur veut demarrer, mentionner le formulaire de contact (pieagency.fr/contact) ou la prise de rendez-vous.
