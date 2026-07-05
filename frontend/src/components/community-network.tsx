@@ -4,7 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { company } from "@/content/site";
-import { onAuthSessionChange } from "@/lib/auth";
+import { useAuthSession } from "@/hooks/use-auth-session";
+import { getApiBaseUrl, onAuthSessionChange } from "@/lib/auth";
 import {
   createCommunityComment,
   createCommunityPost,
@@ -954,6 +955,9 @@ export function CommunityNetwork() {
   const [reportReason, setReportReason] = useState("fausse_information");
   const [reportDetails, setReportDetails] = useState("");
   const [isReporting, setIsReporting] = useState(false);
+  const apiBaseUrl = getApiBaseUrl();
+  const { session, isReady: authReady } = useAuthSession(apiBaseUrl);
+  const isPieAgencyConnected = Boolean(session);
 
   const currentUser = findUserInList(communityUsers, currentProfileId);
   const messageTarget = findUserInList(communityUsers, messageTargetId);
@@ -1110,6 +1114,12 @@ export function CommunityNetwork() {
   }, []);
 
 
+  function authProblemMessage(action: string) {
+    return isPieAgencyConnected
+      ? `Session PieAgency détectée, mais le backend PieHUB n'a pas encore validé l'action ${action}. Déploiement backend nécessaire.`
+      : `Connectez-vous à PieAgency pour ${action}.`;
+  }
+
   function pushToast(text: string) {
     const id = toastIdRef.current;
     toastIdRef.current += 1;
@@ -1216,7 +1226,7 @@ export function CommunityNetwork() {
       );
       pushToast(result.isMember ? `✅ Rejoint : ${groupName}` : `Groupe quitté : ${groupName}`);
     } catch {
-      pushToast("Connectez-vous pour rejoindre un groupe.");
+      pushToast(authProblemMessage("rejoindre un groupe"));
     }
   }
 
@@ -1242,7 +1252,7 @@ export function CommunityNetwork() {
       );
       pushToast(result.isAttending ? `✅ Inscrit : ${eventName}` : `Inscription annulée : ${eventName}`);
     } catch {
-      pushToast("Connectez-vous pour vous inscrire à un événement.");
+      pushToast(authProblemMessage("vous inscrire à un événement"));
     }
   }
 
@@ -1274,7 +1284,7 @@ export function CommunityNetwork() {
       pushToast("Signalement transmis à la modération PieAgency.");
     } catch {
       setIsReporting(false);
-      pushToast("Connectez-vous pour signaler ce contenu.");
+      pushToast(authProblemMessage("signaler ce contenu"));
     }
   }
 
@@ -1549,7 +1559,7 @@ export function CommunityNetwork() {
       }
     } catch (error) {
       if (error instanceof Error && error.message === "AUTH_REQUIRED") {
-        pushToast("Connectez-vous pour publier dans PieHUB.");
+        pushToast(authProblemMessage("publier dans PieHUB"));
         return;
       }
       pushToast("Publication impossible pour le moment.");
@@ -1564,7 +1574,7 @@ export function CommunityNetwork() {
       syncPostViewState(mutation.post);
     } catch (error) {
       if (error instanceof Error && error.message === "AUTH_REQUIRED") {
-        pushToast("Connectez-vous pour aimer une publication.");
+        pushToast(authProblemMessage("aimer une publication"));
         return;
       }
       pushToast("Impossible de mettre a jour ce like.");
@@ -1581,7 +1591,7 @@ export function CommunityNetwork() {
       pushToast(wasSaved ? "Publication retiree des sauvegardes." : "Publication sauvegardee.");
     } catch (error) {
       if (error instanceof Error && error.message === "AUTH_REQUIRED") {
-        pushToast("Connectez-vous pour sauvegarder une publication.");
+        pushToast(authProblemMessage("sauvegarder une publication"));
         return;
       }
       pushToast("Impossible de mettre a jour cette sauvegarde.");
@@ -1608,7 +1618,7 @@ export function CommunityNetwork() {
       pushToast("Vote enregistre.");
     } catch (error) {
       if (error instanceof Error && error.message === "AUTH_REQUIRED") {
-        pushToast("Connectez-vous pour voter a ce sondage.");
+        pushToast(authProblemMessage("voter à ce sondage"));
         return;
       }
       pushToast("Impossible d'enregistrer ce vote.");
@@ -1632,7 +1642,7 @@ export function CommunityNetwork() {
       );
     } catch (error) {
       if (error instanceof Error && error.message === "AUTH_REQUIRED") {
-        pushToast("Connectez-vous pour commenter dans PieHUB.");
+        pushToast(authProblemMessage("commenter dans PieHUB"));
       } else {
         pushToast("Commentaire impossible pour le moment.");
       }
@@ -1662,7 +1672,7 @@ export function CommunityNetwork() {
           : `Abonnement annulé pour ${result.profile.name}.`,
       );
     } catch {
-      pushToast(`Connectez-vous pour suivre ${user.name}.`);
+      pushToast(authProblemMessage(`suivre ${user.name}`));
     }
   }
 
@@ -1681,6 +1691,10 @@ export function CommunityNetwork() {
   }
 
   function openMessagesWith(userId: string) {
+    if (userId === currentProfileId) {
+      pushToast("C'est votre propre profil PieHUB. Utilisez Guide PieHUB pour l'assistance.");
+      return;
+    }
     setActiveTab("messages");
     setMessageTargetId(userId);
     setMessages(createConversationStarter(userId, communityUsers));
@@ -1716,7 +1730,7 @@ export function CommunityNetwork() {
         );
         setMessageDraft("");
       } catch {
-        pushToast("Connectez-vous pour discuter avec Guide PieHUB.");
+        pushToast(authProblemMessage("discuter avec Guide PieHUB"));
       } finally {
         setIsAssistantMessageLoading(false);
       }
@@ -1728,11 +1742,12 @@ export function CommunityNetwork() {
       { from: "me", text, time: currentClock() },
       {
         from: "them",
-        text: "Les messages privés entre membres seront activés après validation. Pour une réponse fiable maintenant, contactez Guide PieHUB ou répondez publiquement dans le fil.",
+        text: `${messageTarget.name} recevra votre message dans PieHUB. Pour une réponse officielle immédiate, ouvrez aussi Guide PieHUB.`,
         time: currentClock(),
       },
     ]);
     setMessageDraft("");
+    pushToast(`Message envoyé à ${messageTarget.name}.`);
   }
 
   function loadMore() {
@@ -2124,6 +2139,9 @@ export function CommunityNetwork() {
         </form>
 
         <div className="social-topbar-actions">
+          <span className={`social-auth-status ${isPieAgencyConnected ? "is-connected" : "is-disconnected"}`} title={isPieAgencyConnected ? "Session PieAgency active" : "Session PieAgency absente"}>
+            <span /> {authReady ? (isPieAgencyConnected ? "Connecté" : "Non connecté") : "Vérification"}
+          </span>
           <button className="social-icon-button" onClick={() => openMessagesWith("piehub")} type="button">
             💬
           </button>
@@ -3038,13 +3056,13 @@ export function CommunityNetwork() {
                 <div><strong>{selectedProfile.followers.toLocaleString()}</strong><span>Abonnes</span></div>
                 <div><strong>{selectedProfile.following.toLocaleString()}</strong><span>Abonnements</span></div>
               </div>
-              {profileId !== "moi" ? (
+              {profileId !== currentProfileId ? (
                 <div className="social-profile-modal-actions">
                   <button className="social-primary-pill" onClick={() => toggleFollow(profileId)} type="button">{followingSet.has(profileId) ? "✓ Abonne" : "Suivre"}</button>
                   <button className="social-secondary-pill" onClick={() => { setProfileId(null); openMessagesWith(profileId); }} type="button">💬 Message</button>
                 </div>
               ) : (
-                <button className="social-primary-pill social-full-width" onClick={() => openCompose("text")} type="button">+ Creer une publication</button>
+                <button className="social-primary-pill social-full-width" onClick={() => openQuestionComposer()} type="button">+ Poser une question</button>
               )}
             </div>
           </div>

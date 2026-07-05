@@ -5354,6 +5354,35 @@ body.chat-open .wa-float {
   overflow-x: clip;
 }
 
+
+.social-auth-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: rgba(13, 27, 56, 0.06);
+  color: #0d1b38;
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.social-auth-status span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
+
+.social-auth-status.is-connected span {
+  background: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.14);
+}
+
+.social-auth-status.is-disconnected { color: #991b1b; }
+
 .social-topbar {
   position: sticky;
   top: 0;
@@ -7309,7 +7338,36 @@ body.chat-open .wa-float {
     display: flex;
   }
 
-  .social-topbar {
+
+.social-auth-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: rgba(13, 27, 56, 0.06);
+  color: #0d1b38;
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.social-auth-status span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
+
+.social-auth-status.is-connected span {
+  background: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.14);
+}
+
+.social-auth-status.is-disconnected { color: #991b1b; }
+
+.social-topbar {
     flex-wrap: wrap;
   }
 
@@ -7348,12 +7406,70 @@ body.chat-open .wa-float {
 
 @media (max-width: 640px) {
   .social-app-shell,
-  .social-topbar {
+
+.social-auth-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: rgba(13, 27, 56, 0.06);
+  color: #0d1b38;
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.social-auth-status span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
+
+.social-auth-status.is-connected span {
+  background: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.14);
+}
+
+.social-auth-status.is-disconnected { color: #991b1b; }
+
+.social-topbar {
     padding-left: 12px;
     padding-right: 12px;
   }
 
-  .social-topbar {
+
+.social-auth-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: rgba(13, 27, 56, 0.06);
+  color: #0d1b38;
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.social-auth-status span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
+
+.social-auth-status.is-connected span {
+  background: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.14);
+}
+
+.social-auth-status.is-disconnected { color: #991b1b; }
+
+.social-topbar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
@@ -7984,6 +8100,35 @@ body.chat-open .wa-float {
 }
 
 /* ── 4. Topbar PieHUB — sticky en haut (pas de header principal sur /communaute) ── */
+
+.social-auth-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: rgba(13, 27, 56, 0.06);
+  color: #0d1b38;
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.social-auth-status span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
+
+.social-auth-status.is-connected span {
+  background: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.14);
+}
+
+.social-auth-status.is-disconnected { color: #991b1b; }
+
 .social-topbar {
   top: 0;
   z-index: 200;
@@ -8048,7 +8193,36 @@ body.chat-open .wa-float {
   .social-sidebar-left { display: none; }
 
   /* Topbar compact */
-  .social-topbar {
+
+.social-auth-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: rgba(13, 27, 56, 0.06);
+  color: #0d1b38;
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.social-auth-status span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
+
+.social-auth-status.is-connected span {
+  background: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.14);
+}
+
+.social-auth-status.is-disconnected { color: #991b1b; }
+
+.social-topbar {
     padding: 10px 16px;
     gap: 10px;
   }
@@ -8085,7 +8259,36 @@ body.chat-open .wa-float {
 /* ── 9. Post cards — layout mobile ── */
 @media (max-width: 640px) {
   .social-app-shell,
-  .social-topbar {
+
+.social-auth-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: rgba(13, 27, 56, 0.06);
+  color: #0d1b38;
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.social-auth-status span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
+
+.social-auth-status.is-connected span {
+  background: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.14);
+}
+
+.social-auth-status.is-disconnected { color: #991b1b; }
+
+.social-topbar {
     padding-left: 12px;
     padding-right: 12px;
   }
