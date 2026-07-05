@@ -25,6 +25,11 @@ from ..schemas import (
     CommunityMutationResponse,
     CommunityNotificationItem,
     CommunityNotificationsResponse,
+    CommunityModerationQueueResponse,
+    CommunityModerationResolveRequest,
+    CommunityReportCreateRequest,
+    CommunityReportItem,
+    CommunityReportResponse,
     CommunityPollVoteRequest,
     CommunityPollOptionItem,
     CommunityPostCreateRequest,
@@ -431,6 +436,161 @@ def _infer_post_tag(text: str, fallback: str = "vie") -> str:
     return fallback
 
 
+def _count_query_rows(query) -> int:
+    try:
+        response = query.execute()
+    except Exception:
+        return 0
+    count = getattr(response, "count", None)
+    if isinstance(count, int):
+        return count
+    return len(response.data or [])
+
+
+def _profile_stage_label(row: dict[str, Any], posts: int) -> str:
+    tags = " ".join(str(item) for item in (row.get("tags") or [])).lower()
+    bio = str(row.get("bio") or "").lower()
+    haystack = f"{tags} {bio}"
+    if bool(row.get("is_official", False)):
+        return "Équipe officielle PieAgency"
+    if bool(row.get("is_ai", False)):
+        return "Guide IA PieHUB"
+    if "visa" in haystack:
+        return "Préparation visa"
+    if "belgique" in haystack or "bruxelles" in haystack:
+        return "Projet Belgique"
+    if "logement" in haystack:
+        return "Recherche logement"
+    if "campus france" in haystack or "campus" in haystack:
+        return "Parcours Campus France"
+    if posts > 0:
+        return "Membre actif"
+    return "Nouveau membre"
+
+
+def _profile_activity_label(posts: int, comments: int) -> str:
+    score = posts * 2 + comments
+    if score >= 12:
+        return "Très actif"
+    if score >= 4:
+        return "Actif"
+    if score >= 1:
+        return "Première activité"
+    return "Nouveau membre"
+
+
+def _latest_profile_activity_label(client, profile_id: str) -> str | None:
+    latest_values: list[str] = []
+    try:
+        post_response = (
+            client.table("community_posts")
+            .select("created_at")
+            .eq("author_profile_id", profile_id)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if post_response.data and post_response.data[0].get("created_at"):
+            latest_values.append(str(post_response.data[0]["created_at"]))
+    except Exception:
+        pass
+    try:
+        comment_response = (
+            client.table("community_comments")
+            .select("created_at")
+            .eq("author_profile_id", profile_id)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if comment_response.data and comment_response.data[0].get("created_at"):
+            latest_values.append(str(comment_response.data[0]["created_at"]))
+    except Exception:
+        pass
+    if not latest_values:
+        return None
+    return _format_datetime_label(max(latest_values))
+
+
+def _build_profile_metrics(client, row: dict[str, Any]) -> dict[str, Any]:
+    profile_id = str(row.get("id", ""))
+    user_id = row.get("user_id")
+    stored_followers = int(row.get("follower_count") or 0)
+    stored_following = int(row.get("following_count") or 0)
+    stored_posts = int(row.get("post_count") or 0)
+
+    real_posts = _count_query_rows(
+        client.table("community_posts")
+        .select("id", count="exact")
+        .eq("author_profile_id", profile_id)
+        .eq("is_archived", False)
+    )
+    real_comments = _count_query_rows(
+        client.table("community_comments")
+        .select("id", count="exact")
+        .eq("author_profile_id", profile_id)
+    )
+    real_followers = _count_query_rows(
+        client.table("community_follows")
+        .select("id", count="exact")
+        .eq("target_profile_id", profile_id)
+    )
+    real_following = (
+        _count_query_rows(
+            client.table("community_follows")
+            .select("id", count="exact")
+            .eq("follower_user_id", user_id)
+        )
+        if user_id
+        else stored_following
+    )
+
+    # Les profils officiels seedés gardent leur preuve sociale de base.
+    # Les vrais utilisateurs affichent leurs compteurs calculés depuis la base.
+    if user_id:
+        followers = real_followers
+        following = real_following
+        posts = real_posts
+    else:
+        followers = stored_followers + real_followers
+        following = stored_following
+        posts = max(stored_posts, real_posts)
+
+    return {
+        **row,
+        "follower_count": followers,
+        "following_count": following,
+        "post_count": posts,
+        "stage_label": _profile_stage_label(row, posts),
+        "activity_label": _profile_activity_label(real_posts, real_comments),
+        "last_active_label": _latest_profile_activity_label(client, profile_id),
+    }
+
+
+def _refresh_profile_counters(client, profile_id: str) -> None:
+    try:
+        response = (
+            client.table("community_profiles")
+            .select("*")
+            .eq("id", profile_id)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+        if not rows:
+            return
+        metrics = _build_profile_metrics(client, rows[0])
+        client.table("community_profiles").update(
+            {
+                "follower_count": int(metrics.get("follower_count") or 0),
+                "following_count": int(metrics.get("following_count") or 0),
+                "post_count": int(metrics.get("post_count") or 0),
+            },
+        ).eq("id", profile_id).execute()
+    except Exception:
+        return
+
+
 def _normalize_post_tag(raw_tag: str | None, *, post_type: str, content: str, question: str | None = None) -> str:
     normalized = (raw_tag or "").strip().lower()
     if "campus" in normalized:
@@ -495,19 +655,68 @@ def _build_profile_item(
         is_official=bool(row.get("is_official", False)),
         is_ai=bool(row.get("is_ai", False)),
         viewer_is_following=profile_id in (following_profile_ids or set()),
+        stage_label=str(row.get("stage_label") or "Membre PieHUB"),
+        activity_label=str(row.get("activity_label") or "Nouveau membre"),
+        last_active_label=(str(row.get("last_active_label")) if row.get("last_active_label") else None),
     )
+
+
+def _is_official_profile_id(profile_id: str | None) -> bool:
+    if not profile_id:
+        return False
+    if profile_id == PIEHUB_PROFILE_ID:
+        return True
+    return any(
+        str(profile.get("id")) == profile_id and bool(profile.get("is_official"))
+        for profile in SEED_PROFILES
+    )
+
+
+def _comment_trust_label(profile_id: str | None, is_official: bool, is_ai_generated: bool) -> str | None:
+    if profile_id == PIEHUB_PROFILE_ID or is_ai_generated:
+        return "Guide PieHUB"
+    if is_official:
+        return "Réponse officielle PieAgency"
+    return None
 
 
 def _build_comment_item(row: dict[str, Any]) -> CommunityCommentItem:
+    profile_id = str(row.get("author_profile_id") or PIEHUB_PROFILE_ID)
+    is_ai_generated = bool(row.get("is_ai_generated", False)) or profile_id == PIEHUB_PROFILE_ID
+    is_official = bool(row.get("is_official", False)) or _is_official_profile_id(profile_id)
     return CommunityCommentItem(
         id=int(row.get("id") or 0),
-        user_id=str(row.get("author_profile_id") or PIEHUB_PROFILE_ID),
+        user_id=profile_id,
         text=str(row.get("body") or ""),
         time=_format_datetime_label(row.get("created_at")),
         likes=int(row.get("likes_count") or 0),
-        is_official=bool(row.get("is_official", False)),
-        is_ai_generated=bool(row.get("is_ai_generated", False)),
+        is_official=is_official,
+        is_ai_generated=is_ai_generated,
+        is_pinned=False,
+        trust_label=_comment_trust_label(profile_id, is_official, is_ai_generated),
     )
+
+
+def _is_question_post(row: dict[str, Any], comments: list[CommunityCommentItem]) -> bool:
+    content = str(row.get("content") or "").strip().lower()
+    question = str(row.get("poll_question") or "").strip().lower()
+    tag = str(row.get("tag") or "").strip().lower()
+    return (
+        tag == "question"
+        or content.startswith("question —")
+        or content.startswith("question -")
+        or content.startswith("question:")
+        or content.endswith("?")
+        or question.endswith("?")
+    )
+
+
+def _question_status(comments: list[CommunityCommentItem]) -> str:
+    if any(comment.is_official or comment.user_id == PIEHUB_PROFILE_ID for comment in comments):
+        return "official_answered"
+    if comments:
+        return "answered"
+    return "open"
 
 
 def _build_post_item(
@@ -528,6 +737,17 @@ def _build_post_item(
         for item in options_payload
         if isinstance(item, dict)
     ]
+    is_question = _is_question_post(row, comments)
+    official_comments = [comment for comment in comments if comment.is_official or comment.user_id == PIEHUB_PROFILE_ID]
+    pinned_official_comment = official_comments[0] if official_comments else None
+    if pinned_official_comment is not None:
+        pinned_official_comment = pinned_official_comment.model_copy(update={"is_pinned": True})
+    official_answer_count = len(official_comments)
+    trust_label = (
+        "Réponse officielle disponible"
+        if official_answer_count
+        else "En attente d'une réponse fiable" if is_question else None
+    )
     return CommunityPostItem(
         id=post_id,
         user_id=str(row.get("author_profile_id") or PIEHUB_PROFILE_ID),
@@ -552,6 +772,14 @@ def _build_post_item(
         viewer_has_saved=post_id in (saved_post_ids or set()),
         viewer_poll_vote=(poll_votes or {}).get(post_id),
         group_id=str(row["group_id"]) if row.get("group_id") is not None else None,
+        is_question=is_question,
+        question_status=_question_status(comments) if is_question else None,
+        answer_count=len(comments) if is_question else 0,
+        has_official_answer=official_answer_count > 0,
+        official_answer_count=official_answer_count,
+        resolved_by_official=is_question and official_answer_count > 0,
+        trust_label=trust_label,
+        pinned_official_comment=pinned_official_comment,
     )
 
 
@@ -696,9 +924,10 @@ def _load_profiles(client, viewer_user_id: str | None = None) -> list[CommunityP
         .execute()
     )
     following_profile_ids = _load_following_profile_ids(client, viewer_user_id)
+    enriched_rows = [_build_profile_metrics(client, item) for item in (response.data or [])]
     return [
         _build_profile_item(item, following_profile_ids=following_profile_ids)
-        for item in (response.data or [])
+        for item in enriched_rows
     ]
 
 
@@ -990,6 +1219,11 @@ def create_community_post(
     _ensure_community_tables(client)
     profile = _ensure_user_profile(client, current_user)
 
+    raw_content = payload.content.strip()
+    stored_content = raw_content
+    if payload.is_question and not raw_content.lower().startswith(("question —", "question -", "question:")):
+        stored_content = f"Question — {raw_content}"
+
     insert_payload = {
         "author_profile_id": profile.id,
         "author_user_id": current_user.user_id,
@@ -997,10 +1231,10 @@ def create_community_post(
         "tag": _normalize_post_tag(
             payload.tag,
             post_type=payload.post_type,
-            content=payload.content.strip(),
+            content=stored_content,
             question=payload.question,
         ),
-        "content": payload.content.strip(),
+        "content": stored_content,
         "resource_name": payload.resource_name,
         "resource_type": payload.resource_type,
         "resource_size": payload.resource_size,
@@ -1020,6 +1254,7 @@ def create_community_post(
 
     created_row = rows[0]
     post_id = int(created_row.get("id") or 0)
+    _refresh_profile_counters(client, profile.id)
     assistant_comment = _maybe_generate_assistant_comment(
         client,
         post_id=post_id,
@@ -1371,6 +1606,8 @@ def toggle_community_profile_follow(
 
     client.table("community_profiles").update({"follower_count": target_followers}).eq("id", target_profile_id).execute()
     client.table("community_profiles").update({"following_count": current_following}).eq("id", current_profile.id).execute()
+    _refresh_profile_counters(client, target_profile_id)
+    _refresh_profile_counters(client, current_profile.id)
 
     refreshed_target = (
         client.table("community_profiles")
@@ -1389,15 +1626,177 @@ def toggle_community_profile_follow(
     following_ids = _load_following_profile_ids(client, current_user.user_id)
     return CommunityFollowResponse(
         profile=_build_profile_item(
-            (refreshed_target.data or [target_row])[0],
+            _build_profile_metrics(client, (refreshed_target.data or [target_row])[0]),
             following_profile_ids=following_ids,
         ),
         current_profile=_build_profile_item(
-            refreshed_current.data[0],
+            _build_profile_metrics(client, refreshed_current.data[0]),
             following_profile_ids=following_ids,
         ) if refreshed_current.data else None,
         is_following=is_following,
     )
+
+
+def _build_report_item(row: dict[str, Any]) -> CommunityReportItem:
+    return CommunityReportItem(
+        id=str(row.get("id") or ""),
+        target_type=str(row.get("target_type") or "post"),
+        target_id=str(row.get("target_id") or ""),
+        reason=str(row.get("reason") or "contenu_inapproprie"),
+        details=row.get("details"),
+        status=str(row.get("status") or "pending"),
+        created_by_profile_id=row.get("created_by_profile_id"),
+        created_at=_format_datetime_label(row.get("created_at")),
+    )
+
+
+def _insert_moderation_action(
+    client,
+    *,
+    action_type: str,
+    target_type: str,
+    target_id: str,
+    actor_user_id: str,
+    actor_profile_id: str | None,
+    note: str | None = None,
+) -> None:
+    try:
+        client.table("community_moderation_actions").insert(
+            {
+                "action_type": action_type,
+                "target_type": target_type,
+                "target_id": target_id,
+                "actor_user_id": actor_user_id,
+                "actor_profile_id": actor_profile_id,
+                "note": note,
+            },
+            returning="minimal",
+        ).execute()
+    except Exception:
+        return
+
+
+def _validate_report_target(client, target_type: str, target_id: str) -> None:
+    table_map = {
+        "post": "community_posts",
+        "comment": "community_comments",
+        "ad": "community_ads",
+        "profile": "community_profiles",
+    }
+    id_column = "id"
+    table = table_map.get(target_type)
+    if not table:
+        raise LookupError("Type de signalement invalide.")
+    try:
+        response = client.table(table).select(id_column).eq(id_column, target_id).limit(1).execute()
+    except Exception:
+        return
+    if not (response.data or []):
+        raise LookupError("Contenu introuvable pour signalement.")
+
+
+def create_community_report(
+    payload: CommunityReportCreateRequest,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> CommunityReportResponse:
+    client = _get_client(access_token)
+    _ensure_community_tables(client)
+    profile = _ensure_user_profile(client, current_user)
+    _validate_report_target(client, payload.target_type, payload.target_id)
+    row = {
+        "target_type": payload.target_type,
+        "target_id": payload.target_id,
+        "reason": payload.reason or "contenu_inapproprie",
+        "details": payload.details,
+        "status": "pending",
+        "created_by_user_id": current_user.user_id,
+        "created_by_profile_id": profile.id,
+    }
+    try:
+        response = client.table("community_reports").insert(row).execute()
+        report_row = (response.data or [row])[0]
+        _insert_moderation_action(
+            client,
+            action_type="report_created",
+            target_type=payload.target_type,
+            target_id=payload.target_id,
+            actor_user_id=current_user.user_id,
+            actor_profile_id=profile.id,
+            note=payload.reason,
+        )
+        return CommunityReportResponse(
+            report=_build_report_item(report_row),
+            message="Signalement reçu. L'équipe PieAgency va vérifier ce contenu.",
+        )
+    except Exception as exc:
+        raise CommunityDataUnavailableError("Impossible d'enregistrer le signalement.") from exc
+
+
+def get_community_moderation_queue(
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> CommunityModerationQueueResponse:
+    client = _get_client(access_token)
+    _ensure_community_tables(client)
+    try:
+        response = (
+            client.table("community_reports")
+            .select("*")
+            .eq("status", "pending")
+            .order("created_at", desc=True)
+            .limit(100)
+            .execute()
+        )
+        reports = [_build_report_item(row) for row in (response.data or [])]
+        return CommunityModerationQueueResponse(reports=reports, pending_count=len(reports))
+    except Exception as exc:
+        raise CommunityDataUnavailableError("Impossible de charger la file de modération.") from exc
+
+
+def resolve_community_report(
+    report_id: str,
+    payload: CommunityModerationResolveRequest,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> CommunityReportItem:
+    client = _get_client(access_token)
+    _ensure_community_tables(client)
+    profile = _ensure_user_profile(client, current_user)
+    try:
+        existing = client.table("community_reports").select("*").eq("id", report_id).limit(1).execute()
+        rows = existing.data or []
+        if not rows:
+            raise LookupError("Signalement introuvable.")
+        report = rows[0]
+        response = (
+            client.table("community_reports")
+            .update(
+                {
+                    "status": payload.status,
+                    "admin_note": payload.admin_note,
+                    "reviewed_by_user_id": current_user.user_id,
+                    "reviewed_by_profile_id": profile.id,
+                    "reviewed_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+            .eq("id", report_id)
+            .execute()
+        )
+        _insert_moderation_action(
+            client,
+            action_type=f"report_{payload.status}",
+            target_type=str(report.get("target_type") or "post"),
+            target_id=str(report.get("target_id") or ""),
+            actor_user_id=current_user.user_id,
+            actor_profile_id=profile.id,
+            note=payload.admin_note,
+        )
+        return _build_report_item((response.data or [report])[0])
+    except LookupError:
+        raise
+    except Exception as exc:
+        raise CommunityDataUnavailableError("Impossible de traiter le signalement.") from exc
 
 
 def get_community_groups(
@@ -1777,40 +2176,28 @@ def create_community_ad(
 def rewrite_community_text(
     payload: CommunityAIRewriteRequest,
 ) -> CommunityAIRewriteResponse:
-    from .ai_service import _get_cohere_client
-    client = _get_cohere_client()
-    if client is None:
-        return CommunityAIRewriteResponse(rewritten=payload.text, source="fallback")
+    cleaned = payload.text.strip()
+    if not cleaned:
+        return CommunityAIRewriteResponse(rewritten="Votre message est prêt pour PieHUB.", source="fallback")
+
+    prompt = (
+        "Reformule ce texte pour une communauté étudiante PieAgency. "
+        f"Contexte: {payload.context}. "
+        "Objectif: clair, bienveillant, utile, sans promesse officielle, et prêt à publier. "
+        f"Texte à reformuler: {cleaned}"
+    )
     try:
-        context_hint = {
-            "publication": "une publication sur un réseau social communautaire d'étudiants africains en France",
-            "publicite": "une publicité sobre et professionnelle pour des étudiants africains",
-            "groupe": "la description d'un groupe communautaire pour étudiants",
-            "evenement": "l'annonce d'un événement étudiant",
-        }.get(payload.context or "publication", "une publication communautaire")
-        messages = [
-            {
-                "role": "user",
-                "content": (
-                    f"Reformule ce texte pour {context_hint}. "
-                    "Garde le sens, améliore le style, reste clair et naturel en français. "
-                    "Réponds uniquement avec le texte reformulé, sans commentaire ni explication.\n\n"
-                    f"Texte original :\n{payload.text}"
-                ),
-            }
-        ]
-        from .ai_service import _extract_text_from_response
-        from ..config import settings
-        response = client.chat(
-            model=settings.cohere_model,
-            messages=messages,
+        ai_response = generate_community_reply(
+            CommunityAIReplyRequest(message=prompt, thread_context=["Reformulation PieHUB"]),
         )
-        rewritten = _extract_text_from_response(response).strip()
-        if not rewritten or len(rewritten) < 4:
-            return CommunityAIRewriteResponse(rewritten=payload.text, source="fallback")
-        return CommunityAIRewriteResponse(rewritten=rewritten, source="cohere")
+        rewritten = ai_response.reply.strip()
+        if not rewritten:
+            raise ValueError("Empty rewrite")
+        return CommunityAIRewriteResponse(rewritten=rewritten, source=ai_response.source)
     except Exception:
-        return CommunityAIRewriteResponse(rewritten=payload.text, source="fallback")
+        if not cleaned.endswith((".", "!", "?")):
+            cleaned += "."
+        return CommunityAIRewriteResponse(rewritten=cleaned, source="fallback")
 
 
 def get_group_posts(

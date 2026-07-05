@@ -1398,6 +1398,69 @@ to authenticated
 using (auth.uid() = created_by_user_id or public.is_admin())
 with check (auth.uid() = created_by_user_id or public.is_admin());
 
+
+
+-- ── Community Reports / Moderation ───────────────────────────────────────────
+create table if not exists public.community_reports (
+  id uuid primary key default gen_random_uuid(),
+  target_type text not null check (target_type in ('post', 'comment', 'ad', 'profile')),
+  target_id text not null,
+  reason text not null default 'contenu_inapproprie',
+  details text,
+  status text not null default 'pending' check (status in ('pending', 'reviewed', 'resolved', 'rejected', 'archived')),
+  created_by_user_id uuid references auth.users(id) on delete set null,
+  created_by_profile_id text references public.community_profiles(id) on delete set null,
+  reviewed_by_user_id uuid references auth.users(id) on delete set null,
+  reviewed_by_profile_id text references public.community_profiles(id) on delete set null,
+  reviewed_at timestamptz,
+  admin_note text,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.community_moderation_actions (
+  id uuid primary key default gen_random_uuid(),
+  action_type text not null,
+  target_type text not null,
+  target_id text not null,
+  actor_user_id uuid references auth.users(id) on delete set null,
+  actor_profile_id text references public.community_profiles(id) on delete set null,
+  note text,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists community_reports_status_idx
+  on public.community_reports (status, created_at desc);
+create index if not exists community_reports_target_idx
+  on public.community_reports (target_type, target_id);
+create index if not exists community_moderation_actions_target_idx
+  on public.community_moderation_actions (target_type, target_id, created_at desc);
+
+alter table public.community_reports enable row level security;
+alter table public.community_moderation_actions enable row level security;
+
+drop policy if exists "community_reports_insert" on public.community_reports;
+create policy "community_reports_insert" on public.community_reports
+for insert to authenticated
+with check (auth.uid() = created_by_user_id);
+
+drop policy if exists "community_reports_own_or_admin_select" on public.community_reports;
+create policy "community_reports_own_or_admin_select" on public.community_reports
+for select to authenticated
+using (auth.uid() = created_by_user_id or public.is_admin());
+
+drop policy if exists "community_reports_admin_update" on public.community_reports;
+create policy "community_reports_admin_update" on public.community_reports
+for update to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "community_moderation_actions_admin" on public.community_moderation_actions;
+create policy "community_moderation_actions_admin" on public.community_moderation_actions
+for all to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
 -- ── Subscription Plans ────────────────────────────────────────────────────────
 create table if not exists public.subscription_plans (
   id uuid primary key default gen_random_uuid(),

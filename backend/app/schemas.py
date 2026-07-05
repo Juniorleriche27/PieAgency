@@ -461,6 +461,9 @@ class CommunityProfileItem(BaseModel):
     is_official: bool = False
     is_ai: bool = False
     viewer_is_following: bool = False
+    stage_label: str = "Membre PieHUB"
+    activity_label: str = "Nouveau membre"
+    last_active_label: str | None = None
 
 
 class CommunityFollowResponse(BaseModel):
@@ -482,6 +485,8 @@ class CommunityCommentItem(BaseModel):
     likes: int = 0
     is_official: bool = False
     is_ai_generated: bool = False
+    is_pinned: bool = False
+    trust_label: str | None = None
 
 
 class CommunityPostItem(BaseModel):
@@ -503,6 +508,14 @@ class CommunityPostItem(BaseModel):
     viewer_has_saved: bool = False
     viewer_poll_vote: int | None = None
     group_id: str | None = None
+    is_question: bool = False
+    question_status: str | None = None
+    answer_count: int = 0
+    has_official_answer: bool = False
+    official_answer_count: int = 0
+    resolved_by_official: bool = False
+    trust_label: str | None = None
+    pinned_official_comment: CommunityCommentItem | None = None
 
 
 class CommunityBootstrapResponse(BaseModel):
@@ -1286,6 +1299,53 @@ class CommunityAdCreateRequest(BaseModel):
 class CommunityAdsResponse(BaseModel):
     ads: list[CommunityAdItem] = Field(default_factory=list)
     pending_count: int = 0
+
+
+class CommunityReportCreateRequest(BaseModel):
+    target_type: str = Field(pattern="^(post|comment|ad|profile)$")
+    target_id: str = Field(min_length=1, max_length=80)
+    reason: str = Field(default="contenu_inapproprie", max_length=80)
+    details: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("target_type", "target_id", "reason", "details", mode="before")
+    @classmethod
+    def strip_report_strings(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+
+class CommunityReportItem(BaseModel):
+    id: str
+    target_type: str
+    target_id: str
+    reason: str
+    details: str | None = None
+    status: str = "pending"
+    created_by_profile_id: str | None = None
+    created_at: str = ""
+
+
+class CommunityReportResponse(BaseModel):
+    report: CommunityReportItem
+    message: str = "Signalement reçu."
+
+
+class CommunityModerationQueueResponse(BaseModel):
+    reports: list[CommunityReportItem] = Field(default_factory=list)
+    pending_count: int = 0
+
+
+class CommunityModerationResolveRequest(BaseModel):
+    status: str = Field(pattern="^(reviewed|resolved|rejected|archived)$")
+    admin_note: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("status", "admin_note", mode="before")
+    @classmethod
+    def strip_moderation_strings(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
 
 
 class CommunityAIRewriteRequest(BaseModel):

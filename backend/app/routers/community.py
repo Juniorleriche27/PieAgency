@@ -5,6 +5,7 @@ from ..dependencies.auth import (
     get_current_user,
     get_optional_access_token,
     get_optional_current_user,
+    require_admin_user,
 )
 from ..schemas import (
     AuthUserProfile,
@@ -26,6 +27,11 @@ from ..schemas import (
     CommunityGroupMembershipResponse,
     CommunityMutationResponse,
     CommunityNotificationsResponse,
+    CommunityModerationQueueResponse,
+    CommunityModerationResolveRequest,
+    CommunityReportCreateRequest,
+    CommunityReportItem,
+    CommunityReportResponse,
     CommunityPollVoteRequest,
     CommunityPostCreateRequest,
     CommunityPostItem,
@@ -36,6 +42,9 @@ from ..services.community_service import (
     create_community_comment,
     create_community_event,
     create_community_group,
+    create_community_report,
+    get_community_moderation_queue,
+    resolve_community_report,
     create_community_post,
     get_community_ads,
     get_community_assistant_thread,
@@ -133,6 +142,43 @@ def community_toggle_profile_follow(
 ) -> CommunityFollowResponse:
     try:
         return toggle_community_profile_follow(profile_id, current_user, access_token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except CommunityDataUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.post("/community/reports", response_model=CommunityReportResponse)
+def community_create_report(
+    payload: CommunityReportCreateRequest,
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> CommunityReportResponse:
+    try:
+        return create_community_report(payload, current_user, access_token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except CommunityDataUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get("/community/moderation/queue", response_model=CommunityModerationQueueResponse)
+def community_moderation_queue(
+    current_user: AuthUserProfile = Depends(require_admin_user),
+    access_token: str = Depends(get_current_access_token),
+) -> CommunityModerationQueueResponse:
+    return get_community_moderation_queue(current_user, access_token)
+
+
+@router.post("/community/moderation/reports/{report_id}/resolve", response_model=CommunityReportItem)
+def community_resolve_report(
+    report_id: str,
+    payload: CommunityModerationResolveRequest,
+    current_user: AuthUserProfile = Depends(require_admin_user),
+    access_token: str = Depends(get_current_access_token),
+) -> CommunityReportItem:
+    try:
+        return resolve_community_report(report_id, payload, current_user, access_token)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except CommunityDataUnavailableError as exc:

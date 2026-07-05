@@ -18,6 +18,9 @@ export type CommunityUser = {
   isOfficial?: boolean;
   isAi?: boolean;
   viewerIsFollowing?: boolean;
+  stageLabel?: string;
+  activityLabel?: string;
+  lastActiveLabel?: string | null;
 };
 
 export type CommunityComment = {
@@ -28,6 +31,8 @@ export type CommunityComment = {
   likes: number;
   isOfficial?: boolean;
   isAiGenerated?: boolean;
+  isPinned?: boolean;
+  trustLabel?: string | null;
 };
 
 export type CommunityPollOption = {
@@ -46,6 +51,14 @@ type CommunityPostBase = {
   viewerHasLiked: boolean;
   viewerHasSaved: boolean;
   viewerPollVote?: number | null;
+  isQuestion: boolean;
+  questionStatus?: "open" | "answered" | "official_answered" | null;
+  answerCount: number;
+  hasOfficialAnswer: boolean;
+  officialAnswerCount: number;
+  resolvedByOfficial: boolean;
+  trustLabel?: string | null;
+  pinnedOfficialComment?: CommunityComment | null;
 };
 
 export type CommunityPost =
@@ -152,6 +165,9 @@ type CommunityBootstrapApi = {
     is_official?: boolean;
     is_ai?: boolean;
     viewer_is_following?: boolean;
+    stage_label?: string;
+    activity_label?: string;
+    last_active_label?: string | null;
   }>;
   posts: CommunityPostApi[];
   groups?: CommunityGroupApi[];
@@ -169,6 +185,8 @@ type CommunityCommentApi = {
   likes: number;
   is_official?: boolean;
   is_ai_generated?: boolean;
+  is_pinned?: boolean;
+  trust_label?: string | null;
 };
 
 type CommunityPostApi = {
@@ -190,6 +208,14 @@ type CommunityPostApi = {
   viewer_has_saved?: boolean;
   viewer_poll_vote?: number | null;
   group_id?: string | null;
+  is_question?: boolean;
+  question_status?: "open" | "answered" | "official_answered" | null;
+  answer_count?: number;
+  has_official_answer?: boolean;
+  official_answer_count?: number;
+  resolved_by_official?: boolean;
+  trust_label?: string | null;
+  pinned_official_comment?: CommunityCommentApi | null;
 };
 
 type CommunityMutationApi = {
@@ -319,6 +345,9 @@ function mapUser(item: CommunityBootstrapApi["profiles"][number]): CommunityUser
     isOfficial: item.is_official,
     isAi: item.is_ai,
     viewerIsFollowing: item.viewer_is_following,
+    stageLabel: item.stage_label,
+    activityLabel: item.activity_label,
+    lastActiveLabel: item.last_active_label ?? null,
   };
 }
 
@@ -331,6 +360,8 @@ function mapComment(item: CommunityCommentApi): CommunityComment {
     likes: item.likes,
     isOfficial: item.is_official,
     isAiGenerated: item.is_ai_generated,
+    isPinned: item.is_pinned,
+    trustLabel: item.trust_label ?? null,
   };
 }
 
@@ -347,6 +378,14 @@ function mapBase(item: CommunityPostApi): CommunityPostBase {
     viewerHasLiked: Boolean(item.viewer_has_liked),
     viewerHasSaved: Boolean(item.viewer_has_saved),
     viewerPollVote: item.viewer_poll_vote,
+    isQuestion: Boolean(item.is_question),
+    questionStatus: item.question_status ?? null,
+    answerCount: item.answer_count ?? 0,
+    hasOfficialAnswer: Boolean(item.has_official_answer),
+    officialAnswerCount: item.official_answer_count ?? 0,
+    resolvedByOfficial: Boolean(item.resolved_by_official),
+    trustLabel: item.trust_label ?? null,
+    pinnedOfficialComment: item.pinned_official_comment ? mapComment(item.pinned_official_comment) : null,
   };
 }
 
@@ -418,6 +457,7 @@ export async function createCommunityPost(payload: {
   question?: string;
   options?: string[];
   groupId?: string | null;
+  isQuestion?: boolean;
 }): Promise<CommunityMutationData> {
   const response = await authenticatedFetch(
     "/api/community/posts",
@@ -436,6 +476,7 @@ export async function createCommunityPost(payload: {
         question: payload.question,
         options: payload.options || [],
         group_id: payload.groupId ?? null,
+        is_question: Boolean(payload.isQuestion),
       }),
     },
     { requireAuth: true },
@@ -869,6 +910,81 @@ export async function createCommunityAd(payload: {
   );
   if (!response.ok) throw new Error("CREATE_AD_FAILED");
   return mapAd((await response.json()) as CommunityAdApi);
+}
+
+
+export type CommunityReportItem = {
+  id: string;
+  targetType: "post" | "comment" | "ad" | "profile";
+  targetId: string;
+  reason: string;
+  details: string | null;
+  status: string;
+  createdByProfileId: string | null;
+  createdAt: string;
+};
+
+type CommunityReportApi = {
+  id: string;
+  target_type: "post" | "comment" | "ad" | "profile";
+  target_id: string;
+  reason: string;
+  details: string | null;
+  status: string;
+  created_by_profile_id: string | null;
+  created_at: string;
+};
+
+function mapReport(item: CommunityReportApi): CommunityReportItem {
+  return {
+    id: item.id,
+    targetType: item.target_type,
+    targetId: item.target_id,
+    reason: item.reason,
+    details: item.details ?? null,
+    status: item.status,
+    createdByProfileId: item.created_by_profile_id,
+    createdAt: item.created_at,
+  };
+}
+
+export async function reportCommunityContent(payload: {
+  targetType: "post" | "comment" | "ad" | "profile";
+  targetId: string;
+  reason: string;
+  details?: string | null;
+}): Promise<CommunityReportItem> {
+  const response = await authenticatedFetch(
+    "/api/community/reports",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        target_type: payload.targetType,
+        target_id: payload.targetId,
+        reason: payload.reason,
+        details: payload.details ?? null,
+      }),
+    },
+    { requireAuth: true },
+  );
+  if (!response.ok) throw new Error("COMMUNITY_REPORT_FAILED");
+  const data = (await response.json()) as { report: CommunityReportApi; message: string };
+  return mapReport(data.report);
+}
+
+export async function fetchCommunityModerationQueue(): Promise<{
+  reports: CommunityReportItem[];
+  pendingCount: number;
+}> {
+  const response = await authenticatedFetch(
+    "/api/community/moderation/queue",
+    undefined,
+    { requireAuth: true },
+  );
+  if (!response.ok) return { reports: [], pendingCount: 0 };
+  const data = (await response.json()) as { reports: CommunityReportApi[]; pending_count: number };
+  return { reports: data.reports.map(mapReport), pendingCount: data.pending_count };
 }
 
 export async function rewriteWithAI(text: string, context = "publication"): Promise<string> {

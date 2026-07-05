@@ -25,6 +25,7 @@ import {
   fetchCommunityAds,
   createCommunityAd,
   rewriteWithAI,
+  reportCommunityContent,
   fetchGroupPosts,
   type CommunityGroupItem as ApiGroupItem,
   type CommunityEventCalendarItem as ApiEventItem,
@@ -41,7 +42,8 @@ type MainTab =
   | "messages"
   | "publicite";
 type ExplorerTab = "posts" | "membres" | "hashtags";
-type ComposeMode = "text" | "doc" | "poll" | "event" | "story";
+type FeedFilter = "all" | "open" | "answered" | "official" | "popular";
+type ComposeMode = "question" | "text" | "doc" | "poll" | "event" | "story";
 type TagKey = "campus" | "visa" | "vie" | "logement" | "temoignage";
 
 type UserProfile = {
@@ -58,14 +60,24 @@ type UserProfile = {
   posts: number;
   tags: string[];
   viewerIsFollowing?: boolean;
+  stageLabel?: string;
+  activityLabel?: string;
+  lastActiveLabel?: string | null;
+  isOfficial?: boolean;
+  isAi?: boolean;
 };
 
 type SocialComment = {
+  id?: number;
   userId: string;
   text: string;
   time: string;
   likes: number;
   isPending?: boolean;
+  isOfficial?: boolean;
+  isAiGenerated?: boolean;
+  isPinned?: boolean;
+  trustLabel?: string | null;
 };
 
 type PostBase = {
@@ -76,6 +88,14 @@ type PostBase = {
   likes: number;
   comments: SocialComment[];
   shares: number;
+  isQuestion?: boolean;
+  questionStatus?: "open" | "answered" | "official_answered" | null;
+  answerCount?: number;
+  hasOfficialAnswer?: boolean;
+  officialAnswerCount?: number;
+  resolvedByOfficial?: boolean;
+  trustLabel?: string | null;
+  pinnedOfficialComment?: SocialComment | null;
 };
 
 type TextPost = PostBase & {
@@ -143,6 +163,12 @@ type MessageItem = {
 type ToastItem = {
   id: number;
   text: string;
+};
+
+type ReportTarget = {
+  targetType: "post" | "comment" | "ad" | "profile";
+  targetId: string;
+  label: string;
 };
 
 const USERS: UserProfile[] = [
@@ -489,7 +515,71 @@ const TAG_META: Record<TagKey, { label: string; className: string }> = {
   temoignage: { label: "Temoignage", className: "social-tag-temoignage" },
 };
 
+
+
+
+
+const GUIDE_TOPIC_META: Record<TagKey, { label: string; nextStep: string; contactReason: string }> = {
+  campus: {
+    label: "Campus France",
+    nextStep: "Vérifiez le calendrier local, le projet d’études et les pièces avant de répondre.",
+    contactReason: "Accompagnement Campus France",
+  },
+  visa: {
+    label: "Visa étudiant",
+    nextStep: "Contrôlez les justificatifs, l’hébergement, les finances et la cohérence du dossier.",
+    contactReason: "Contrôle dossier visa",
+  },
+  logement: {
+    label: "Logement étudiant",
+    nextStep: "Comparez les pistes fiables et gardez des preuves écrites avant tout paiement.",
+    contactReason: "Orientation logement",
+  },
+  vie: {
+    label: "Vie étudiante",
+    nextStep: "Demandez un retour d’expérience concret et vérifiez les sources avant d’agir.",
+    contactReason: "Conseil parcours étudiant",
+  },
+  temoignage: {
+    label: "Témoignage",
+    nextStep: "Repérez les étapes utiles du retour d’expérience et adaptez-les à votre situation.",
+    contactReason: "Analyse de parcours",
+  },
+};
+
+const REPORT_REASONS = [
+  { value: "fausse_information", label: "Fausse information" },
+  { value: "arnaque", label: "Arnaque ou promesse douteuse" },
+  { value: "harcelement", label: "Harcèlement / attaque" },
+  { value: "spam", label: "Spam ou publicité abusive" },
+  { value: "contenu_inapproprie", label: "Contenu inapproprié" },
+];
+
+const FEED_FILTERS: Array<{ key: FeedFilter; label: string }> = [
+  { key: "all", label: "Tout" },
+  { key: "open", label: "Sans réponse" },
+  { key: "answered", label: "Répondu" },
+  { key: "official", label: "Officiel" },
+  { key: "popular", label: "Populaire" },
+];
+
+const STOPWORDS = new Set([
+  "avec", "dans", "pour", "quoi", "comment", "question", "bonjour", "salut", "merci",
+  "campus", "france", "visa", "etudiant", "étudiant", "dossier", "faire", "avoir",
+  "suis", "mon", "mes", "une", "des", "les", "sur", "est", "que", "qui", "plus",
+]);
+
+const QUESTION_CATEGORIES: Array<{ label: string; tag: TagKey; prompt: string }> = [
+  { label: "Campus France", tag: "campus", prompt: "J'ai une question Campus France : " },
+  { label: "Visa", tag: "visa", prompt: "J'ai une question visa : " },
+  { label: "Logement", tag: "logement", prompt: "J'ai une question logement : " },
+  { label: "Belgique", tag: "campus", prompt: "J'ai une question Belgique : " },
+  { label: "Entretien", tag: "campus", prompt: "J'ai une question entretien Campus France : " },
+  { label: "Documents", tag: "visa", prompt: "J'ai une question documents : " },
+];
+
 const COMPOSE_HINTS: Record<ComposeMode, string> = {
+  question: "Posez votre question clairement : pays, étape, blocage, délai...",
   text: "Partagez votre experience, posez une question ou donnez un conseil...",
   doc: "Presentez rapidement la ressource ou le guide que vous partagez...",
   poll: "Posez votre question de sondage et expliquez le contexte...",
@@ -685,6 +775,71 @@ function currentClock() {
   return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
+
+
+
+function isTrustedProfile(user: UserProfile) {
+  return Boolean(user.isOfficial || user.isAi || user.id === "piehub" || user.id === "junior" || user.id === "ibrahim");
+}
+
+function getTrustedProfileBadge(user: UserProfile) {
+  if (user.id === "piehub" || user.isAi) return "Guide PieHUB";
+  if (isTrustedProfile(user)) return "Officiel PieAgency";
+  return null;
+}
+
+function normalizeForSearch(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
+function getPostPlainText(post: SocialPost) {
+  if (post.type === "poll") {
+    return `${post.question} ${post.options.map((option) => option.text).join(" ")}`;
+  }
+  if (post.type === "resource") {
+    return `${post.resourceName} ${post.content}`;
+  }
+  return post.content;
+}
+
+function extractKeywords(value: string) {
+  return normalizeForSearch(value)
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length >= 4 && !STOPWORDS.has(word))
+    .slice(0, 8);
+}
+
+
+function summarizeThread(post: SocialPost) {
+  const official = post.comments.find((comment) => comment.isOfficial || comment.userId === "piehub");
+  if (official) return "Une réponse fiable est disponible : commencez par la réponse officielle épinglée.";
+  if (post.comments.length >= 3) return `Fil actif : ${post.comments.length} réponses. Guide PieHUB recommande de lire les avis puis de vérifier la source officielle.`;
+  if (post.isQuestion && post.questionStatus === "open") return "Question encore ouverte : Guide PieHUB surveille le sujet et peut orienter vers une ressource ou PieAgency.";
+  return "Fil court : ajoutez du contexte pour obtenir une réponse plus précise.";
+}
+
+function resourceMatchesPost(resource: { name: string; description: string; tag?: TagKey }, post: SocialPost) {
+  const text = normalizeForSearch(`${getPostPlainText(post)} ${TAG_META[post.tag].label}`);
+  return post.tag === resource.tag || extractKeywords(`${resource.name} ${resource.description}`).some((keyword) => text.includes(keyword));
+}
+
+function getProfileStageLabel(user: UserProfile) {
+  return user.stageLabel || user.tags[0] || "Membre PieHUB";
+}
+
+function getProfileActivityLabel(user: UserProfile) {
+  return user.activityLabel || (user.posts > 0 ? "Actif" : "Nouveau membre");
+}
+
+function getProfileLastActivityLabel(user: UserProfile) {
+  return user.lastActiveLabel ? `Dernière activité ${user.lastActiveLabel.toLowerCase()}` : "Aucune activité publique";
+}
+
 function createConversationStarter(userId: string, users: UserProfile[] = USERS): MessageItem[] {
   const user = findUserInList(users, userId);
 
@@ -714,6 +869,7 @@ export function CommunityNetwork() {
   const commentInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const [activeTab, setActiveTab] = useState<MainTab>("feed");
   const [explorerTab, setExplorerTab] = useState<ExplorerTab>("posts");
+  const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
   const [communityUsers, setCommunityUsers] = useState<UserProfile[]>(USERS);
   const [currentProfileId, setCurrentProfileId] = useState("moi");
   const [posts, setPosts] = useState<SocialPost[]>(() => copyPosts(INITIAL_POSTS));
@@ -794,6 +950,10 @@ export function CommunityNetwork() {
   const [adFormError, setAdFormError] = useState("");
   const [isCreatingAd, setIsCreatingAd] = useState(false);
   const [isRewriting, setIsRewriting] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+  const [reportReason, setReportReason] = useState("fausse_information");
+  const [reportDetails, setReportDetails] = useState("");
+  const [isReporting, setIsReporting] = useState(false);
 
   const currentUser = findUserInList(communityUsers, currentProfileId);
   const messageTarget = findUserInList(communityUsers, messageTargetId);
@@ -831,42 +991,27 @@ export function CommunityNetwork() {
   ];
 
   const explorerPosts = [...posts].reverse();
-  const filteredPosts = normalizedSearchTerm
+  const normalizedSearchIndex = normalizeForSearch(searchTerm.trim());
+  const filteredPosts = normalizedSearchIndex
     ? explorerPosts.filter((post) => {
         const author = findCommunityUser(post.userId);
-        const rawText =
-          post.type === "poll"
-            ? `${post.question} ${"content" in post ? post.content : ""}`
-            : post.content;
-        const tagMeta = TAG_META[inferTagFromText(
-          rawText,
-          post.tag,
-        )];
-        const searchableText =
-          post.type === "poll"
-            ? rawText
-            : post.type === "resource"
-              ? `${post.resourceName} ${post.content}`
-              : post.content;
-        return `${author.name} ${author.country} ${tagMeta.label} ${searchableText}`
-          .toLowerCase()
-          .includes(normalizedSearchTerm);
+        const tagMeta = TAG_META[post.tag];
+        const searchableText = `${author.name} ${author.country} ${tagMeta.label} ${getPostPlainText(post)} ${post.isQuestion ? "question" : ""} ${post.questionStatus || ""}`;
+        return normalizeForSearch(searchableText).includes(normalizedSearchIndex);
       })
-    : explorerPosts.slice(0, 3);
+    : explorerPosts.slice(0, 6);
 
-  const filteredUsers = normalizedSearchTerm
+  const filteredUsers = normalizedSearchIndex
     ? communityUsers.filter((user) =>
-        `${user.name} ${user.country} ${user.city} ${user.bio} ${user.tags.join(" ")}`
-          .toLowerCase()
-          .includes(normalizedSearchTerm),
+        normalizeForSearch(`${user.name} ${user.country} ${user.city} ${user.bio} ${user.tags.join(" ")} ${user.stageLabel || ""}`)
+          .includes(normalizedSearchIndex),
       )
     : communityUsers.filter((user) => user.id !== currentProfileId);
 
-  const filteredResources = normalizedSearchTerm
+  const filteredResources = normalizedSearchIndex
     ? resourceLibrary.filter((resource) =>
-        `${resource.name} ${resource.author} ${resource.description}`
-          .toLowerCase()
-          .includes(normalizedSearchTerm),
+        normalizeForSearch(`${resource.name} ${resource.author} ${resource.description}`)
+          .includes(normalizedSearchIndex),
       )
     : resourceLibrary;
 
@@ -1101,6 +1246,38 @@ export function CommunityNetwork() {
     }
   }
 
+
+  function openReportModal(target: ReportTarget) {
+    setReportTarget(target);
+    setReportReason("fausse_information");
+    setReportDetails("");
+  }
+
+  function closeReportModal() {
+    setReportTarget(null);
+    setReportReason("fausse_information");
+    setReportDetails("");
+    setIsReporting(false);
+  }
+
+  async function submitReport() {
+    if (!reportTarget || isReporting) return;
+    setIsReporting(true);
+    try {
+      await reportCommunityContent({
+        targetType: reportTarget.targetType,
+        targetId: reportTarget.targetId,
+        reason: reportReason,
+        details: reportDetails.trim() || null,
+      });
+      closeReportModal();
+      pushToast("Signalement transmis à la modération PieAgency.");
+    } catch {
+      setIsReporting(false);
+      pushToast("Connectez-vous pour signaler ce contenu.");
+    }
+  }
+
   async function handleAIRewrite(field: "body" | "composeText" | "adBody", context = "publication") {
     const textMap: Record<string, string> = {
       adBody: adForm.body,
@@ -1241,6 +1418,13 @@ export function CommunityNetwork() {
     setComposeOpen(true);
   }
 
+  function openQuestionComposer(tag: TagKey = "campus", prompt = "") {
+    setComposeMode("question");
+    setComposeTag(tag);
+    setComposeText(prompt);
+    setComposeOpen(true);
+  }
+
   function closeCompose() {
     setComposeOpen(false);
     setComposeMode("text");
@@ -1261,6 +1445,10 @@ export function CommunityNetwork() {
 
     if (composeMode === "poll") {
       return "vie";
+    }
+
+    if (composeMode === "question") {
+      return inferTagFromText(rawText, composeTag);
     }
 
     return inferTagFromText(rawText, composeTag);
@@ -1311,6 +1499,9 @@ export function CommunityNetwork() {
         pushToast("Ajoutez au moins deux options au sondage, une par ligne.");
         return;
       }
+    } else if (composeMode === "question" && trimmedText.length < 8) {
+      pushToast("Posez une question claire avant de publier.");
+      return;
     } else if (trimmedText.length < 12) {
       pushToast("Ajoutez un peu plus de contexte avant de publier.");
       return;
@@ -1336,6 +1527,7 @@ export function CommunityNetwork() {
         question: composeMode === "poll" ? inferredQuestion : undefined,
         options: composeMode === "poll" ? normalizedOptions : undefined,
         groupId: composeGroupId,
+        isQuestion: composeMode === "question",
       });
       setPosts((current) => [
         mutation.post,
@@ -1353,7 +1545,7 @@ export function CommunityNetwork() {
         pushToast("Publication partagee dans ce groupe.");
       } else {
         switchTab("feed");
-        pushToast("Publication partagee avec la communaute.");
+        pushToast(composeMode === "question" ? "Question publiée dans PieHUB." : "Publication partagee avec la communaute.");
       }
     } catch (error) {
       if (error instanceof Error && error.message === "AUTH_REQUIRED") {
@@ -1567,6 +1759,14 @@ export function CommunityNetwork() {
     const vote = pollVotes[post.id];
     const reactionCount = post.likes;
     const isAssistantReplying = aiReplyingPostIds.includes(post.id);
+    const trustedBadge = getTrustedProfileBadge(author);
+    const pinnedOfficialComment = post.pinnedOfficialComment;
+    const guideTopic = GUIDE_TOPIC_META[post.tag];
+    const guideResources = resourceLibrary.filter((resource) => resourceMatchesPost(resource, post)).slice(0, 2);
+    const threadSummary = summarizeThread(post);
+    const visibleComments = post.comments.filter(
+      (comment) => !pinnedOfficialComment || comment.id !== pinnedOfficialComment.id,
+    );
 
     return (
       <article className="social-post-card" id={`post-${post.id}`} key={post.id}>
@@ -1580,6 +1780,7 @@ export function CommunityNetwork() {
           <div className="social-post-author">
             <button className="social-post-author-name" onClick={() => setProfileId(author.id)} type="button">
               {author.name}
+              {trustedBadge ? <span className="social-official-author-badge">{trustedBadge}</span> : null}
             </button>
             <div className="social-post-meta">
               <span>{author.country}</span>
@@ -1587,15 +1788,57 @@ export function CommunityNetwork() {
               <span>{post.time}</span>
               <span className="social-dot" />
               <span className={`social-post-tag ${tagMeta.className}`}>{tagMeta.label}</span>
+              {post.isQuestion ? (
+                <span className={`social-question-status is-${post.questionStatus || "open"}`}>
+                  {post.questionStatus === "official_answered"
+                    ? "Réponse officielle"
+                    : post.questionStatus === "answered"
+                      ? "Répondu"
+                      : "Question ouverte"}
+                </span>
+              ) : null}
             </div>
           </div>
 
-          <button className="social-icon-button" onClick={() => pushToast("Menu publication")} type="button">
-            ⋯
+          <button
+            aria-label="Signaler cette publication"
+            className="social-icon-button"
+            onClick={() => openReportModal({ targetType: "post", targetId: String(post.id), label: `Publication #${post.id}` })}
+            type="button"
+          >
+            ⚑
           </button>
         </div>
 
         <div className="social-post-body">
+          {post.isQuestion ? (
+            <div className={`social-question-card ${post.resolvedByOfficial ? "is-resolved" : ""}`}>
+              <span>{post.resolvedByOfficial ? "Résolu par PieAgency" : "Question communautaire"}</span>
+              <strong>{post.officialAnswerCount ? `${post.officialAnswerCount} officielle${post.officialAnswerCount > 1 ? "s" : ""}` : `${post.answerCount || 0} réponse${(post.answerCount || 0) > 1 ? "s" : ""}`}</strong>
+            </div>
+          ) : null}
+          {post.isQuestion ? (
+            <div className="social-guide-insight-card">
+              <div className="social-guide-insight-head">
+                <span>Guide PieHUB</span>
+                <strong>Sujet détecté : {guideTopic.label}</strong>
+              </div>
+              <p>{threadSummary}</p>
+              <div className="social-guide-next-step">{guideTopic.nextStep}</div>
+              {guideResources.length > 0 ? (
+                <div className="social-guide-resources">
+                  {guideResources.map((resource) => (
+                    <button key={`${post.id}-${resource.name}`} onClick={() => downloadResource(resource)} type="button">
+                      📚 {resource.name}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <Link className="social-guide-contact-link" href={`/contact?motif=${encodeURIComponent(guideTopic.contactReason)}`}>
+                Demander l'aide PieAgency
+              </Link>
+            </div>
+          ) : null}
           {post.type === "poll" ? null : <p>{renderRichText(post.content)}</p>}
 
           {post.type === "resource" ? (
@@ -1667,7 +1910,7 @@ export function CommunityNetwork() {
             onClick={() => focusCommentInput(post.id)}
             type="button"
           >
-            💬 Commenter
+            {post.isQuestion ? "💬 Répondre" : "💬 Commenter"}
           </button>
           <button className="social-post-action is-share" onClick={() => sharePost(post.id)} type="button">
             ↗ Partager
@@ -1678,10 +1921,36 @@ export function CommunityNetwork() {
         </div>
 
         <div className="social-comments">
-          {post.comments.map((comment, index) => {
+          {pinnedOfficialComment ? (() => {
+            const user = findCommunityUser(pinnedOfficialComment.userId);
+            return (
+              <div className="social-pinned-official-answer">
+                <div className="social-pinned-label">Réponse officielle épinglée</div>
+                <div className="social-comment is-official is-pinned">
+                  <button className="social-avatar-button" onClick={() => setProfileId(user.id)} type="button">
+                    <span className="social-avatar social-avatar-sm" style={{ backgroundColor: user.color }}>
+                      {user.avatar}
+                    </span>
+                  </button>
+                  <div className="social-comment-body">
+                    <div className="social-comment-head">
+                      <strong>{user.name}</strong>
+                      <span className="social-comment-trust-badge">{pinnedOfficialComment.trustLabel || getTrustedProfileBadge(user) || "Officiel PieAgency"}</span>
+                      <span>{pinnedOfficialComment.time}</span>
+                    </div>
+                    <div className="social-comment-text">
+                      {renderRichText(pinnedOfficialComment.text)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })() : null}
+
+          {visibleComments.map((comment, index) => {
             const user = findCommunityUser(comment.userId);
             return (
-              <div className={`social-comment ${comment.isPending ? "is-pending" : ""}`} key={`${post.id}-${user.id}-${index}`}>
+              <div className={`social-comment ${comment.isPending ? "is-pending" : ""} ${comment.isOfficial || user.id === "piehub" ? "is-official" : ""}`} key={`${post.id}-${user.id}-${index}`}>
                 <button className="social-avatar-button" onClick={() => setProfileId(user.id)} type="button">
                   <span className="social-avatar social-avatar-sm" style={{ backgroundColor: user.color }}>
                     {user.avatar}
@@ -1690,6 +1959,9 @@ export function CommunityNetwork() {
                 <div className="social-comment-body">
                   <div className="social-comment-head">
                     <strong>{user.name}</strong>
+                    {comment.isOfficial || user.id === "piehub" ? (
+                      <span className="social-comment-trust-badge">{comment.trustLabel || getTrustedProfileBadge(user) || "Officiel"}</span>
+                    ) : null}
                     <span>{comment.time}</span>
                   </div>
                   <div className={`social-comment-text ${comment.isPending ? "is-pending" : ""}`}>
@@ -1698,6 +1970,12 @@ export function CommunityNetwork() {
                   <div className="social-comment-actions">
                     <button type="button">❤️ {comment.likes}</button>
                     <button type="button">Repondre</button>
+                    <button
+                      onClick={() => openReportModal({ targetType: "comment", targetId: String(comment.id || `${post.id}-${index}`), label: `Commentaire sur le sujet #${post.id}` })}
+                      type="button"
+                    >
+                      Signaler
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1738,7 +2016,7 @@ export function CommunityNetwork() {
                   addComment(post.id);
                 }
               }}
-              placeholder="Ajouter un commentaire..."
+              placeholder={post.isQuestion ? "Répondre à cette question..." : "Ajouter un commentaire..."}
               type="text"
               value={commentDrafts[post.id] ?? ""}
             />
@@ -1757,18 +2035,59 @@ export function CommunityNetwork() {
       ? findCommunityUser(activeLocalStories[storyIndex].userId)
       : currentUser;
   const selectedProfile = profileId ? findCommunityUser(profileId) : currentUser;
+  const openQuestionPosts = posts.filter(
+    (post) => post.isQuestion && post.questionStatus === "open",
+  );
+
   const hashtagPosts = hashtagFilter
     ? posts.filter((post) => {
         const tagMeta = TAG_META[post.tag];
-        const content =
-          post.type === "poll"
-            ? `${post.question} ${"content" in post ? post.content : ""}`
-            : post.content;
-        return `${tagMeta.label} ${content}`.toLowerCase().includes(
-          hashtagFilter.replace("#", "").toLowerCase(),
+        return normalizeForSearch(`${tagMeta.label} ${getPostPlainText(post)}`).includes(
+          normalizeForSearch(hashtagFilter.replace("#", "")),
         );
       })
     : posts;
+
+  const dynamicTrends = (() => {
+    const counts = new Map<string, number>();
+    posts.forEach((post) => {
+      const base = TAG_META[post.tag].label.replace(/\s+/g, "");
+      counts.set(`#${base}`, (counts.get(`#${base}`) || 0) + 1);
+      extractKeywords(getPostPlainText(post)).slice(0, 3).forEach((keyword) => {
+        const label = `#${keyword.charAt(0).toUpperCase()}${keyword.slice(1)}`;
+        counts.set(label, (counts.get(label) || 0) + 1);
+      });
+    });
+    const items = Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([tag, count]) => ({ tag, count: `${count} post${count > 1 ? "s" : ""}` }));
+    return items.length ? items : TRENDING;
+  })();
+
+  const filteredFeedPosts = posts.filter((post) => {
+    if (feedFilter === "open") return post.isQuestion && post.questionStatus === "open";
+    if (feedFilter === "answered") return post.isQuestion && post.questionStatus !== "open";
+    if (feedFilter === "official") return post.questionStatus === "official_answered" || post.comments.some((comment) => comment.userId === "piehub");
+    if (feedFilter === "popular") return post.likes + post.comments.length + post.shares >= 20;
+    return true;
+  });
+
+  const officialInterventionPosts = posts.filter((post) => post.hasOfficialAnswer || post.comments.some((comment) => comment.isOfficial || comment.userId === "piehub"));
+
+  const similarQuestionPosts = composeMode === "question"
+    ? posts
+        .filter((post) => post.isQuestion)
+        .map((post) => {
+          const draftKeywords = new Set(extractKeywords(composeText));
+          const postKeywords = extractKeywords(getPostPlainText(post));
+          const score = postKeywords.filter((keyword) => draftKeywords.has(keyword)).length;
+          return { post, score };
+        })
+        .filter((item) => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3)
+    : [];
 
   return (
     <div className="social-page-shell">
@@ -1841,6 +2160,13 @@ export function CommunityNetwork() {
             <div className="social-profile-name">{currentUser.name}</div>
             <div className="social-profile-tagline">
               {currentUser.tag} · {currentUser.country}
+            </div>
+            <div className="social-profile-badges">
+              <span>{getProfileStageLabel(currentUser)}</span>
+              <span>{getProfileActivityLabel(currentUser)}</span>
+            </div>
+            <div className="social-profile-activity-note">
+              {getProfileLastActivityLabel(currentUser)}
             </div>
             <div className="social-profile-stats">
               <div>
@@ -1917,11 +2243,23 @@ export function CommunityNetwork() {
                   <span className="social-avatar" style={{ backgroundColor: currentUser.color }}>
                     {currentUser.avatar}
                   </span>
-                  <button className="social-create-input" onClick={() => openCompose("text")} type="button">
-                    Quoi de nouveau ? Partagez votre experience...
+                  <button className="social-create-input is-question-first" onClick={() => openQuestionComposer()} type="button">
+                    Posez votre question à la communauté PieHUB...
                   </button>
                 </div>
+                <div className="social-question-categories">
+                  {QUESTION_CATEGORIES.map((category) => (
+                    <button
+                      key={category.label}
+                      onClick={() => openQuestionComposer(category.tag, category.prompt)}
+                      type="button"
+                    >
+                      {category.label}
+                    </button>
+                  ))}
+                </div>
                 <div className="social-create-actions">
+                  <button className="social-create-action is-comment" onClick={() => openQuestionComposer()} type="button">Question</button>
                   <button className="social-create-action is-doc" onClick={() => openCompose("doc")} type="button">Document</button>
                   <button className="social-create-action is-poll" onClick={() => openCompose("poll")} type="button">Sondage</button>
                   <button className="social-create-action is-event" onClick={() => openCompose("event")} type="button">Evenement</button>
@@ -1929,7 +2267,65 @@ export function CommunityNetwork() {
                 </div>
               </div>
 
-              {posts.map((post) => renderPost(post))}
+              <div className="social-safety-panel">
+                <strong>Qualité PieHUB</strong>
+                <span>Fausse information, arnaque, spam ou attaque : signalez. L’équipe PieAgency garde le fil propre.</span>
+              </div>
+
+              {openQuestionPosts.length > 0 ? (
+                <div className="social-open-questions-panel">
+                  <div>
+                    <strong>Questions sans réponse</strong>
+                    <span>{openQuestionPosts.length} sujet{openQuestionPosts.length > 1 ? "s" : ""} à aider maintenant</span>
+                  </div>
+                  {openQuestionPosts.slice(0, 3).map((post) => (
+                    <button key={`open-question-${post.id}`} onClick={() => focusCommentInput(post.id)} type="button">
+                      Répondre au sujet #{post.id}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {officialInterventionPosts.length > 0 ? (
+                <div className="social-official-history-panel">
+                  <div>
+                    <strong>Interventions officielles PieAgency</strong>
+                    <span>{officialInterventionPosts.length} sujet{officialInterventionPosts.length > 1 ? "s" : ""} avec réponse fiable</span>
+                  </div>
+                  {officialInterventionPosts.slice(0, 3).map((post) => (
+                    <button key={`official-history-${post.id}`} onClick={() => focusCommentInput(post.id)} type="button">
+                      Voir le sujet #{post.id}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="social-feed-filter-bar">
+                {FEED_FILTERS.map((filter) => (
+                  <button
+                    className={feedFilter === filter.key ? "is-active" : ""}
+                    key={filter.key}
+                    onClick={() => setFeedFilter(filter.key)}
+                    type="button"
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+
+              {filteredFeedPosts.length > 0 ? (
+                filteredFeedPosts.map((post) => renderPost(post))
+              ) : (
+                <div className="social-list-card social-empty-state">
+                  <span className="social-list-copy">
+                    <strong>Aucun sujet dans ce filtre.</strong>
+                    <small>Changez de filtre ou posez une nouvelle question.</small>
+                  </span>
+                  <button className="social-secondary-button" onClick={() => openQuestionComposer()} type="button">
+                    Poser une question
+                  </button>
+                </div>
+              )}
 
               <div className="social-load-more">
                 <button className="social-secondary-button" onClick={loadMore} type="button">
@@ -2005,7 +2401,7 @@ export function CommunityNetwork() {
                       </button>
                     </div>
                   ) : null}
-                  {TRENDING.map((trend) => (
+                  {dynamicTrends.map((trend) => (
                     <button className="social-list-card" key={trend.tag} onClick={() => openTrend(trend.tag)} type="button">
                       <span className="social-list-icon social-hash-icon">#</span>
                       <span className="social-list-copy">
@@ -2478,6 +2874,18 @@ export function CommunityNetwork() {
         </main>
 
         <aside className="social-sidebar-right">
+          <div className="social-widget social-guide-widget">
+            <div className="social-widget-title">
+              <strong>🤖 Guide PieHUB</strong>
+              <button onClick={() => openMessagesWith("piehub")} type="button">Discuter</button>
+            </div>
+            <div className="social-guide-widget-body">
+              <span>IA communautaire</span>
+              <p>Détecte les sujets, résume les fils, suggère des ressources et oriente vers PieAgency quand le cas devient personnel.</p>
+              <button onClick={() => openQuestionComposer()} type="button">Poser une question guidée</button>
+            </div>
+          </div>
+
           <div className="social-widget">
             <div className="social-widget-title">
               <strong>🔥 Tendances</strong>
@@ -2614,6 +3022,11 @@ export function CommunityNetwork() {
             <div className="social-profile-modal-body">
               <div className="social-profile-modal-name">{profileId === currentProfileId ? "Mon profil" : selectedProfile.name}</div>
               <div className="social-profile-modal-handle">{findUser(profileId).tag} · {findUser(profileId).country}</div>
+              <div className="social-profile-modal-badges">
+                <span>{getProfileStageLabel(selectedProfile)}</span>
+                <span>{getProfileActivityLabel(selectedProfile)}</span>
+                <span>{getProfileLastActivityLabel(selectedProfile)}</span>
+              </div>
               <p className="social-profile-modal-bio">{selectedProfile.bio}</p>
               <div className="social-profile-tag-list">
                 {selectedProfile.tags.map((tag) => (
@@ -2642,7 +3055,7 @@ export function CommunityNetwork() {
         <div className="social-modal-overlay" onClick={closeCompose} role="presentation">
           <div className="social-compose-modal" onClick={(event) => event.stopPropagation()} role="presentation">
             <div className="social-compose-head">
-              <strong>{composeMode === "story" ? "Publier un statut" : "Creer une publication"}</strong>
+              <strong>{composeMode === "story" ? "Publier un statut" : composeMode === "question" ? "Poser une question" : "Creer une publication"}</strong>
               <button onClick={closeCompose} type="button">✕</button>
             </div>
             <div className="social-compose-body">
@@ -2654,8 +3067,8 @@ export function CommunityNetwork() {
                 </div>
               </div>
               <div className="social-compose-mode-bar">
-                {(["text", "doc", "poll", "event", "story"] as ComposeMode[]).map((mode) => {
-                  const labels: Record<ComposeMode, string> = { text: "Texte", doc: "Document", poll: "Sondage", event: "Evenement", story: "Statut" };
+                {(["question", "text", "doc", "poll", "event", "story"] as ComposeMode[]).map((mode) => {
+                  const labels: Record<ComposeMode, string> = { question: "Question", text: "Texte", doc: "Document", poll: "Sondage", event: "Evenement", story: "Statut" };
                   return (
                     <button
                       className={`social-compose-mode-tab ${composeMode === mode ? "is-active" : ""}`}
@@ -2757,10 +3170,61 @@ export function CommunityNetwork() {
                   </button>
                 </>
               )}
+              {similarQuestionPosts.length > 0 ? (
+                <div className="social-similar-questions-box">
+                  <strong>Questions similaires déjà posées</strong>
+                  <span>Vérifiez avant de republier la même demande.</span>
+                  {similarQuestionPosts.map(({ post }) => (
+                    <button key={`similar-${post.id}`} onClick={() => { closeCompose(); focusCommentInput(post.id); }} type="button">
+                      Sujet #{post.id} · {post.questionStatus === "open" ? "encore ouvert" : "déjà répondu"}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
             <div className="social-compose-footer">
               <span>{composeText.trim().length} caracteres</span>
               <button className="social-primary-pill" onClick={publishPost} type="button">Publier</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+
+      {reportTarget ? (
+        <div className="social-modal-overlay" onClick={closeReportModal} role="presentation">
+          <div className="social-compose-modal social-report-modal" onClick={(event) => event.stopPropagation()} role="presentation">
+            <div className="social-compose-head">
+              <strong>Signaler un contenu</strong>
+              <button onClick={closeReportModal} type="button">✕</button>
+            </div>
+            <div className="social-compose-body">
+              <div className="social-report-target">
+                <span>Contenu concerné</span>
+                <strong>{reportTarget.label}</strong>
+              </div>
+              <label className="social-field-label">Motif</label>
+              <select className="social-compose-select" onChange={(event) => setReportReason(event.target.value)} value={reportReason}>
+                {REPORT_REASONS.map((reason) => (
+                  <option key={reason.value} value={reason.value}>{reason.label}</option>
+                ))}
+              </select>
+              <label className="social-field-label">Détails utiles pour la modération</label>
+              <textarea
+                className="social-compose-textarea"
+                onChange={(event) => setReportDetails(event.target.value)}
+                placeholder="Expliquez rapidement le problème. Ne partagez pas de données sensibles."
+                value={reportDetails}
+              />
+              <div className="social-moderation-note">
+                Les signalements sont transmis à la file de modération PieAgency. Le contenu peut être vérifié, archivé ou rejeté.
+              </div>
+            </div>
+            <div className="social-compose-footer">
+              <span>{reportDetails.trim().length} caractères</span>
+              <button className="social-primary-pill" disabled={isReporting} onClick={() => void submitReport()} type="button">
+                {isReporting ? "Transmission..." : "Envoyer le signalement"}
+              </button>
             </div>
           </div>
         </div>
