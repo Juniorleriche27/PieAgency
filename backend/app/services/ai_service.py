@@ -158,6 +158,56 @@ def _gateway_chat_text(messages: list[dict[str, str]], *, json_mode: bool = Fals
         return text
 
 
+def rewrite_community_draft(text: str, context: str = "") -> tuple[str, str]:
+    cleaned = text.strip()
+    if not cleaned:
+        return "", "fallback"
+
+    fallback = cleaned if cleaned.endswith((".", "!", "?")) else f"{cleaned}."
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Tu es uniquement un éditeur de texte dans le bouton 'Reformuler avec l’IA' de PieHUB. "
+                "Ta mission est de reformuler le brouillon de l’utilisateur, pas d’y répondre. "
+                "Ne donne aucun conseil, ne fais aucune analyse, ne joue pas le rôle d’un agent commercial, "
+                "ne promets rien et n’ajoute pas d’informations nouvelles. "
+                "Conserve l’intention, la personne grammaticale et le sens. "
+                "Retourne uniquement le texte final prêt à publier, sans guillemets, sans préface, sans liste."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Contexte interface: {context or 'publication communautaire PieHUB'}.\n"
+                f"Brouillon à reformuler: {cleaned}\n\n"
+                "Réécris ce brouillon en français clair, naturel et respectueux. "
+                "Ne réponds pas à la demande; reformule seulement la phrase de l’utilisateur."
+            ),
+        },
+    ]
+    try:
+        rewritten = _gateway_chat_text(messages).strip()
+        if not rewritten:
+            raise ValueError("Empty rewrite")
+        # Guardrail: the rewrite button must not answer like the assistant.
+        forbidden_starts = (
+            "voici",
+            "bien sûr",
+            "bien sur",
+            "pour",
+            "je vous conseille",
+            "je peux",
+            "nous pouvons",
+            "pieagency peut",
+        )
+        if cleaned.endswith("?") and rewritten.lower().startswith(forbidden_starts):
+            return fallback, "fallback"
+        return rewritten, "ai_gateway"
+    except Exception:
+        return fallback, "fallback"
+
+
 def _gateway_chat_json(messages: list[dict[str, str]]) -> dict[str, Any]:
     return _parse_json_text(_gateway_chat_text(messages, json_mode=True))
 

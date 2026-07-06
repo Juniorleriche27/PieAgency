@@ -36,7 +36,7 @@ from ..schemas import (
     CommunityPostItem,
     CommunityProfileItem,
 )
-from .ai_service import generate_community_reply, should_generate_community_reply
+from .ai_service import generate_community_reply, rewrite_community_draft, should_generate_community_reply
 from .chat_store import ensure_chat_conversation, store_chat_message
 from .supabase_service import SupabaseConfigurationError, get_supabase_client
 
@@ -1215,7 +1215,7 @@ def create_community_post(
     current_user: AuthUserProfile,
     access_token: str | None = None,
 ) -> CommunityMutationResponse:
-    client = _get_client(access_token)
+    client = _get_client()
     _ensure_community_tables(client)
     profile = _ensure_user_profile(client, current_user)
 
@@ -1281,7 +1281,7 @@ def create_community_comment(
     current_user: AuthUserProfile,
     access_token: str | None = None,
 ) -> CommunityMutationResponse:
-    client = _get_client(access_token)
+    client = _get_client()
     _ensure_community_tables(client)
     profile = _ensure_user_profile(client, current_user)
 
@@ -1334,7 +1334,7 @@ def toggle_community_post_reaction(
     if reaction_kind not in {"like", "save"}:
         raise LookupError("Reaction introuvable.")
 
-    client = _get_client(access_token)
+    client = _get_client()
     _ensure_community_tables(client)
     _ensure_user_profile(client, current_user)
 
@@ -1386,7 +1386,7 @@ def vote_community_poll(
     current_user: AuthUserProfile,
     access_token: str | None = None,
 ) -> CommunityMutationResponse:
-    client = _get_client(access_token)
+    client = _get_client()
     _ensure_community_tables(client)
     _ensure_user_profile(client, current_user)
 
@@ -2176,28 +2176,11 @@ def create_community_ad(
 def rewrite_community_text(
     payload: CommunityAIRewriteRequest,
 ) -> CommunityAIRewriteResponse:
-    cleaned = payload.text.strip()
-    if not cleaned:
-        return CommunityAIRewriteResponse(rewritten="Votre message est prêt pour PieHUB.", source="fallback")
-
-    prompt = (
-        "Reformule ce texte pour une communauté étudiante PieAgency. "
-        f"Contexte: {payload.context}. "
-        "Objectif: clair, bienveillant, utile, sans promesse officielle, et prêt à publier. "
-        f"Texte à reformuler: {cleaned}"
+    rewritten, source = rewrite_community_draft(payload.text, payload.context)
+    return CommunityAIRewriteResponse(
+        rewritten=rewritten or "Votre message est prêt pour PieHUB.",
+        source=source,
     )
-    try:
-        ai_response = generate_community_reply(
-            CommunityAIReplyRequest(message=prompt, thread_context=["Reformulation PieHUB"]),
-        )
-        rewritten = ai_response.reply.strip()
-        if not rewritten:
-            raise ValueError("Empty rewrite")
-        return CommunityAIRewriteResponse(rewritten=rewritten, source=ai_response.source)
-    except Exception:
-        if not cleaned.endswith((".", "!", "?")):
-            cleaned += "."
-        return CommunityAIRewriteResponse(rewritten=cleaned, source="fallback")
 
 
 def get_group_posts(

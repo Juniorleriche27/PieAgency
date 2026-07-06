@@ -1566,6 +1566,22 @@ export function CommunityNetwork() {
     }
   }
   async function toggleLike(postId: number) {
+    const wasLiked = likedSet.has(postId);
+    setLikedPostIds((current) =>
+      wasLiked ? current.filter((item) => item !== postId) : Array.from(new Set([...current, postId])),
+    );
+    setPosts((current) =>
+      current.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              likes: Math.max((post.likes || 0) + (wasLiked ? -1 : 1), 0),
+              viewerHasLiked: !wasLiked,
+            }
+          : post,
+      ),
+    );
+
     try {
       const mutation = await toggleCommunityReaction(postId, "like");
       setPosts((current) =>
@@ -1573,6 +1589,20 @@ export function CommunityNetwork() {
       );
       syncPostViewState(mutation.post);
     } catch (error) {
+      setLikedPostIds((current) =>
+        wasLiked ? Array.from(new Set([...current, postId])) : current.filter((item) => item !== postId),
+      );
+      setPosts((current) =>
+        current.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                likes: Math.max((post.likes || 0) + (wasLiked ? 1 : -1), 0),
+                viewerHasLiked: wasLiked,
+              }
+            : post,
+        ),
+      );
       if (error instanceof Error && error.message === "AUTH_REQUIRED") {
         pushToast(authProblemMessage("aimer une publication"));
         return;
