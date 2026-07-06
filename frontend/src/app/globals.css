@@ -16118,3 +16118,223 @@ html[data-theme="dark"]:not(:has(.private-app-shell)) .btn-outline:hover {
   font-size: 0.95rem;
   font-weight: 900;
 }
+
+
+/* ── PieHUB group spaces upgrade ───────────────────────────────────────────── */
+.social-group-card {
+  align-items: stretch;
+  border: 1.5px solid #e4e7ee;
+  background: #fff;
+}
+
+.social-group-card.is-joined {
+  border-color: rgba(200, 149, 42, 0.55);
+  box-shadow: 0 14px 36px rgba(13, 27, 56, 0.08);
+}
+
+.social-group-card-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  text-align: left;
+}
+
+.social-group-card-main:hover .social-list-arrow {
+  color: var(--gold);
+  transform: translateX(3px);
+}
+
+.social-group-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.social-secondary-pill {
+  padding: 7px 14px;
+  border: 1.5px solid #e4e7ee;
+  background: #fff;
+  color: #0d1b38;
+  white-space: nowrap;
+}
+
+.social-secondary-pill:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.social-group-detail-hero {
+  overflow: hidden;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #071631 0%, #0d1b38 58%, #c8952a 150%);
+  color: #fff;
+  padding: 22px;
+  margin-bottom: 16px;
+  box-shadow: 0 24px 60px rgba(13, 27, 56, 0.16);
+}
+
+.social-group-detail-cover {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.social-group-detail-hero .social-group-detail-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,.12);
+  font-size: 2rem;
+}
+
+.social-group-detail-hero .social-group-detail-info h2,
+.social-group-detail-hero .social-group-detail-info p,
+.social-group-detail-hero .social-group-detail-info small {
+  color: #fff;
+}
+
+.social-group-kicker {
+  display: inline-flex;
+  margin-bottom: 6px;
+  color: rgba(255,255,255,.72);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.social-group-detail-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.social-group-detail-actions .social-join-button {
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  border-color: rgba(255,255,255,.32);
+}
+
+.social-group-detail-actions .social-join-button.is-joined {
+  background: #fff;
+  color: #0d1b38;
+}
+
+.social-group-detail-actions .social-primary-pill {
+  background: #fff;
+  color: #0d1b38;
+  padding: 8px 18px;
+}
+
+.social-group-composer-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1.5px solid #e4e7ee;
+  border-radius: 18px;
+  background: #fff;
+  margin-bottom: 14px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.social-group-composer-card:hover {
+  border-color: var(--gold);
+  box-shadow: 0 16px 40px rgba(13, 27, 56, .08);
+}
+
+.social-group-composer-card div {
+  flex: 1;
+  min-width: 0;
+}
+
+.social-group-composer-card strong {
+  display: block;
+  color: var(--navy);
+  font-family: var(--font-serif), serif;
+}
+
+.social-group-composer-card small {
+  color: #7b8794;
+}
+
+.social-group-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.social-group-tab {
+  padding: 10px 8px;
+  border-radius: 14px;
+  border: 1.5px solid #e4e7ee;
+  background: #fff;
+  color: #667085;
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+.social-group-tab span {
+  display: inline-flex;
+  margin-left: 6px;
+  color: #c8952a;
+}
+
+.social-group-tab.is-active {
+  background: #0d1b38;
+  color: #fff;
+  border-color: #0d1b38;
+}
+
+.social-group-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.social-group-grid .social-member-card,
+.social-group-grid .social-resource-card,
+.social-group-grid .social-list-card {
+  min-height: 116px;
+}
+
+.social-group-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (max-width: 720px) {
+  .social-group-card {
+    flex-direction: column;
+  }
+  .social-group-card-main,
+  .social-group-detail-cover,
+  .social-group-composer-card {
+    align-items: flex-start;
+  }
+  .social-group-card-actions,
+  .social-group-detail-actions {
+    width: 100%;
+  }
+  .social-group-card-actions button,
+  .social-group-detail-actions button,
+  .social-group-composer-card .social-secondary-pill {
+    flex: 1;
+  }
+  .social-group-tabs,
+  .social-group-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

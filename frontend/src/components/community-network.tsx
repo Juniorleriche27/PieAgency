@@ -43,6 +43,7 @@ type MainTab =
   | "messages"
   | "publicite";
 type ExplorerTab = "posts" | "membres" | "hashtags";
+type GroupDetailTab = "posts" | "membres" | "ressources" | "evenements";
 type FeedFilter = "all" | "open" | "answered" | "official" | "popular";
 type ComposeMode = "question" | "text" | "doc" | "poll" | "event" | "story";
 type TagKey = "campus" | "visa" | "vie" | "logement" | "temoignage";
@@ -97,6 +98,10 @@ type PostBase = {
   resolvedByOfficial?: boolean;
   trustLabel?: string | null;
   pinnedOfficialComment?: SocialComment | null;
+  viewerHasLiked?: boolean;
+  viewerHasSaved?: boolean;
+  viewerPollVote?: number | null;
+  groupId?: string | null;
 };
 
 type TextPost = PostBase & {
@@ -914,6 +919,7 @@ export function CommunityNetwork() {
   const [selectedGroupName, setSelectedGroupName] = useState<string | null>(null);
   const [selectedApiGroupId, setSelectedApiGroupId] = useState<string | null>(null);
   const [groupDetailPosts, setGroupDetailPosts] = useState<SocialPost[]>([]);
+  const [groupDetailTab, setGroupDetailTab] = useState<GroupDetailTab>("posts");
   const [isLoadingGroupPosts, setIsLoadingGroupPosts] = useState(false);
   const [composeGroupId, setComposeGroupId] = useState<string | null>(null);
   const [selectedEventName, setSelectedEventName] = useState<string | null>(null);
@@ -1219,6 +1225,21 @@ export function CommunityNetwork() {
   }
 
   async function handleApiGroupMembership(groupId: number, groupName: string) {
+    const previousGroups = apiGroups;
+    const currentGroup = apiGroups.find((group) => group.id === groupId);
+    const optimisticIsMember = !currentGroup?.isMember;
+    setApiGroups((current) =>
+      current.map((group) =>
+        group.id === groupId
+          ? {
+              ...group,
+              isMember: optimisticIsMember,
+              memberCount: Math.max(group.memberCount + (optimisticIsMember ? 1 : -1), 0),
+            }
+          : group,
+      ),
+    );
+
     try {
       const result = await toggleCommunityGroupMembership(groupId);
       setApiGroups((current) =>
@@ -1226,6 +1247,7 @@ export function CommunityNetwork() {
       );
       pushToast(result.isMember ? `✅ Rejoint : ${groupName}` : `Groupe quitté : ${groupName}`);
     } catch {
+      setApiGroups(previousGroups);
       pushToast(authProblemMessage("rejoindre un groupe"));
     }
   }
@@ -1233,6 +1255,8 @@ export function CommunityNetwork() {
   async function openGroupDetail(group: ApiGroupItem) {
     setSelectedApiGroupId(String(group.id));
     setSelectedGroupName(null);
+    setGroupDetailTab("posts");
+    setComposeGroupId(String(group.id));
     setIsLoadingGroupPosts(true);
     try {
       const gposts = await fetchGroupPosts(String(group.id));
@@ -2477,6 +2501,7 @@ export function CommunityNetwork() {
                       setSelectedGroupName(null);
                       setSelectedApiGroupId(null);
                       setGroupDetailPosts([]);
+                      setGroupDetailTab("posts");
                       setComposeGroupId(null);
                     }}
                     type="button"
@@ -2526,48 +2551,118 @@ export function CommunityNetwork() {
                   })() : selectedApiGroupId ? (() => {
                     const group = apiGroups.find((g) => String(g.id) === selectedApiGroupId);
                     if (!group) return null;
+                    const groupCategory = group.category.toLowerCase();
+                    const groupTag = (group.category || "campus") as TagKey;
+                    const groupMembers = communityUsers
+                      .filter((user) => user.id === currentProfileId || user.tags.some((tag) => tag.toLowerCase().includes(groupCategory)))
+                      .slice(0, 8);
+                    const groupResources = resourceLibrary
+                      .filter((resource) => resource.tag === groupTag || resource.description.toLowerCase().includes(groupCategory))
+                      .slice(0, 6);
+                    const groupEvents = apiEvents
+                      .filter((event) => `${event.name} ${event.description}`.toLowerCase().includes(groupCategory))
+                      .slice(0, 4);
                     return (
                       <>
-                        <div className="social-group-detail-header">
-                          <span className="social-group-detail-icon">{group.icon}</span>
-                          <div className="social-group-detail-info">
-                            <h2>{group.name}</h2>
-                            <p>{group.description}</p>
-                            <small>{group.memberCount.toLocaleString()} membres</small>
+                        <div className="social-group-detail-hero">
+                          <div className="social-group-detail-cover">
+                            <span className="social-group-detail-icon">{group.icon}</span>
+                            <div className="social-group-detail-info">
+                              <span className="social-group-kicker">Espace communautaire</span>
+                              <h2>{group.name}</h2>
+                              <p>{group.description}</p>
+                              <small>{group.memberCount.toLocaleString()} membres · {groupDetailPosts.length} publications · {group.isOfficial ? "Groupe officiel" : "Groupe membre"}</small>
+                            </div>
                           </div>
-                          <button
-                            className={`social-join-button ${group.isMember ? "is-joined" : ""}`}
-                            onClick={() => void handleApiGroupMembership(group.id, group.name)}
-                            type="button"
-                          >
-                            {group.isMember ? "✓ Rejoint" : "Rejoindre"}
-                          </button>
-                        </div>
-                        <div className="social-group-post-count">
-                          {isLoadingGroupPosts ? "Chargement..." : `${groupDetailPosts.length} publication${groupDetailPosts.length !== 1 ? "s" : ""} dans ce groupe`}
-                        </div>
-                        <div className="social-section-actions">
-                          <button
-                            className="social-primary-pill"
-                            onClick={() => {
-                              setComposeGroupId(selectedApiGroupId);
-                              openCompose("text");
-                            }}
-                            type="button"
-                          >
-                            + Publier dans ce groupe
-                          </button>
-                        </div>
-                        {isLoadingGroupPosts ? null : groupDetailPosts.length > 0 ? (
-                          groupDetailPosts.map((post) => renderPost(post))
-                        ) : (
-                          <div className="social-list-card social-empty-state">
-                            <span className="social-list-copy">
-                              <strong>Aucune publication pour le moment.</strong>
-                              <small>Soyez le premier a partager dans ce groupe.</small>
-                            </span>
+                          <div className="social-group-detail-actions">
+                            <button className={`social-join-button ${group.isMember ? "is-joined" : ""}`} onClick={() => void handleApiGroupMembership(group.id, group.name)} type="button">
+                              {group.isMember ? "✓ Rejoint" : "Rejoindre"}
+                            </button>
+                            <button className="social-primary-pill" onClick={() => { setComposeGroupId(selectedApiGroupId); openCompose("text"); }} type="button">
+                              + Publier
+                            </button>
                           </div>
-                        )}
+                        </div>
+
+                        <div className="social-group-composer-card" onClick={() => { setComposeGroupId(selectedApiGroupId); openCompose("text"); }} role="button" tabIndex={0}>
+                          <span className="social-avatar" style={{ backgroundColor: currentUser?.color || "#C8952A" }}>{currentUser?.avatar || "YJ"}</span>
+                          <div>
+                            <strong>Publier dans {group.name}</strong>
+                            <small>Posez une question, partagez une ressource ou lancez un sondage dans ce groupe.</small>
+                          </div>
+                          <button className="social-secondary-pill" type="button">Écrire</button>
+                        </div>
+
+                        <div className="social-group-tabs" role="tablist" aria-label="Navigation du groupe">
+                          {([
+                            ["posts", "Publications", groupDetailPosts.length],
+                            ["membres", "Membres", groupMembers.length],
+                            ["ressources", "Ressources", groupResources.length],
+                            ["evenements", "Événements", groupEvents.length],
+                          ] as const).map(([tab, label, count]) => (
+                            <button className={`social-group-tab ${groupDetailTab === tab ? "is-active" : ""}`} key={tab} onClick={() => setGroupDetailTab(tab)} type="button">
+                              {label}<span>{count}</span>
+                            </button>
+                          ))}
+                        </div>
+
+                        {groupDetailTab === "posts" ? (
+                          <div className="social-group-panel">
+                            <div className="social-group-post-count">
+                              {isLoadingGroupPosts ? "Chargement..." : `${groupDetailPosts.length} publication${groupDetailPosts.length !== 1 ? "s" : ""} dans ce groupe`}
+                            </div>
+                            {isLoadingGroupPosts ? (
+                              <div className="social-list-card social-empty-state"><span className="social-list-copy"><strong>Chargement du groupe...</strong><small>On récupère les publications du groupe.</small></span></div>
+                            ) : groupDetailPosts.length > 0 ? (
+                              groupDetailPosts.map((post) => renderPost(post))
+                            ) : (
+                              <div className="social-list-card social-empty-state">
+                                <span className="social-list-copy"><strong>Aucune publication pour le moment.</strong><small>Soyez le premier à partager dans ce groupe.</small></span>
+                                <button className="social-secondary-button" onClick={() => { setComposeGroupId(selectedApiGroupId); openCompose("text"); }} type="button">Publier</button>
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+
+                        {groupDetailTab === "membres" ? (
+                          <div className="social-group-grid">
+                            {groupMembers.map((member) => (
+                              <button className="social-member-card" key={member.id} onClick={() => setProfileId(member.id)} type="button">
+                                <span className="social-avatar" style={{ backgroundColor: member.color }}>{member.avatar}</span>
+                                <strong>{member.name}</strong>
+                                <small>{member.stageLabel || member.country}</small>
+                              </button>
+                            ))}
+                            {!groupMembers.length ? <div className="social-list-card social-empty-state"><span className="social-list-copy"><strong>Aucun membre affiché.</strong><small>Les membres apparaîtront ici au fur et à mesure.</small></span></div> : null}
+                          </div>
+                        ) : null}
+
+                        {groupDetailTab === "ressources" ? (
+                          <div className="social-group-grid">
+                            {groupResources.map((resource) => (
+                              <button className="social-resource-card" key={`${group.id}-${resource.name}`} onClick={() => downloadResource(resource)} type="button">
+                                <span className="social-resource-card-icon">📚</span>
+                                <span className="social-resource-card-name">{resource.name}</span>
+                                <small>{resource.type} · {resource.size}</small>
+                              </button>
+                            ))}
+                            <button className="social-list-card social-empty-state" onClick={() => { setComposeGroupId(selectedApiGroupId); openCompose("doc"); }} type="button">
+                              <span className="social-list-copy"><strong>Partager une ressource</strong><small>Ajoutez un document utile pour ce groupe.</small></span>
+                            </button>
+                          </div>
+                        ) : null}
+
+                        {groupDetailTab === "evenements" ? (
+                          <div className="social-stack">
+                            {groupEvents.length ? groupEvents.map((event) => (
+                              <div className="social-event-card" key={`group-event-${event.id}`}>
+                                <span className="social-event-date">{event.eventDate.slice(5) || "Live"}</span>
+                                <span className="social-event-copy"><strong>{event.name}</strong><small>{event.description}</small></span>
+                                <button className={`social-event-button ${event.isAttending ? "is-joined" : ""}`} onClick={() => void handleApiEventAttendance(event.id, event.name)} type="button">{event.isAttending ? "✓ Inscrit" : "Participer"}</button>
+                              </div>
+                            )) : <div className="social-list-card social-empty-state"><span className="social-list-copy"><strong>Aucun événement lié.</strong><small>Créez un événement pour animer ce groupe.</small></span><button className="social-secondary-button" onClick={() => setCreateEventOpen(true)} type="button">Créer</button></div>}
+                          </div>
+                        ) : null}
                       </>
                     );
                   })() : null}
@@ -2603,17 +2698,18 @@ export function CommunityNetwork() {
                       </div>
                     ))}
                     {apiGroups.map((group) => (
-                      <div className="social-list-card" key={`api-${group.id}`}>
-                        <span className="social-list-icon">{group.icon}</span>
-                        <span className="social-list-copy">
-                          <button className="social-group-name-button" onClick={() => void openGroupDetail(group)} type="button">
-                            <strong>{group.name}</strong>
-                          </button>
-                          <small>{group.memberCount.toLocaleString()} membres · {group.description}</small>
-                        </span>
-                        <button className={`social-join-button ${group.isMember ? "is-joined" : ""}`} onClick={() => void handleApiGroupMembership(group.id, group.name)} type="button">
-                          {group.isMember ? "✓ Rejoint" : "Rejoindre"}
+                      <div className={`social-list-card social-group-card ${group.isMember ? "is-joined" : ""}`} key={`api-${group.id}`}>
+                        <button className="social-group-card-main" onClick={() => void openGroupDetail(group)} type="button">
+                          <span className="social-list-icon">{group.icon}</span>
+                          <span className="social-list-copy"><strong>{group.name}</strong><small>{group.memberCount.toLocaleString()} membres · {group.description}</small></span>
+                          <span className="social-list-arrow">Entrer →</span>
                         </button>
+                        <div className="social-group-card-actions">
+                          <button className="social-secondary-pill" onClick={() => void openGroupDetail(group)} type="button">Entrer</button>
+                          <button className={`social-join-button ${group.isMember ? "is-joined" : ""}`} onClick={() => void handleApiGroupMembership(group.id, group.name)} type="button">
+                            {group.isMember ? "✓ Rejoint" : "Rejoindre"}
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
