@@ -1395,6 +1395,33 @@ export function CommunityNetwork() {
     }
   }
 
+  async function handleMarkAllNotificationsRead() {
+    const unread = notifications.filter((notif) => !notif.isRead);
+    if (!unread.length) return;
+    let latestNotifications = notifications;
+    let latestUnreadCount = unreadNotifCount;
+    for (const notif of unread.slice(0, 12)) {
+      try {
+        const data = await markCommunityNotificationRead(notif.id);
+        latestNotifications = data.notifications;
+        latestUnreadCount = data.unreadCount;
+      } catch {
+        // keep going for the next notification
+      }
+    }
+    setNotifications(latestNotifications);
+    setUnreadNotifCount(latestUnreadCount);
+  }
+
+  function getNotificationIcon(type: string) {
+    if (type.includes("message")) return "💬";
+    if (type.includes("comment")) return "↩";
+    if (type.includes("like")) return "♥";
+    if (type.includes("follow")) return "👤";
+    if (type.includes("group")) return "👥";
+    return "🔔";
+  }
+
   function syncPostViewState(post: SocialPost) {
     const nextLiked = "viewerHasLiked" in post && post.viewerHasLiked;
     const nextSaved = "viewerHasSaved" in post && post.viewerHasSaved;
@@ -2134,6 +2161,23 @@ export function CommunityNetwork() {
       ? findCommunityUser(activeLocalStories[storyIndex].userId)
       : currentUser;
   const selectedProfile = profileId ? findCommunityUser(profileId) : currentUser;
+  const selectedProfilePosts = profileId ? posts.filter((post) => post.userId === profileId) : [];
+  const selectedProfileRecentPosts = selectedProfilePosts.slice(0, 3);
+  const selectedProfileAnsweredCount = selectedProfilePosts.filter((post) => post.questionStatus && post.questionStatus !== "open").length;
+  const selectedProfileHelpScore = Math.min(100, Math.round((selectedProfile.posts * 8) + (selectedProfile.followers / 12) + (selectedProfileAnsweredCount * 14)));
+  const selectedProfileTrustLabel = selectedProfile.isOfficial
+    ? "Profil officiel"
+    : selectedProfileHelpScore >= 70
+      ? "Membre fiable"
+      : selectedProfileHelpScore >= 35
+        ? "Contributeur actif"
+        : "Nouveau membre";
+  const selectedProfileGroups = profileId
+    ? apiGroups.filter((group) =>
+        group.createdByProfileId === profileId ||
+        selectedProfilePosts.some((post) => post.groupId && String(post.groupId) === String(group.id)),
+      ).slice(0, 4)
+    : [];
   const openQuestionPosts = posts.filter(
     (post) => post.isQuestion && post.questionStatus === "open",
   );
@@ -3373,6 +3417,13 @@ export function CommunityNetwork() {
                 <span>{getProfileActivityLabel(selectedProfile)}</span>
                 <span>{getProfileLastActivityLabel(selectedProfile)}</span>
               </div>
+              <div className="social-profile-trust-card">
+                <div>
+                  <span>Niveau de confiance</span>
+                  <strong>{selectedProfileTrustLabel}</strong>
+                </div>
+                <b>{selectedProfileHelpScore}%</b>
+              </div>
               <p className="social-profile-modal-bio">{selectedProfile.bio}</p>
               <div className="social-profile-tag-list">
                 {selectedProfile.tags.map((tag) => (
@@ -3383,14 +3434,37 @@ export function CommunityNetwork() {
                 <div><strong>{selectedProfile.posts}</strong><span>Posts</span></div>
                 <div><strong>{selectedProfile.followers.toLocaleString()}</strong><span>Abonnes</span></div>
                 <div><strong>{selectedProfile.following.toLocaleString()}</strong><span>Abonnements</span></div>
+                <div><strong>{selectedProfileAnsweredCount}</strong><span>Aides</span></div>
+              </div>
+              <div className="social-profile-section-grid">
+                <div className="social-profile-section-card">
+                  <strong>Activité récente</strong>
+                  {selectedProfileRecentPosts.length ? selectedProfileRecentPosts.map((post) => (
+                    <button key={`profile-post-${post.id}`} onClick={() => { setProfileId(null); switchTab("feed"); focusCommentInput(post.id); }} type="button">
+                      #{post.id} · {getPostPlainText(post).slice(0, 68)}{getPostPlainText(post).length > 68 ? "…" : ""}
+                    </button>
+                  )) : <small>Aucune publication récente.</small>}
+                </div>
+                <div className="social-profile-section-card">
+                  <strong>Groupes liés</strong>
+                  {selectedProfileGroups.length ? selectedProfileGroups.map((group) => (
+                    <button key={`profile-group-${group.id}`} onClick={() => { setProfileId(null); switchTab("groupes"); void openGroupDetail(group); }} type="button">
+                      {group.icon} {group.name}
+                    </button>
+                  )) : <small>Pas encore de groupe visible.</small>}
+                </div>
               </div>
               {profileId !== currentProfileId ? (
                 <div className="social-profile-modal-actions">
                   <button className="social-primary-pill" onClick={() => toggleFollow(profileId)} type="button">{followingSet.has(profileId) ? "✓ Abonne" : "Suivre"}</button>
                   <button className="social-secondary-pill" onClick={() => { setProfileId(null); openMessagesWith(profileId); }} type="button">💬 Message</button>
+                  <button className="social-secondary-pill" onClick={() => { setProfileId(null); setExplorerTab("posts"); setSearchTerm(selectedProfile.name); switchTab("explorer"); }} type="button">Voir publications</button>
                 </div>
               ) : (
-                <button className="social-primary-pill social-full-width" onClick={() => openQuestionComposer()} type="button">+ Poser une question</button>
+                <div className="social-profile-modal-actions">
+                  <button className="social-primary-pill social-full-width" onClick={() => openQuestionComposer()} type="button">+ Poser une question</button>
+                  <button className="social-secondary-pill" onClick={() => { setProfileId(null); switchTab("groupes"); }} type="button">Rejoindre un groupe</button>
+                </div>
               )}
             </div>
           </div>
@@ -3717,24 +3791,33 @@ export function CommunityNetwork() {
       {notifPanelOpen ? (
         <div className="social-notif-panel">
           <div className="social-notif-panel-head">
-            <strong>Notifications</strong>
-            <button onClick={() => setNotifPanelOpen(false)} type="button">✕</button>
+            <div>
+              <strong>Notifications utiles</strong>
+              <span>{unreadNotifCount} non lue{unreadNotifCount > 1 ? "s" : ""}</span>
+            </div>
+            <div className="social-notif-actions">
+              {unreadNotifCount > 0 ? <button onClick={() => void handleMarkAllNotificationsRead()} type="button">Tout lu</button> : null}
+              <button onClick={() => setNotifPanelOpen(false)} type="button">✕</button>
+            </div>
           </div>
           {notifications.length === 0 ? (
-            <div className="social-notif-empty">Aucune notification pour le moment.</div>
+            <div className="social-notif-empty">Aucune notification pour le moment. Les likes, réponses, abonnements, messages et groupes apparaîtront ici.</div>
           ) : (
             notifications.map((notif) => (
               <div
-                className={`social-notif-item ${notif.isRead ? "is-read" : ""}`}
+                className={`social-notif-item ${notif.isRead ? "is-read" : ""} is-${notif.type.replace(/_/g, "-")}`}
                 key={notif.id}
                 onClick={() => void handleMarkNotifRead(notif.id)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter") void handleMarkNotifRead(notif.id); }}
               >
-                <div className="social-notif-title">{notif.title}</div>
-                <div className="social-notif-body">{notif.body}</div>
-                <div className="social-notif-time">{notif.createdAt}</div>
+                <span className="social-notif-icon">{getNotificationIcon(notif.type)}</span>
+                <div>
+                  <div className="social-notif-title">{notif.title}</div>
+                  <div className="social-notif-body">{notif.body}</div>
+                  <div className="social-notif-time">{notif.createdAt}</div>
+                </div>
               </div>
             ))
           )}

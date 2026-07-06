@@ -1183,6 +1183,54 @@ def _maybe_generate_assistant_comment(
     return _build_comment_item(row)
 
 
+def _create_community_notification(
+    client,
+    *,
+    user_id: str | None,
+    notif_type: str,
+    title: str,
+    body: str,
+) -> None:
+    if not user_id:
+        return
+    try:
+        client.table("community_notifications").insert(
+            {
+                "user_id": user_id,
+                "type": notif_type,
+                "title": title[:140],
+                "body": body[:500],
+            },
+        ).execute()
+    except Exception:
+        # Notifications must never block the social action itself.
+        return
+
+
+def _notify_group_members_about_post(client, *, group_id: int | None, author_user_id: str, author_name: str, post_text: str) -> None:
+    if not group_id:
+        return
+    try:
+        members_resp = (
+            client.table("community_group_members")
+            .select("user_id")
+            .eq("group_id", group_id)
+            .neq("user_id", author_user_id)
+            .limit(80)
+            .execute()
+        )
+        for row in members_resp.data or []:
+            _create_community_notification(
+                client,
+                user_id=str(row.get("user_id") or ""),
+                notif_type="group_post",
+                title="Nouveau post dans votre groupe",
+                body=f"{author_name} a publié : {post_text[:120]}",
+            )
+    except Exception:
+        return
+
+
 def get_community_bootstrap(
     current_user: AuthUserProfile | None = None,
     access_token: str | None = None,
@@ -1272,6 +1320,13 @@ def create_community_post(
     created_row = rows[0]
     post_id = int(created_row.get("id") or 0)
     _refresh_profile_counters(client, profile.id)
+    _notify_group_members_about_post(
+        client,
+        group_id=insert_payload.get("group_id"),
+        author_user_id=current_user.user_id,
+        author_name=profile.name,
+        post_text=payload.question or payload.content,
+    )
     assistant_comment = _maybe_generate_assistant_comment(
         client,
         post_id=post_id,
@@ -1317,6 +1372,15 @@ def create_community_comment(
             "likes_count": 0,
         },
     )
+    post_author_user_id = str(post_row.get("author_user_id") or "")
+    if post_author_user_id and post_author_user_id != current_user.user_id:
+        _create_community_notification(
+            client,
+            user_id=post_author_user_id,
+            notif_type="comment",
+            title="Nouvelle réponse à votre publication",
+            body=f"{profile.name} a répondu : {payload.text[:140]}",
+        )
 
     thread_context = [
         str(post_row.get("poll_question") or post_row.get("content") or ""),
@@ -1387,6 +1451,15 @@ def toggle_community_post_reaction(
         if reaction_kind == "like":
             next_likes = int(post_row.get("likes_count") or 0) + 1
             client.table("community_posts").update({"likes_count": next_likes}).eq("id", post_id).execute()
+            post_author_user_id = str(post_row.get("author_user_id") or "")
+            if post_author_user_id and post_author_user_id != current_user.user_id:
+                _create_community_notification(
+                    client,
+                    user_id=post_author_user_id,
+                    notif_type="like",
+                    title="Nouveau j'aime sur votre publication",
+                    body=f"{current_user.full_name or current_user.email or 'Un membre'} a aimé votre publication.",
+                )
 
     updated_post = _load_post_items(
         client,
@@ -1620,6 +1693,13 @@ def toggle_community_profile_follow(
         ).execute()
         target_followers = int(target_row.get("follower_count") or 0) + 1
         current_following = current_profile.following + 1
+        _create_community_notification(
+            client,
+            user_id=str(target_row.get("user_id") or ""),
+            notif_type="follow",
+            title="Nouveau membre vous suit",
+            body=f"{current_profile.name} suit maintenant votre profil PieHUB.",
+        )
 
     client.table("community_profiles").update({"follower_count": target_followers}).eq("id", target_profile_id).execute()
     client.table("community_profiles").update({"following_count": current_following}).eq("id", current_profile.id).execute()
@@ -2325,6 +2405,13 @@ def send_community_direct_message(
     ).execute()
     now = datetime.now(timezone.utc).isoformat()
     client.table("community_direct_threads").update({"last_message_at": now, "updated_at": now}).eq("id", thread.thread.id).execute()
+    _create_community_notification(
+        client,
+        user_id=target_user_id,
+        notif_type="direct_message",
+        title="Nouveau message privé",
+        body=f"{current_profile.name} vous a envoyé : {payload.body[:140]}",
+    )
     return get_community_direct_thread(payload.target_profile_id, current_user, access_token)
 
 
