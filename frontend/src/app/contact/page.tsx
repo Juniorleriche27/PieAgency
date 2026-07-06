@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ContactConversionAside } from "@/components/conversion-funnel";
 import { ContactForm } from "@/components/contact-form";
 import { CALENDLY_HREF } from "@/content/site";
 
@@ -29,7 +30,10 @@ export default function ContactPage() {
             Réserver un créneau
           </a>
         </div>
-        <ContactForm />
+        <div className="contact-conversion-grid">
+          <ContactConversionAside />
+          <ContactForm />
+        </div>
       </div>
     </section>
   );

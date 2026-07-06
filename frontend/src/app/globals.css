@@ -16881,3 +16881,237 @@ html[data-theme="dark"]:not(:has(.private-app-shell)) .btn-outline:hover {
     flex: 1;
   }
 }
+
+
+/* ── PieAgency conversion tunnel ───────────────────────────────────────────── */
+.conversion-funnel-section {
+  background:
+    radial-gradient(circle at top left, rgba(200, 149, 42, .16), transparent 34%),
+    linear-gradient(135deg, #071631, #0d1b38);
+  color: #fff;
+  overflow: hidden;
+}
+.conversion-funnel-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 32px;
+  margin-bottom: 24px;
+}
+.conversion-eyebrow {
+  display: inline-flex;
+  margin-bottom: 10px;
+  color: #c8952a;
+  font-size: .76rem;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.conversion-funnel-hero h2,
+.contact-conversion-aside h2 {
+  margin: 0;
+  color: inherit;
+  font-family: var(--font-serif), serif;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1.02;
+}
+.conversion-funnel-hero p,
+.contact-conversion-aside p,
+.payment-conversion-note p {
+  max-width: 760px;
+  color: rgba(255,255,255,.78);
+  line-height: 1.65;
+}
+.conversion-funnel-ctas {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.conversion-step-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.conversion-step-card {
+  padding: 18px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 22px;
+  background: rgba(255,255,255,.08);
+  backdrop-filter: blur(10px);
+}
+.conversion-step-card span {
+  color: #c8952a;
+  font-weight: 900;
+  letter-spacing: .1em;
+}
+.conversion-step-card strong {
+  display: block;
+  margin: 14px 0 8px;
+  color: #fff;
+  font-size: 1.05rem;
+}
+.conversion-step-card p {
+  margin: 0;
+  color: rgba(255,255,255,.72);
+  line-height: 1.45;
+  font-size: .92rem;
+}
+.conversion-proof-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: #fff;
+  color: #0d1b38;
+}
+.conversion-proof-strip strong,
+.conversion-proof-strip span {
+  display: block;
+}
+.conversion-proof-strip span {
+  color: #667085;
+  margin-top: 2px;
+}
+.contact-conversion-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 390px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.contact-conversion-aside,
+.payment-conversion-note {
+  border: 1.5px solid #e4e7ee;
+  border-radius: 26px;
+  background: #fff;
+  padding: 24px;
+  box-shadow: 0 18px 48px rgba(13, 27, 56, .07);
+}
+.contact-conversion-aside {
+  position: sticky;
+  top: 96px;
+}
+.contact-conversion-aside h2 {
+  color: #0d1b38;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+}
+.contact-conversion-aside p,
+.payment-conversion-note p {
+  color: #667085;
+}
+.contact-conversion-list {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+.contact-conversion-list div {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 16px;
+  background: #f7f8fb;
+}
+.contact-conversion-list strong {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #0d1b38;
+  color: #fff;
+}
+.contact-conversion-list span {
+  color: #0d1b38;
+  font-weight: 800;
+  font-size: .88rem;
+}
+.conversion-sticky-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  z-index: 80;
+  transform: translateX(-50%);
+  width: min(720px, calc(100% - 28px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px 12px 18px;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 999px;
+  background: rgba(13, 27, 56, .94);
+  color: #fff;
+  box-shadow: 0 20px 50px rgba(13, 27, 56, .22);
+  backdrop-filter: blur(12px);
+}
+.conversion-sticky-bar strong,
+.conversion-sticky-bar span {
+  display: block;
+}
+.conversion-sticky-bar span {
+  color: rgba(255,255,255,.68);
+  font-size: .78rem;
+}
+.conversion-sticky-bar a {
+  white-space: nowrap;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #c8952a;
+  color: #fff;
+  font-weight: 900;
+}
+.payment-conversion-note {
+  margin-bottom: 18px;
+}
+.payment-conversion-note span {
+  color: #c8952a;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  font-size: .74rem;
+}
+.payment-conversion-note strong {
+  display: block;
+  margin-top: 6px;
+  color: #0d1b38;
+  font-family: var(--font-serif), serif;
+  font-size: 1.5rem;
+}
+@media (max-width: 900px) {
+  .conversion-funnel-hero,
+  .contact-conversion-grid {
+    grid-template-columns: 1fr;
+  }
+  .conversion-funnel-ctas {
+    justify-content: flex-start;
+  }
+  .conversion-step-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .contact-conversion-aside {
+    position: static;
+  }
+}
+@media (max-width: 640px) {
+  .conversion-step-grid,
+  .conversion-proof-strip {
+    grid-template-columns: 1fr;
+  }
+  .conversion-proof-strip,
+  .conversion-sticky-bar {
+    align-items: stretch;
+    border-radius: 22px;
+    flex-direction: column;
+  }
+  .conversion-sticky-bar a,
+  .conversion-proof-strip .btn {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+}

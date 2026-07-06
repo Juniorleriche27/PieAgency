@@ -1,4 +1,5 @@
 import { ActionLink } from "@/components/action-link";
+import { ConversionFunnel } from "@/components/conversion-funnel";
 import { FAQAccordion } from "@/components/faq-accordion";
 import { AnimatedProgressBar, CountUp } from "@/components/hero-animated";
 import { Reveal } from "@/components/reveal";
@@ -52,11 +53,11 @@ export default function HomePage() {
               suivi personnalisé.
             </p>
             <div className="hero-ctas">
-              <ActionLink href="/contact" variant="gold" size="lg">
-                Commencer mon dossier
+              <ActionLink href="/contact?source=hero&intent=diagnostic" variant="gold" size="lg">
+                Faire mon diagnostic gratuit
               </ActionLink>
-              <ActionLink href="/faq" variant="outlineWhite" size="lg">
-                Comprendre le processus
+              <ActionLink href="/connexion?mode=sign-up&next=/espace-etudiant/diagnostic" variant="outlineWhite" size="lg">
+                Créer mon espace étudiant
               </ActionLink>
             </div>
 
@@ -191,6 +192,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <ConversionFunnel />
 
       <section className="section">
         <div className="container">

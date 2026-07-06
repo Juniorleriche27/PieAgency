@@ -12,6 +12,11 @@ export default function PaymentPage() {
   return (
     <section className="section-sm payment-page-section">
       <div className="container payment-page-container">
+        <div className="payment-conversion-note">
+          <span>Paiement sécurisé</span>
+          <strong>Vous réglez uniquement après avoir identifié l’accompagnement adapté.</strong>
+          <p>Après paiement, l’espace étudiant sert à suivre les prochaines étapes, documents et consignes.</p>
+        </div>
         <Suspense fallback={<div className="form-card payment-form-card">Chargement du paiement...</div>}>
           <PaymentForm />
         </Suspense>
