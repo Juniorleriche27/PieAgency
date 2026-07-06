@@ -25,12 +25,23 @@ export function useAuthSession(apiBaseUrl: string) {
     }
 
     void syncSession();
+    const intervalId = window.setInterval(() => {
+      void syncSession();
+    }, 60_000);
+    const handleFocus = () => {
+      void syncSession();
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
     const cleanup = onAuthSessionChange(() => {
       void syncSession();
     });
 
     return () => {
       active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
       cleanup();
     };
   }, [apiBaseUrl]);
