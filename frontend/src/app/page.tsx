@@ -4,6 +4,7 @@ import { FAQAccordion } from "@/components/faq-accordion";
 import { AnimatedProgressBar, CountUp } from "@/components/hero-animated";
 import { Reveal } from "@/components/reveal";
 import { SectionHeader } from "@/components/section-header";
+import { SocialProofShowcase } from "@/components/social-proof-showcase";
 import { Typewriter } from "@/components/typewriter";
 import {
   company,
@@ -192,6 +193,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <SocialProofShowcase />
 
       <ConversionFunnel />
 
