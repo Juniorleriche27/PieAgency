@@ -110,6 +110,19 @@ export type CommunityThreadData = {
   source?: "cohere" | "ai_gateway" | "fallback" | null;
 };
 
+export type CommunityDirectThreadItem = {
+  id: string;
+  targetProfile: CommunityUser;
+  lastMessage: CommunityThreadMessage | null;
+  unreadCount: number;
+  updatedAt: string;
+};
+
+export type CommunityDirectThreadData = {
+  thread: CommunityDirectThreadItem;
+  messages: CommunityThreadMessage[];
+};
+
 type CommunityGroupApi = {
   id: number;
   name: string;
@@ -233,6 +246,35 @@ type CommunityThreadApi = {
     time: string;
   }>;
   source?: "cohere" | "ai_gateway" | "fallback" | null;
+};
+
+type CommunityDirectThreadApi = {
+  id: string;
+  target_profile: CommunityBootstrapApi["profiles"][number];
+  last_message?: {
+    id: string;
+    from_role: "me" | "them";
+    text: string;
+    time: string;
+    read_at?: string | null;
+  } | null;
+  unread_count: number;
+  updated_at: string;
+};
+
+type CommunityDirectThreadResponseApi = {
+  thread: CommunityDirectThreadApi;
+  messages: Array<{
+    id: string;
+    from_role: "me" | "them";
+    text: string;
+    time: string;
+    read_at?: string | null;
+  }>;
+};
+
+type CommunityDirectThreadListResponseApi = {
+  threads: CommunityDirectThreadApi[];
 };
 
 function inferTagFromText(text: string, fallback: CommunityTag = "vie"): CommunityTag {
@@ -420,6 +462,33 @@ function mapPost(item: CommunityPostApi): CommunityPost {
   };
 }
 
+
+function mapThreadMessage(item: { id: string; from_role: "me" | "them"; text: string; time: string }): CommunityThreadMessage {
+  return {
+    id: item.id,
+    from: item.from_role,
+    text: item.text,
+    time: item.time,
+  };
+}
+
+function mapDirectThread(item: CommunityDirectThreadApi): CommunityDirectThreadItem {
+  return {
+    id: item.id,
+    targetProfile: mapUser(item.target_profile),
+    lastMessage: item.last_message ? mapThreadMessage(item.last_message) : null,
+    unreadCount: item.unread_count ?? 0,
+    updatedAt: item.updated_at,
+  };
+}
+
+function mapDirectThreadResponse(item: CommunityDirectThreadResponseApi): CommunityDirectThreadData {
+  return {
+    thread: mapDirectThread(item.thread),
+    messages: item.messages.map(mapThreadMessage),
+  };
+}
+
 function mapMutation(item: CommunityMutationApi): CommunityMutationData {
   return {
     post: mapPost(item.post),
@@ -589,12 +658,7 @@ export async function fetchCommunityAssistantThread(): Promise<CommunityThreadDa
   const payload = (await response.json()) as CommunityThreadApi;
   return {
     conversationId: payload.conversation_id,
-    messages: payload.messages.map((item) => ({
-      id: item.id,
-      from: item.from_role,
-      text: item.text,
-      time: item.time,
-    })),
+    messages: payload.messages.map(mapThreadMessage),
     source: payload.source,
   };
 }
@@ -625,12 +689,7 @@ export async function sendCommunityAssistantMessage(
   const payload = (await response.json()) as CommunityThreadApi;
   return {
     conversationId: payload.conversation_id,
-    messages: payload.messages.map((item) => ({
-      id: item.id,
-      from: item.from_role,
-      text: item.text,
-      time: item.time,
-    })),
+    messages: payload.messages.map(mapThreadMessage),
     source: payload.source,
   };
 }
@@ -1000,6 +1059,54 @@ export async function rewriteWithAI(text: string, context = "publication"): Prom
   if (!response.ok) return text;
   const payload = (await response.json()) as { rewritten: string };
   return payload.rewritten || text;
+}
+
+
+export async function fetchCommunityDirectThreads(): Promise<CommunityDirectThreadItem[]> {
+  const response = await authenticatedFetch(
+    "/api/community/direct-messages",
+    undefined,
+    { requireAuth: true },
+  );
+
+  if (!response.ok) {
+    throw new Error("COMMUNITY_DIRECT_THREADS_FAILED");
+  }
+
+  const payload = (await response.json()) as CommunityDirectThreadListResponseApi;
+  return (payload.threads || []).map(mapDirectThread);
+}
+
+export async function fetchCommunityDirectThread(targetProfileId: string): Promise<CommunityDirectThreadData> {
+  const response = await authenticatedFetch(
+    `/api/community/direct-messages/${encodeURIComponent(targetProfileId)}`,
+    undefined,
+    { requireAuth: true },
+  );
+
+  if (!response.ok) {
+    throw new Error("COMMUNITY_DIRECT_THREAD_FAILED");
+  }
+
+  return mapDirectThreadResponse((await response.json()) as CommunityDirectThreadResponseApi);
+}
+
+export async function sendCommunityDirectMessage(targetProfileId: string, body: string): Promise<CommunityDirectThreadData> {
+  const response = await authenticatedFetch(
+    "/api/community/direct-messages",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target_profile_id: targetProfileId, body }),
+    },
+    { requireAuth: true },
+  );
+
+  if (!response.ok) {
+    throw new Error("COMMUNITY_DIRECT_MESSAGE_FAILED");
+  }
+
+  return mapDirectThreadResponse((await response.json()) as CommunityDirectThreadResponseApi);
 }
 
 export async function fetchGroupPosts(groupId: string): Promise<CommunityPost[]> {

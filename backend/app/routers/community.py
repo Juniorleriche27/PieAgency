@@ -17,6 +17,9 @@ from ..schemas import (
     CommunityAssistantMessageRequest,
     CommunityAssistantThreadResponse,
     CommunityBootstrapResponse,
+    CommunityDirectMessageCreateRequest,
+    CommunityDirectThreadListResponse,
+    CommunityDirectThreadResponse,
     CommunityCommentCreateRequest,
     CommunityEventAttendanceResponse,
     CommunityEventCalendarItem,
@@ -49,6 +52,8 @@ from ..services.community_service import (
     get_community_ads,
     get_community_assistant_thread,
     get_community_bootstrap,
+    get_community_direct_thread,
+    get_community_direct_threads,
     get_community_events_calendar,
     get_community_groups,
     get_community_notifications,
@@ -56,6 +61,7 @@ from ..services.community_service import (
     mark_community_notification_read,
     rewrite_community_text,
     send_community_assistant_message,
+    send_community_direct_message,
     toggle_community_event_attendance,
     toggle_community_group_membership,
     toggle_community_post_reaction,
@@ -204,6 +210,45 @@ def community_assistant_message(
 ) -> CommunityAssistantThreadResponse:
     try:
         return send_community_assistant_message(payload, current_user, access_token)
+    except CommunityDataUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get("/community/direct-messages", response_model=CommunityDirectThreadListResponse)
+def community_direct_threads(
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> CommunityDirectThreadListResponse:
+    try:
+        return get_community_direct_threads(current_user, access_token)
+    except CommunityDataUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get("/community/direct-messages/{target_profile_id}", response_model=CommunityDirectThreadResponse)
+def community_direct_thread(
+    target_profile_id: str,
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> CommunityDirectThreadResponse:
+    try:
+        return get_community_direct_thread(target_profile_id, current_user, access_token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except CommunityDataUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.post("/community/direct-messages", response_model=CommunityDirectThreadResponse)
+def community_direct_message(
+    payload: CommunityDirectMessageCreateRequest,
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> CommunityDirectThreadResponse:
+    try:
+        return send_community_direct_message(payload, current_user, access_token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except CommunityDataUnavailableError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 

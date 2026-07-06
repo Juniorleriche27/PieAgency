@@ -13,6 +13,11 @@ from ..schemas import (
     CommunityAssistantThreadMessageItem,
     CommunityAssistantThreadResponse,
     CommunityBootstrapResponse,
+    CommunityDirectMessageCreateRequest,
+    CommunityDirectMessageItem,
+    CommunityDirectThreadItem,
+    CommunityDirectThreadListResponse,
+    CommunityDirectThreadResponse,
     CommunityCommentCreateRequest,
     CommunityCommentItem,
     CommunityEventAttendanceResponse,
@@ -2115,6 +2120,212 @@ def send_community_assistant_message(
         messages=_load_thread_messages(client, conversation_id or ""),
         source=ai_response.source,
     )
+
+
+def _profile_user_id(client, profile_id: str) -> str | None:
+    response = (
+        client.table("community_profiles")
+        .select("user_id")
+        .eq("id", profile_id)
+        .limit(1)
+        .execute()
+    )
+    rows = response.data or []
+    if not rows:
+        return None
+    value = rows[0].get("user_id")
+    return str(value) if value else None
+
+
+def _load_profile_by_id(client, profile_id: str) -> CommunityProfileItem | None:
+    response = (
+        client.table("community_profiles")
+        .select("*")
+        .eq("id", profile_id)
+        .limit(1)
+        .execute()
+    )
+    rows = response.data or []
+    if not rows:
+        return None
+    return _build_profile_item(_build_profile_metrics(client, rows[0]))
+
+
+def _direct_pair(current_user_id: str, current_profile_id: str, target_user_id: str, target_profile_id: str) -> dict[str, str]:
+    if str(current_user_id) <= str(target_user_id):
+        return {
+            "participant_low_user_id": current_user_id,
+            "participant_high_user_id": target_user_id,
+            "participant_low_profile_id": current_profile_id,
+            "participant_high_profile_id": target_profile_id,
+        }
+    return {
+        "participant_low_user_id": target_user_id,
+        "participant_high_user_id": current_user_id,
+        "participant_low_profile_id": target_profile_id,
+        "participant_high_profile_id": current_profile_id,
+    }
+
+
+def _thread_target_profile_id(thread_row: dict[str, Any], current_user_id: str) -> str:
+    if str(thread_row.get("participant_low_user_id") or "") == str(current_user_id):
+        return str(thread_row.get("participant_high_profile_id") or "")
+    return str(thread_row.get("participant_low_profile_id") or "")
+
+
+def _build_direct_message_item(row: dict[str, Any], *, current_user_id: str) -> CommunityDirectMessageItem:
+    return CommunityDirectMessageItem(
+        id=str(row.get("id") or ""),
+        from_role="me" if str(row.get("sender_user_id") or "") == str(current_user_id) else "them",
+        text=str(row.get("body") or ""),
+        time=_format_datetime_label(row.get("created_at")),
+        read_at=str(row.get("read_at")) if row.get("read_at") else None,
+    )
+
+
+def _load_direct_messages(client, thread_id: str, current_user_id: str, *, limit: int = 80) -> list[CommunityDirectMessageItem]:
+    response = (
+        client.table("community_direct_messages")
+        .select("*")
+        .eq("thread_id", thread_id)
+        .order("created_at")
+        .limit(limit)
+        .execute()
+    )
+    rows = response.data or []
+    unread_ids = [
+        str(row.get("id"))
+        for row in rows
+        if str(row.get("recipient_user_id") or "") == str(current_user_id) and not row.get("read_at")
+    ]
+    for message_id in unread_ids:
+        try:
+            client.table("community_direct_messages").update({"read_at": datetime.now(timezone.utc).isoformat()}).eq("id", message_id).execute()
+        except Exception:
+            pass
+    return [_build_direct_message_item(row, current_user_id=current_user_id) for row in rows]
+
+
+def _build_direct_thread_item(client, thread_row: dict[str, Any], current_user_id: str) -> CommunityDirectThreadItem | None:
+    thread_id = str(thread_row.get("id") or "")
+    target_profile_id = _thread_target_profile_id(thread_row, current_user_id)
+    target_profile = _load_profile_by_id(client, target_profile_id)
+    if not target_profile:
+        return None
+
+    last_resp = (
+        client.table("community_direct_messages")
+        .select("*")
+        .eq("thread_id", thread_id)
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    last_rows = last_resp.data or []
+    unread_resp = (
+        client.table("community_direct_messages")
+        .select("id", count="exact")
+        .eq("thread_id", thread_id)
+        .eq("recipient_user_id", current_user_id)
+        .is_("read_at", "null")
+        .limit(1)
+        .execute()
+    )
+    return CommunityDirectThreadItem(
+        id=thread_id,
+        target_profile=target_profile,
+        last_message=_build_direct_message_item(last_rows[0], current_user_id=current_user_id) if last_rows else None,
+        unread_count=int(getattr(unread_resp, "count", 0) or 0),
+        updated_at=_format_datetime_label(thread_row.get("last_message_at") or thread_row.get("updated_at") or thread_row.get("created_at")),
+    )
+
+
+def get_community_direct_threads(
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> CommunityDirectThreadListResponse:
+    client = _get_client()
+    _ensure_user_profile(client, current_user)
+    response = (
+        client.table("community_direct_threads")
+        .select("*")
+        .or_(f"participant_low_user_id.eq.{current_user.user_id},participant_high_user_id.eq.{current_user.user_id}")
+        .order("last_message_at", desc=True)
+        .limit(50)
+        .execute()
+    )
+    threads = [
+        item
+        for row in (response.data or [])
+        if (item := _build_direct_thread_item(client, row, current_user.user_id)) is not None
+    ]
+    return CommunityDirectThreadListResponse(threads=threads)
+
+
+def get_community_direct_thread(
+    target_profile_id: str,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> CommunityDirectThreadResponse:
+    client = _get_client()
+    current_profile = _ensure_user_profile(client, current_user)
+    target_user_id = _profile_user_id(client, target_profile_id)
+    if not target_user_id:
+        raise LookupError("Ce profil ne peut pas recevoir de messages privés pour le moment.")
+    if str(target_user_id) == str(current_user.user_id):
+        raise LookupError("Vous ne pouvez pas ouvrir une conversation avec vous-même.")
+
+    pair = _direct_pair(current_user.user_id, current_profile.id, target_user_id, target_profile_id)
+    response = (
+        client.table("community_direct_threads")
+        .select("*")
+        .eq("participant_low_user_id", pair["participant_low_user_id"])
+        .eq("participant_high_user_id", pair["participant_high_user_id"])
+        .limit(1)
+        .execute()
+    )
+    rows = response.data or []
+    if rows:
+        thread_row = rows[0]
+    else:
+        insert_resp = client.table("community_direct_threads").insert(pair).execute()
+        thread_row = (insert_resp.data or [pair])[0]
+    item = _build_direct_thread_item(client, thread_row, current_user.user_id)
+    if not item:
+        raise LookupError("Conversation introuvable.")
+    return CommunityDirectThreadResponse(
+        thread=item,
+        messages=_load_direct_messages(client, item.id, current_user.user_id),
+    )
+
+
+def send_community_direct_message(
+    payload: CommunityDirectMessageCreateRequest,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> CommunityDirectThreadResponse:
+    client = _get_client()
+    current_profile = _ensure_user_profile(client, current_user)
+    target_user_id = _profile_user_id(client, payload.target_profile_id)
+    if not target_user_id:
+        raise LookupError("Ce profil ne peut pas recevoir de messages privés pour le moment.")
+    if str(target_user_id) == str(current_user.user_id):
+        raise LookupError("Vous ne pouvez pas vous envoyer un message privé.")
+
+    thread = get_community_direct_thread(payload.target_profile_id, current_user, access_token)
+    client.table("community_direct_messages").insert(
+        {
+            "thread_id": thread.thread.id,
+            "sender_user_id": current_user.user_id,
+            "sender_profile_id": current_profile.id,
+            "recipient_user_id": target_user_id,
+            "recipient_profile_id": payload.target_profile_id,
+            "body": payload.body,
+        },
+    ).execute()
+    now = datetime.now(timezone.utc).isoformat()
+    client.table("community_direct_threads").update({"last_message_at": now, "updated_at": now}).eq("id", thread.thread.id).execute()
+    return get_community_direct_thread(payload.target_profile_id, current_user, access_token)
 
 
 def _build_ad_item(row: dict[str, Any], *, viewer_user_id: str | None = None) -> CommunityAdItem:

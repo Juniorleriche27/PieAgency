@@ -599,6 +599,42 @@ class CommunityAssistantThreadResponse(BaseModel):
     source: Literal["cohere", "ai_gateway", "fallback"] | None = None
 
 
+
+
+class CommunityDirectMessageCreateRequest(BaseModel):
+    target_profile_id: str = Field(min_length=2, max_length=120)
+    body: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("target_profile_id", "body", mode="before")
+    @classmethod
+    def strip_direct_message_fields(cls, value: str) -> str:
+        return value.strip()
+
+
+class CommunityDirectMessageItem(BaseModel):
+    id: str
+    from_role: Literal["me", "them"]
+    text: str
+    time: str
+    read_at: str | None = None
+
+
+class CommunityDirectThreadItem(BaseModel):
+    id: str
+    target_profile: CommunityProfileItem
+    last_message: CommunityDirectMessageItem | None = None
+    unread_count: int = 0
+    updated_at: str
+
+
+class CommunityDirectThreadResponse(BaseModel):
+    thread: CommunityDirectThreadItem
+    messages: list[CommunityDirectMessageItem] = Field(default_factory=list)
+
+
+class CommunityDirectThreadListResponse(BaseModel):
+    threads: list[CommunityDirectThreadItem] = Field(default_factory=list)
+
 class StudentStepStatus(str, Enum):
     DONE = "done"
     CURRENT = "current"

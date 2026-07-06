@@ -11,6 +11,8 @@ import {
   createCommunityPost,
   fetchCommunityAssistantThread,
   fetchCommunityBootstrap,
+  fetchCommunityDirectThread,
+  fetchCommunityDirectThreads,
   fetchCommunityEventsCalendar,
   fetchCommunityGroups,
   fetchCommunityNotifications,
@@ -20,6 +22,7 @@ import {
   toggleCommunityGroupMembership,
   toggleCommunityEventAttendance,
   sendCommunityAssistantMessage,
+  sendCommunityDirectMessage,
   toggleCommunityReaction,
   toggleCommunityProfileFollow,
   voteCommunityPoll,
@@ -30,6 +33,7 @@ import {
   fetchGroupPosts,
   type CommunityGroupItem as ApiGroupItem,
   type CommunityEventCalendarItem as ApiEventItem,
+  type CommunityDirectThreadItem,
   type CommunityNotificationItem,
   type CommunityAdItem,
 } from "@/lib/community";
@@ -903,6 +907,7 @@ export function CommunityNetwork() {
   const [messageTargetId, setMessageTargetId] = useState("piehub");
   const [messages, setMessages] = useState<MessageItem[]>(() => createConversationStarter("piehub"));
   const [communityConversationId, setCommunityConversationId] = useState<string | null>(null);
+  const [directThreads, setDirectThreads] = useState<CommunityDirectThreadItem[]>([]);
   const [messageDraft, setMessageDraft] = useState("");
   const [storyIndex, setStoryIndex] = useState<number | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
@@ -1077,6 +1082,7 @@ export function CommunityNetwork() {
           setNotifications(data.notifications);
           setUnreadNotifCount(data.unreadCount);
         }).catch(() => {});
+        fetchCommunityDirectThreads().then(setDirectThreads).catch(() => setDirectThreads([]));
       }
     } catch {
       setCommunityUsers(USERS);
@@ -1108,6 +1114,24 @@ export function CommunityNetwork() {
       if (error instanceof Error && error.message === "AUTH_REQUIRED") {
         return;
       }
+    }
+  }
+
+
+  async function loadDirectThread(targetProfileId: string) {
+    setIsAssistantMessageLoading(true);
+    try {
+      const payload = await fetchCommunityDirectThread(targetProfileId);
+      setMessages(payload.messages.length ? payload.messages : []);
+      setDirectThreads((current) => [
+        payload.thread,
+        ...current.filter((thread) => thread.id !== payload.thread.id),
+      ]);
+    } catch {
+      setMessages([]);
+      pushToast("Ce profil ne peut pas encore recevoir de messages privés.");
+    } finally {
+      setIsAssistantMessageLoading(false);
     }
   }
 
@@ -1751,13 +1775,15 @@ export function CommunityNetwork() {
     }
     setActiveTab("messages");
     setMessageTargetId(userId);
-    setMessages(createConversationStarter(userId, communityUsers));
+    setMessages(userId === "piehub" ? createConversationStarter(userId, communityUsers) : []);
     setCommunityConversationId(null);
     setIsAssistantMessageLoading(false);
     setMessageOpen(true);
     focusMainContent();
     if (userId === "piehub") {
       void loadPiehubThread();
+    } else {
+      void loadDirectThread(userId);
     }
   }
 
@@ -1791,17 +1817,21 @@ export function CommunityNetwork() {
       return;
     }
 
-    setMessages((current) => [
-      ...current,
-      { from: "me", text, time: currentClock() },
-      {
-        from: "them",
-        text: `${messageTarget.name} recevra votre message dans PieHUB. Pour une réponse officielle immédiate, ouvrez aussi Guide PieHUB.`,
-        time: currentClock(),
-      },
-    ]);
-    setMessageDraft("");
-    pushToast(`Message envoyé à ${messageTarget.name}.`);
+    setIsAssistantMessageLoading(true);
+    try {
+      const payload = await sendCommunityDirectMessage(messageTargetId, text);
+      setMessages(payload.messages);
+      setDirectThreads((current) => [
+        payload.thread,
+        ...current.filter((thread) => thread.id !== payload.thread.id),
+      ]);
+      setMessageDraft("");
+      pushToast(`Message envoyé à ${messageTarget.name}.`);
+    } catch {
+      pushToast("Message impossible : ce membre n'a pas encore de compte de réception PieHUB.");
+    } finally {
+      setIsAssistantMessageLoading(false);
+    }
   }
 
   function loadMore() {
@@ -2063,7 +2093,7 @@ export function CommunityNetwork() {
                   <strong>{findCommunityUser("piehub").name}</strong>
                   <span>A l&apos;instant</span>
                 </div>
-                <div className="social-comment-text is-pending">Guide PieHUB prepare une reponse...</div>
+                <div className="social-comment-text is-pending">{messageTargetId === "piehub" ? "Guide PieHUB prepare une reponse..." : "Envoi du message..."}</div>
               </div>
             </div>
           ) : null}
@@ -2938,30 +2968,53 @@ export function CommunityNetwork() {
                 disponible.
               </p>
               <div className="social-stack">
-                {["piehub", "ibrahim", "junior"].map((userId) => {
-                  const user = findCommunityUser(userId);
-                  return (
+                <div className="social-list-card">
+                  <span className="social-avatar social-avatar-sm social-avatar-with-status" style={{ backgroundColor: findCommunityUser("piehub").color }}>
+                    {findCommunityUser("piehub").avatar}
+                  </span>
+                  <span className="social-list-copy">
+                    <strong>Guide PieHUB</strong>
+                    <small>Assistant communautaire séparé des messages privés.</small>
+                  </span>
+                  <button className="social-message-button" onClick={() => openMessagesWith("piehub")} type="button">Ouvrir</button>
+                </div>
+
+                {directThreads.length ? (
+                  <div className="social-message-section-title">Conversations récentes</div>
+                ) : null}
+                {directThreads.map((thread) => (
+                  <div className={`social-list-card ${thread.unreadCount ? "is-unread" : ""}`} key={`direct-${thread.id}`}>
+                    <span className="social-avatar social-avatar-sm social-avatar-with-status" style={{ backgroundColor: thread.targetProfile.color }}>
+                      {thread.targetProfile.avatar}
+                    </span>
+                    <span className="social-list-copy">
+                      <strong>{thread.targetProfile.name}</strong>
+                      <small>{thread.lastMessage ? thread.lastMessage.text : "Conversation privée PieHUB"} · {thread.updatedAt}</small>
+                    </span>
+                    <button className="social-message-button" onClick={() => openMessagesWith(thread.targetProfile.id)} type="button">
+                      {thread.unreadCount ? `${thread.unreadCount} nouveau` : "Ouvrir"}
+                    </button>
+                  </div>
+                ))}
+
+                <div className="social-message-section-title">Membres à contacter</div>
+                {communityUsers
+                  .filter((user) => user.id !== currentProfileId && user.id !== "piehub")
+                  .slice(0, 8)
+                  .map((user) => (
                     <div className="social-list-card" key={`thread-${user.id}`}>
-                      <span
-                        className="social-avatar social-avatar-sm social-avatar-with-status"
-                        style={{ backgroundColor: user.color }}
-                      >
+                      <span className="social-avatar social-avatar-sm social-avatar-with-status" style={{ backgroundColor: user.color }}>
                         {user.avatar}
                       </span>
                       <span className="social-list-copy">
                         <strong>{user.name}</strong>
                         <small>{user.bio}</small>
                       </span>
-                      <button
-                        className="social-message-button"
-                        onClick={() => openMessagesWith(user.id)}
-                        type="button"
-                      >
-                        Ouvrir
+                      <button className="social-message-button" onClick={() => openMessagesWith(user.id)} type="button">
+                        Message
                       </button>
                     </div>
-                  );
-                })}
+                  ))}
               </div>
             </section>
           ) : null}
@@ -3116,6 +3169,9 @@ export function CommunityNetwork() {
             </div>
           </div>
           <div className="social-message-body">
+            {!messages.length && !isAssistantMessageLoading ? (
+              <div className="social-message-empty">Aucun message pour le moment. Écrivez le premier message.</div>
+            ) : null}
             {messages.map((message, index) => (
               <div className={`social-message-line is-${message.from}`} key={`${message.time}-${index}`}>
                 <div className={`social-message-bubble is-${message.from}`}>{message.text}</div>
@@ -3124,7 +3180,7 @@ export function CommunityNetwork() {
             ))}
             {isAssistantMessageLoading ? (
               <div className="social-message-line is-them">
-                <div className="social-message-bubble is-them is-pending">Guide PieHUB prepare une reponse...</div>
+                <div className="social-message-bubble is-them is-pending">{messageTargetId === "piehub" ? "Guide PieHUB prepare une reponse..." : "Envoi du message..."}</div>
                 <div className="social-message-time is-them">A l&apos;instant</div>
               </div>
             ) : null}

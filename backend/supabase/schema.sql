@@ -1400,6 +1400,55 @@ with check (auth.uid() = created_by_user_id or public.is_admin());
 
 
 
+
+
+-- ── Community Direct Messages ────────────────────────────────────────────────
+create table if not exists public.community_direct_threads (
+  id uuid primary key default gen_random_uuid(),
+  participant_low_user_id uuid not null references auth.users(id) on delete cascade,
+  participant_high_user_id uuid not null references auth.users(id) on delete cascade,
+  participant_low_profile_id text not null references public.community_profiles(id) on delete cascade,
+  participant_high_profile_id text not null references public.community_profiles(id) on delete cascade,
+  last_message_at timestamptz not null default timezone('utc', now()),
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  unique (participant_low_user_id, participant_high_user_id)
+);
+
+create table if not exists public.community_direct_messages (
+  id uuid primary key default gen_random_uuid(),
+  thread_id uuid not null references public.community_direct_threads(id) on delete cascade,
+  sender_user_id uuid not null references auth.users(id) on delete cascade,
+  sender_profile_id text not null references public.community_profiles(id) on delete cascade,
+  recipient_user_id uuid not null references auth.users(id) on delete cascade,
+  recipient_profile_id text not null references public.community_profiles(id) on delete cascade,
+  body text not null,
+  read_at timestamptz,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists community_direct_threads_participants_idx
+  on public.community_direct_threads (participant_low_user_id, participant_high_user_id, last_message_at desc);
+create index if not exists community_direct_messages_thread_idx
+  on public.community_direct_messages (thread_id, created_at);
+create index if not exists community_direct_messages_recipient_unread_idx
+  on public.community_direct_messages (recipient_user_id, read_at, created_at desc);
+
+alter table public.community_direct_threads enable row level security;
+alter table public.community_direct_messages enable row level security;
+
+drop policy if exists "community_direct_threads_participants" on public.community_direct_threads;
+create policy "community_direct_threads_participants" on public.community_direct_threads
+for all to authenticated
+using (auth.uid() = participant_low_user_id or auth.uid() = participant_high_user_id or public.is_admin())
+with check (auth.uid() = participant_low_user_id or auth.uid() = participant_high_user_id or public.is_admin());
+
+drop policy if exists "community_direct_messages_participants" on public.community_direct_messages;
+create policy "community_direct_messages_participants" on public.community_direct_messages
+for all to authenticated
+using (auth.uid() = sender_user_id or auth.uid() = recipient_user_id or public.is_admin())
+with check (auth.uid() = sender_user_id or auth.uid() = recipient_user_id or public.is_admin());
+
 -- ── Community Reports / Moderation ───────────────────────────────────────────
 create table if not exists public.community_reports (
   id uuid primary key default gen_random_uuid(),

@@ -16338,3 +16338,28 @@ html[data-theme="dark"]:not(:has(.private-app-shell)) .btn-outline:hover {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+
+/* ── PieHUB direct messages ───────────────────────────────────────────────── */
+.social-message-section-title {
+  margin: 8px 2px 2px;
+  color: #8896a8;
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.social-list-card.is-unread {
+  border-color: rgba(200, 149, 42, .55);
+  background: linear-gradient(90deg, rgba(200,149,42,.08), #fff 42%);
+}
+
+.social-message-empty {
+  margin: 16px auto;
+  max-width: 260px;
+  text-align: center;
+  color: #8896a8;
+  font-size: .84rem;
+  line-height: 1.45;
+}
