@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { ActionLink } from "@/components/action-link";
 import { ConversionFunnel } from "@/components/conversion-funnel";
 import { FAQAccordion } from "@/components/faq-accordion";
@@ -25,6 +26,19 @@ const alternativePages = servicePages.filter((page) =>
 );
 const visibleCommunityLinks = company.communityLinks;
 const homepageFaqItems = faqItems.slice(0, 5);
+
+export const metadata: Metadata = {
+  title: "PieAgency — Agence d’accompagnement étudiant France, Campus France, Visa & Belgique",
+  description:
+    "PieAgency est le site officiel d’accompagnement étudiant pour Campus France, visa étudiant France, Belgique, documents, entretien, logement, budget et suivi personnalisé.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "PieAgency — Accompagnement étudiant France, Visa & Belgique",
+    description:
+      "Site officiel PieAgency : diagnostic, Campus France, visa étudiant, Belgique, documents, entretien et suivi de dossier.",
+    url: "https://pieagency.fr/",
+  },
+};
 
 export default function HomePage() {
   return (
@@ -145,6 +159,25 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section-sm brand-entity-section">
+        <div className="container">
+          <div className="brand-entity-card">
+            <div>
+              <span>Site officiel</span>
+              <h2>PieAgency accompagne les étudiants vers la France et la Belgique.</h2>
+              <p>
+                PieAgency, aussi recherché comme PIE Agency ou Pie Agency, aide les candidats à structurer leur dossier Campus France,
+                préparer le visa étudiant, organiser les documents, anticiper l’entretien et suivre leur projet d’études avec méthode.
+              </p>
+            </div>
+            <div className="brand-entity-links">
+              <ActionLink href="/about" variant="outline">À propos de PieAgency</ActionLink>
+              <ActionLink href="/contact?source=brand_entity&intent=diagnostic" variant="gold">Diagnostic PieAgency</ActionLink>
             </div>
           </div>
         </div>

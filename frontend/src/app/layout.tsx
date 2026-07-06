@@ -82,18 +82,48 @@ export const metadata: Metadata = {
 
 const organizationJsonLd = {
   "@context": "https://schema.org",
-  "@type": "EducationalOrganization",
+  "@type": ["Organization", "EducationalOrganization", "LocalBusiness"],
+  "@id": `${SITE_URL}/#organization`,
   name: "PieAgency",
+  alternateName: ["PIE Agency", "Pie Agency", "PieAgency France Belgique", "PieAgency Campus France"],
+  legalName: "PieAgency",
   url: SITE_URL,
   logo: `${SITE_URL}/pieagency-logo.jpg`,
+  image: `${SITE_URL}/pieagency-logo.jpg`,
   description:
-    "Accompagnement étudiant pour Campus France, visa étudiant, Belgique, documents, entretien et suivi de dossier.",
+    "PieAgency est une agence d’accompagnement étudiant spécialisée dans Campus France, le visa étudiant France, la Belgique, les documents, l’entretien, le logement, le budget et le suivi de dossier.",
+  slogan: "Étudier en France ou en Belgique avec méthode.",
   areaServed: ["France", "Belgique", "Togo", "Afrique francophone"],
   knowsAbout: siteKeywords,
+  contactPoint: [
+    {
+      "@type": "ContactPoint",
+      contactType: "student support",
+      areaServed: ["France", "Togo", "Afrique francophone"],
+      availableLanguage: ["fr"],
+      url: `${SITE_URL}/contact`,
+    },
+  ],
   sameAs: [
     "https://web.facebook.com/profile.php?id=61564375512991",
     "https://web.facebook.com/groups/8418722288154510/",
   ],
+};
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": `${SITE_URL}/#website`,
+  url: SITE_URL,
+  name: "PieAgency",
+  alternateName: ["PIE Agency", "Pie Agency"],
+  publisher: { "@id": `${SITE_URL}/#organization` },
+  inLanguage: "fr-FR",
+  potentialAction: {
+    "@type": "SearchAction",
+    target: `${SITE_URL}/?q={search_term_string}`,
+    "query-input": "required name=search_term_string",
+  },
 };
 
 export default function RootLayout({
@@ -109,6 +139,10 @@ export default function RootLayout({
       <body>
         <script
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+          type="application/ld+json"
+        />
+        <script
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
           type="application/ld+json"
         />
         <SiteChrome>{children}</SiteChrome>

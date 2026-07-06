@@ -17743,3 +17743,70 @@ html[data-theme="dark"]:not(:has(.private-app-shell)) .btn-outline:hover {
   .service-seo-grid { grid-template-columns: 1fr; }
   .service-seo-links .btn { width: 100%; justify-content: center; }
 }
+
+
+/* ── Brand entity SEO blocks ───────────────────────────────────────────────── */
+.brand-entity-section {
+  background: #fff;
+}
+.brand-entity-card,
+.about-entity-panel {
+  border: 1.5px solid #e4e7ee;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #0d1b38, #071631);
+  color: #fff;
+  box-shadow: 0 18px 48px rgba(13, 27, 56, .10);
+}
+.brand-entity-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  padding: 24px;
+}
+.brand-entity-card span,
+.about-entity-panel span {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: #c8952a;
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.brand-entity-card h2,
+.about-entity-panel h2 {
+  margin: 0;
+  color: #fff;
+  font-family: var(--font-serif), serif;
+  font-size: clamp(1.7rem, 3vw, 2.6rem);
+  line-height: 1.06;
+}
+.brand-entity-card p,
+.about-entity-panel p {
+  max-width: 860px;
+  color: rgba(255,255,255,.76);
+  line-height: 1.65;
+}
+.brand-entity-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.about-entity-panel {
+  padding: 26px;
+  margin-bottom: 28px;
+}
+@media (max-width: 760px) {
+  .brand-entity-card {
+    grid-template-columns: 1fr;
+  }
+  .brand-entity-links {
+    justify-content: flex-start;
+  }
+  .brand-entity-links .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
