@@ -4,6 +4,7 @@ import { FAQAccordion } from "@/components/faq-accordion";
 import { AnimatedProgressBar, CountUp } from "@/components/hero-animated";
 import { Reveal } from "@/components/reveal";
 import { SectionHeader } from "@/components/section-header";
+import { SeoPillarHub } from "@/components/seo-pillar-hub";
 import { SocialProofShowcase } from "@/components/social-proof-showcase";
 import { Typewriter } from "@/components/typewriter";
 import {
@@ -465,6 +466,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <SeoPillarHub />
 
       <section className="section bg-gray">
         <div className="container container-faq">
