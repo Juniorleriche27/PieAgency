@@ -81,6 +81,39 @@ export function StudentSpaceView() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
+  const currentStep = dashboard.steps.find((step) => step.status === "current") ?? dashboard.steps.find((step) => step.status === "todo") ?? null;
+  const missingDocuments = dashboard.documents.filter((document) => document.status === "missing");
+  const reviewDocuments = dashboard.documents.filter((document) => document.status === "review");
+  const hasStartedCase = dashboard.total_steps > 0 || dashboard.documents.length > 0 || dashboard.notes.length > 0;
+  const caseHealthLabel = dashboard.progress_percent >= 70
+    ? "Dossier bien avancé"
+    : dashboard.progress_percent >= 35
+      ? "Dossier en construction"
+      : hasStartedCase
+        ? "Démarrage à sécuriser"
+        : "Diagnostic à lancer";
+  const caseHealthTone = dashboard.progress_percent >= 70 ? "good" : dashboard.progress_percent >= 35 ? "info" : "attention";
+  const premiumRecommendations = [
+    {
+      title: "Clarifier le diagnostic",
+      text: hasStartedCase ? "Vérifiez que votre objectif, pays, niveau et délais sont à jour." : "Remplissez le diagnostic pour recevoir une orientation plus précise.",
+      href: "/espace-etudiant/diagnostic",
+      cta: "Ouvrir le diagnostic",
+    },
+    {
+      title: "Sécuriser les documents",
+      text: missingDocuments.length ? `${missingDocuments.length} document(s) manquant(s) à traiter en priorité.` : "Gardez vos pièces prêtes pour accélérer la validation du dossier.",
+      href: "/espace-etudiant/documents",
+      cta: "Voir documents",
+    },
+    {
+      title: "Passer à l’accompagnement",
+      text: "Une fois le diagnostic validé, démarrez l’offre adaptée et suivez les étapes dans l’espace privé.",
+      href: "/espace-etudiant/abonnement",
+      cta: "Voir accompagnement",
+    },
+  ];
+
   useEffect(() => {
     if (!isReady) {
       return;
@@ -177,11 +210,50 @@ export function StudentSpaceView() {
   }
 
   return (
-    <div className="portal-shell">
+    <div className="portal-shell portal-shell-premium">
       {loadError ? <div className="portal-warning">{loadError}</div> : null}
 
+      <div className="student-premium-hero">
+        <div>
+          <div className="portal-card-kicker">Espace étudiant premium</div>
+          <h1>{dashboard.student_name}</h1>
+          <p>{dashboard.project_name} · Référence {dashboard.case_reference}</p>
+          <div className="student-premium-tags">
+            <span>{dashboard.status_label}</span>
+            <span className={`is-${caseHealthTone}`}>{caseHealthLabel}</span>
+            <span>MAJ {dashboard.last_update_label}</span>
+          </div>
+        </div>
+        <div className="student-premium-progress-card">
+          <span>Progression</span>
+          <strong>{dashboard.progress_percent}%</strong>
+          <div className="portal-progress compact">
+            <div className="portal-progress-bar" style={{ width: `${dashboard.progress_percent}%` }} />
+          </div>
+          <small>{dashboard.completed_steps}/{dashboard.total_steps || 0} étapes validées</small>
+        </div>
+      </div>
+
+      <div className="student-next-action-panel">
+        <div>
+          <span>Prochaine meilleure action</span>
+          <strong>{currentStep?.title || dashboard.next_action}</strong>
+          <p>{currentStep?.description || dashboard.next_action}</p>
+        </div>
+        <div className="student-next-action-ctas">
+          <ActionLink href="/espace-etudiant/diagnostic" variant="gold">Diagnostic</ActionLink>
+          <ActionLink href="/espace-etudiant/documents" variant="outline">Documents</ActionLink>
+          <ActionLink href="/espace-etudiant/assistant" variant="outline">Assistant</ActionLink>
+        </div>
+      </div>
+
       <div className="portal-metrics">
-        {dashboard.metrics.map((metric) => (
+        {(dashboard.metrics.length ? dashboard.metrics : [
+          { label: "Progression", value: `${dashboard.progress_percent}%`, detail: caseHealthLabel, tone: caseHealthTone as MetricTone },
+          { label: "Documents", value: String(dashboard.documents.length), detail: missingDocuments.length ? `${missingDocuments.length} manquant(s)` : "Centre prêt", tone: missingDocuments.length ? "attention" as MetricTone : "good" as MetricTone },
+          { label: "Étapes", value: `${dashboard.completed_steps}/${dashboard.total_steps || 0}`, detail: currentStep?.title || "À lancer", tone: "info" as MetricTone },
+          { label: "Conseiller", value: dashboard.assigned_counselor || "À définir", detail: "Suivi PieAgency", tone: "neutral" as MetricTone },
+        ]).map((metric) => (
           <div className="portal-metric" key={metric.label}>
             <div className="portal-metric-label">{metric.label}</div>
             <div className="portal-metric-value">{metric.value}</div>
@@ -189,6 +261,14 @@ export function StudentSpaceView() {
           </div>
         ))}
       </div>
+
+      {(missingDocuments.length || reviewDocuments.length) ? (
+        <div className="student-alert-strip">
+          <strong>Attention dossier</strong>
+          <span>{missingDocuments.length ? `${missingDocuments.length} document(s) manquant(s).` : "Documents en revue."} {reviewDocuments.length ? `${reviewDocuments.length} document(s) en vérification.` : ""}</span>
+          <ActionLink href="/espace-etudiant/documents" variant="primary">Corriger</ActionLink>
+        </div>
+      ) : null}
 
       <div className="portal-grid">
         <div className="portal-card">
@@ -241,8 +321,11 @@ export function StudentSpaceView() {
             <h3>Prochain point a traiter</h3>
             <p>{dashboard.next_action}</p>
             <div className="portal-actions">
-              <ActionLink href="/contact" variant="primary">
-                Contacter PieAgency
+              <ActionLink href="/espace-etudiant/diagnostic" variant="primary">
+                Continuer mon diagnostic
+              </ActionLink>
+              <ActionLink href="/paiement" variant="gold">
+                Démarrer l’accompagnement
               </ActionLink>
               <button
                 className="btn btn-outline"
@@ -284,6 +367,17 @@ export function StudentSpaceView() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="student-recommendation-grid">
+        {premiumRecommendations.map((item) => (
+          <div className="student-recommendation-card" key={item.title}>
+            <span>Recommandé</span>
+            <strong>{item.title}</strong>
+            <p>{item.text}</p>
+            <ActionLink href={item.href} variant="outline">{item.cta}</ActionLink>
+          </div>
+        ))}
       </div>
 
       <div className="portal-card">
