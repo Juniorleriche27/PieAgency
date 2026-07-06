@@ -2172,7 +2172,63 @@ export function CommunityNetwork() {
     return true;
   });
 
+  const joinedApiGroupIds = new Set(apiGroups.filter((group) => group.isMember).map((group) => String(group.id)));
+  const getSmartFeedScore = (post: SocialPost) => {
+    const isOpenQuestion = post.isQuestion && post.questionStatus === "open";
+    const hasOfficialSignal = post.hasOfficialAnswer || post.comments.some((comment) => comment.isOfficial || comment.userId === "piehub");
+    const isFromFollowedMember = followingSet.has(post.userId);
+    const isFromJoinedGroup = post.groupId ? joinedApiGroupIds.has(String(post.groupId)) : false;
+    const engagementScore = Math.min(post.likes + post.comments.length * 3 + post.shares * 2, 40);
+    const recencyScore = Math.max(0, 30 - Math.min(Math.abs(post.id - postIdRef.current), 30));
+
+    return (
+      recencyScore +
+      engagementScore +
+      (isOpenQuestion ? 55 : 0) +
+      (hasOfficialSignal ? 28 : 0) +
+      (isFromJoinedGroup ? 24 : 0) +
+      (isFromFollowedMember ? 16 : 0)
+    );
+  };
+  const smartFeedPosts = [...filteredFeedPosts].sort((a, b) => getSmartFeedScore(b) - getSmartFeedScore(a));
+  const recommendedFeedPosts = smartFeedPosts
+    .filter((post) => post.isQuestion || post.groupId || followingSet.has(post.userId) || post.comments.length > 0)
+    .slice(0, 3);
+  const recentFeedPosts = [...posts].sort((a, b) => b.id - a.id).slice(0, 3);
   const officialInterventionPosts = posts.filter((post) => post.hasOfficialAnswer || post.comments.some((comment) => comment.isOfficial || comment.userId === "piehub"));
+  const hasAskedQuestion = posts.some((post) => post.userId === currentProfileId && post.isQuestion);
+  const socialOnboardingSteps = [
+    {
+      key: "profile",
+      label: "Profil clair",
+      detail: "Ajoutez votre étape, pays et centres d'intérêt pour être mieux aidé.",
+      done: Boolean(currentUser.bio && currentUser.tags.length >= 2 && currentUser.stageLabel),
+      action: "Voir mon profil",
+    },
+    {
+      key: "group",
+      label: "Premier groupe",
+      detail: "Rejoignez un espace Campus France, Visa ou logement pour recevoir les bons sujets.",
+      done: joinedGroupCount > 0,
+      action: "Rejoindre",
+    },
+    {
+      key: "question",
+      label: "Première question",
+      detail: "Posez une question précise et laissez la communauté vous orienter.",
+      done: hasAskedQuestion,
+      action: "Question",
+    },
+    {
+      key: "follow",
+      label: "Réseau utile",
+      detail: "Suivez au moins 3 membres ou conseillers pour personnaliser votre fil.",
+      done: followingSet.size >= 3,
+      action: "Explorer",
+    },
+  ];
+  const onboardingDoneCount = socialOnboardingSteps.filter((step) => step.done).length;
+  const onboardingProgress = Math.round((onboardingDoneCount / socialOnboardingSteps.length) * 100);
 
   const similarQuestionPosts = composeMode === "question"
     ? posts
@@ -2369,6 +2425,87 @@ export function CommunityNetwork() {
                 </div>
               </div>
 
+              <div className="social-onboarding-panel">
+                <div className="social-onboarding-head">
+                  <div>
+                    <span>Parcours PieHUB</span>
+                    <strong>Devenez visible et utile dans la communauté</strong>
+                  </div>
+                  <b>{onboardingProgress}%</b>
+                </div>
+                <div className="social-onboarding-progress"><span style={{ width: `${onboardingProgress}%` }} /></div>
+                <div className="social-onboarding-steps">
+                  {socialOnboardingSteps.map((step) => (
+                    <button
+                      className={`social-onboarding-step ${step.done ? "is-done" : ""}`}
+                      key={step.key}
+                      onClick={() => {
+                        if (step.key === "profile") setProfileId(currentProfileId);
+                        if (step.key === "group") switchTab("groupes");
+                        if (step.key === "question") openQuestionComposer();
+                        if (step.key === "follow") { setExplorerTab("membres"); switchTab("explorer"); }
+                      }}
+                      type="button"
+                    >
+                      <span>{step.done ? "✓" : "•"}</span>
+                      <strong>{step.label}</strong>
+                      <small>{step.done ? "Validé" : step.detail}</small>
+                      <em>{step.done ? "OK" : step.action}</em>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {recommendedFeedPosts.length > 0 ? (
+                <div className="social-smart-feed-panel">
+                  <div className="social-smart-feed-head">
+                    <div>
+                      <span>Fil intelligent</span>
+                      <strong>À traiter maintenant</strong>
+                    </div>
+                    <button onClick={() => setFeedFilter("open")} type="button">Voir sans réponse</button>
+                  </div>
+                  <div className="social-smart-feed-grid">
+                    {recommendedFeedPosts.map((post) => {
+                      const author = findCommunityUser(post.userId);
+                      const reason = post.isQuestion && post.questionStatus === "open"
+                        ? "Question prioritaire"
+                        : post.groupId
+                          ? "Depuis un groupe"
+                          : followingSet.has(post.userId)
+                            ? "Membre suivi"
+                            : "Sujet actif";
+                      return (
+                        <button className="social-smart-feed-card" key={`smart-${post.id}`} onClick={() => focusCommentInput(post.id)} type="button">
+                          <span>{reason}</span>
+                          <strong>{getPostPlainText(post).slice(0, 92)}{getPostPlainText(post).length > 92 ? "…" : ""}</strong>
+                          <small>{author.name} · {post.comments.length} réponse{post.comments.length > 1 ? "s" : ""} · {post.likes} j'aime</small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="social-feed-insights">
+                <button onClick={() => setFeedFilter("open")} type="button">
+                  <strong>{openQuestionPosts.length}</strong>
+                  <span>questions à aider</span>
+                </button>
+                <button onClick={() => setFeedFilter("official")} type="button">
+                  <strong>{officialInterventionPosts.length}</strong>
+                  <span>réponses fiables</span>
+                </button>
+                <button onClick={() => switchTab("groupes")} type="button">
+                  <strong>{joinedGroupCount}</strong>
+                  <span>groupes rejoints</span>
+                </button>
+                <button onClick={() => { setExplorerTab("membres"); switchTab("explorer"); }} type="button">
+                  <strong>{followingSet.size}</strong>
+                  <span>membres suivis</span>
+                </button>
+              </div>
+
               <div className="social-safety-panel">
                 <strong>Qualité PieHUB</strong>
                 <span>Fausse information, arnaque, spam ou attaque : signalez. L’équipe PieAgency garde le fil propre.</span>
@@ -2415,8 +2552,8 @@ export function CommunityNetwork() {
                 ))}
               </div>
 
-              {filteredFeedPosts.length > 0 ? (
-                filteredFeedPosts.map((post) => renderPost(post))
+              {smartFeedPosts.length > 0 ? (
+                smartFeedPosts.map((post) => renderPost(post))
               ) : (
                 <div className="social-list-card social-empty-state">
                   <span className="social-list-copy">
@@ -2428,6 +2565,15 @@ export function CommunityNetwork() {
                   </button>
                 </div>
               )}
+
+              <div className="social-recent-strip">
+                <strong>Récents</strong>
+                {recentFeedPosts.map((post) => (
+                  <button key={`recent-${post.id}`} onClick={() => focusCommentInput(post.id)} type="button">
+                    #{post.id} · {getPostPlainText(post).slice(0, 54)}{getPostPlainText(post).length > 54 ? "…" : ""}
+                  </button>
+                ))}
+              </div>
 
               <div className="social-load-more">
                 <button className="social-secondary-button" onClick={loadMore} type="button">
