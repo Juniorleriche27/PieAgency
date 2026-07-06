@@ -2273,6 +2273,22 @@ export function CommunityNetwork() {
   ];
   const onboardingDoneCount = socialOnboardingSteps.filter((step) => step.done).length;
   const onboardingProgress = Math.round((onboardingDoneCount / socialOnboardingSteps.length) * 100);
+  const communityMomentumScore = Math.min(
+    100,
+    Math.round(
+      onboardingProgress * 0.35 +
+      Math.min(openQuestionPosts.length * 8, 28) +
+      Math.min(followingSet.size * 5, 18) +
+      Math.min(joinedGroupCount * 12, 24),
+    ),
+  );
+  const nextBestAction = unreadNotifCount > 0
+    ? "Traiter vos notifications"
+    : openQuestionPosts.length > 0
+      ? "Répondre à une question"
+      : joinedGroupCount === 0
+        ? "Rejoindre un groupe"
+        : "Publier une mise à jour";
 
   const similarQuestionPosts = composeMode === "question"
     ? posts
@@ -2440,7 +2456,7 @@ export function CommunityNetwork() {
                 );
               })()}
 
-              <div className="social-create-card">
+              <div className="social-create-card social-create-card-premium">
                 <div className="social-create-top">
                   <span className="social-avatar" style={{ backgroundColor: currentUser.color }}>
                     {currentUser.avatar}
@@ -2466,6 +2482,25 @@ export function CommunityNetwork() {
                   <button className="social-create-action is-poll" onClick={() => openCompose("poll")} type="button">Sondage</button>
                   <button className="social-create-action is-event" onClick={() => openCompose("event")} type="button">Evenement</button>
                   <button className="social-create-action is-photo" onClick={() => openCompose("story")} type="button">Story</button>
+                </div>
+              </div>
+
+              <div className="social-momentum-panel">
+                <div className="social-momentum-main">
+                  <span>Mission du jour</span>
+                  <strong>{nextBestAction}</strong>
+                  <p>PieHUB devient utile quand chaque visite produit une action : aider, demander, rejoindre ou répondre.</p>
+                </div>
+                <div className="social-momentum-score">
+                  <b>{communityMomentumScore}%</b>
+                  <small>activité</small>
+                </div>
+                <div className="social-momentum-actions">
+                  <button onClick={() => openQuestionPosts[0] ? focusCommentInput(openQuestionPosts[0].id) : openQuestionComposer()} type="button">
+                    {openQuestionPosts.length ? "Aider maintenant" : "Poser une question"}
+                  </button>
+                  <button onClick={() => openMessagesWith("piehub")} type="button">Messages</button>
+                  <button onClick={() => joinedGroupCount ? switchTab("groupes") : switchTab("groupes")} type="button">Groupes</button>
                 </div>
               </div>
 
@@ -2601,8 +2636,8 @@ export function CommunityNetwork() {
               ) : (
                 <div className="social-list-card social-empty-state">
                   <span className="social-list-copy">
-                    <strong>Aucun sujet dans ce filtre.</strong>
-                    <small>Changez de filtre ou posez une nouvelle question.</small>
+                    <strong>Ce filtre est calme pour le moment.</strong>
+                    <small>Créez le prochain sujet utile ou passez au fil intelligent.</small>
                   </span>
                   <button className="social-secondary-button" onClick={() => openQuestionComposer()} type="button">
                     Poser une question
@@ -3273,12 +3308,23 @@ export function CommunityNetwork() {
             </div>
           </div>
 
+          <div className="social-widget social-return-widget">
+            <div className="social-widget-title">
+              <strong>🎯 Pourquoi revenir ?</strong>
+            </div>
+            <div className="social-return-list">
+              <button onClick={() => setFeedFilter("open")} type="button"><strong>{openQuestionPosts.length}</strong><span>questions à aider</span></button>
+              <button onClick={() => setNotifPanelOpen(true)} type="button"><strong>{unreadNotifCount}</strong><span>notifications</span></button>
+              <button onClick={() => openMessagesWith("piehub")} type="button"><strong>{directThreads.length}</strong><span>conversations</span></button>
+            </div>
+          </div>
+
           <div className="social-widget">
             <div className="social-widget-title">
               <strong>🔥 Tendances</strong>
               <button onClick={() => switchTab("explorer")} type="button">Voir tout</button>
             </div>
-            {TRENDING.map((trend, index) => (
+            {dynamicTrends.map((trend, index) => (
               <button className="social-trending-item" key={trend.tag} onClick={() => openTrend(trend.tag)} type="button">
                 <span>{index + 1}</span>
                 <span>
@@ -3310,6 +3356,9 @@ export function CommunityNetwork() {
                 </button>
               </div>
             ))}
+            {communityUsers.filter((user) => !followingSet.has(user.id) && user.id !== currentProfileId).length === 0 ? (
+              <div className="social-widget-empty">Votre réseau est bien lancé. Publiez maintenant pour attirer des réponses.</div>
+            ) : null}
           </div>
 
           <div className="social-widget">
