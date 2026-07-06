@@ -52,7 +52,7 @@ def _email_confirmation_redirect_url() -> str:
 
 
 def _password_recovery_redirect_url() -> str:
-    return f"{settings.frontend_origin.rstrip('/')}/connexion?mode=recovery"
+    return f"{settings.frontend_origin.rstrip('/')}/connexion"
 
 
 def _determine_role(email: str | None, existing_role: str | None = None) -> PlatformRole:

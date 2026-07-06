@@ -895,6 +895,18 @@ def _ensure_user_profile(client, current_user: AuthUserProfile) -> CommunityProf
         or (current_user.email.split("@")[0].replace(".", " ").replace("_", " ").title() if current_user.email else "")
         or "Etudiant PieHUB"
     )
+
+    existing_response = (
+        client.table("community_profiles")
+        .select("*")
+        .eq("user_id", current_user.user_id)
+        .limit(1)
+        .execute()
+    )
+    existing_rows = existing_response.data or []
+    if existing_rows:
+        return _build_profile_item(existing_rows[0])
+
     payload = {
         "id": profile_id,
         "user_id": current_user.user_id,
@@ -1814,7 +1826,8 @@ def create_community_group(
     access_token: str,
 ) -> CommunityGroupMembershipResponse:
     client = _get_client(access_token)
-    profile_id = f"user:{current_user.user_id}"
+    profile = _ensure_user_profile(client, current_user)
+    profile_id = profile.id
     row = {
         "name": payload.name,
         "description": payload.description or "",
@@ -1849,7 +1862,8 @@ def toggle_community_group_membership(
 ) -> CommunityGroupMembershipResponse:
     client = _get_client(access_token)
     user_id = current_user.user_id
-    profile_id = f"user:{user_id}"
+    profile = _ensure_user_profile(client, current_user)
+    profile_id = profile.id
     existing = (
         client.table("community_group_members")
         .select("id")
@@ -1858,13 +1872,12 @@ def toggle_community_group_membership(
         .limit(1)
         .execute()
     )
+    group_count_resp = client.table("community_groups").select("member_count").eq("id", group_id).limit(1).execute()
+    current_member_count = int((group_count_resp.data or [{}])[0].get("member_count") or 0)
     is_member = bool(existing.data)
     if is_member:
         client.table("community_group_members").delete().eq("group_id", group_id).eq("user_id", user_id).execute()
-        try:
-            client.rpc("decrement_group_member_count", {"p_group_id": group_id}).execute()
-        except Exception:
-            pass
+        client.table("community_groups").update({"member_count": max(current_member_count - 1, 0)}).eq("id", group_id).execute()
         new_is_member = False
     else:
         client.table("community_group_members").insert({
@@ -1873,10 +1886,7 @@ def toggle_community_group_membership(
             "profile_id": profile_id,
             "role": "member",
         }).execute()
-        try:
-            client.rpc("increment_group_member_count", {"p_group_id": group_id}).execute()
-        except Exception:
-            pass
+        client.table("community_groups").update({"member_count": current_member_count + 1}).eq("id", group_id).execute()
         new_is_member = True
     group_resp = client.table("community_groups").select("*").eq("id", group_id).limit(1).execute()
     group_row = (group_resp.data or [{}])[0]
@@ -1899,7 +1909,8 @@ def create_community_event(
     access_token: str,
 ) -> CommunityEventAttendanceResponse:
     client = _get_client(access_token)
-    profile_id = f"user:{current_user.user_id}"
+    profile = _ensure_user_profile(client, current_user)
+    profile_id = profile.id
     row = {
         "name": payload.name,
         "description": payload.description or "",
@@ -1934,7 +1945,8 @@ def toggle_community_event_attendance(
 ) -> CommunityEventAttendanceResponse:
     client = _get_client(access_token)
     user_id = current_user.user_id
-    profile_id = f"user:{user_id}"
+    profile = _ensure_user_profile(client, current_user)
+    profile_id = profile.id
     existing = (
         client.table("community_event_attendees")
         .select("id")
@@ -1943,13 +1955,12 @@ def toggle_community_event_attendance(
         .limit(1)
         .execute()
     )
+    event_count_resp = client.table("community_events_calendar").select("attendee_count").eq("id", event_id).limit(1).execute()
+    current_attendee_count = int((event_count_resp.data or [{}])[0].get("attendee_count") or 0)
     is_attending = bool(existing.data)
     if is_attending:
         client.table("community_event_attendees").delete().eq("event_id", event_id).eq("user_id", user_id).execute()
-        try:
-            client.rpc("decrement_event_attendee_count", {"p_event_id": event_id}).execute()
-        except Exception:
-            pass
+        client.table("community_events_calendar").update({"attendee_count": max(current_attendee_count - 1, 0)}).eq("id", event_id).execute()
         new_is_attending = False
     else:
         client.table("community_event_attendees").insert({
@@ -1957,10 +1968,7 @@ def toggle_community_event_attendance(
             "user_id": user_id,
             "profile_id": profile_id,
         }).execute()
-        try:
-            client.rpc("increment_event_attendee_count", {"p_event_id": event_id}).execute()
-        except Exception:
-            pass
+        client.table("community_events_calendar").update({"attendee_count": current_attendee_count + 1}).eq("id", event_id).execute()
         new_is_attending = True
     event_resp = client.table("community_events_calendar").select("*").eq("id", event_id).limit(1).execute()
     event_row = (event_resp.data or [{}])[0]
@@ -2153,7 +2161,8 @@ def create_community_ad(
     access_token: str,
 ) -> CommunityAdItem:
     client = _get_client(access_token)
-    profile_id = f"user:{current_user.user_id}"
+    profile = _ensure_user_profile(client, current_user)
+    profile_id = profile.id
     row = {
         "title": payload.title,
         "body": payload.body or "",

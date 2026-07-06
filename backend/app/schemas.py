@@ -539,6 +539,7 @@ class CommunityPostCreateRequest(BaseModel):
     question: str | None = Field(default=None, max_length=300)
     options: list[str] = Field(default_factory=list, max_length=6)
     group_id: str | None = None
+    is_question: bool = False
 
     @field_validator("tag", "content", "resource_name", "resource_size", "question", mode="before")
     @classmethod
