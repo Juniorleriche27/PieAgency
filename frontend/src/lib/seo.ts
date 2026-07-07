@@ -20,7 +20,11 @@ export const siteKeywords = [
 export const publicRoutes = [
   { path: "/", priority: 1, changeFrequency: "weekly" as const },
   { path: "/campus-france", priority: 0.95, changeFrequency: "weekly" as const },
+  { path: "/campus-france/entretien-campus-france", priority: 0.86, changeFrequency: "weekly" as const },
+  { path: "/campus-france/dossier-campus-france", priority: 0.88, changeFrequency: "weekly" as const },
   { path: "/visa", priority: 0.92, changeFrequency: "weekly" as const },
+  { path: "/visa/hebergement-etudiant", priority: 0.84, changeFrequency: "weekly" as const },
+  { path: "/visa/justificatifs-financiers", priority: 0.86, changeFrequency: "weekly" as const },
   { path: "/belgique", priority: 0.9, changeFrequency: "weekly" as const },
   { path: "/paris-saclay", priority: 0.72, changeFrequency: "monthly" as const },
   { path: "/parcoursup", priority: 0.72, changeFrequency: "monthly" as const },
