@@ -18318,3 +18318,520 @@ html[data-theme="dark"]:not(:has(.private-app-shell)) .btn-outline:hover {
     font-size: .78rem;
   }
 }
+
+
+/* ── PieHUB Facebook-like mobile source layout ───────────────────────────────
+   Objectif: mobile-first réel, aucune largeur desktop dans le feed mobile. */
+@media (max-width: 700px) {
+  :root {
+    --piehub-mobile-gutter: 8px;
+    --piehub-mobile-radius: 12px;
+  }
+
+  html,
+  body,
+  #__next {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden !important;
+  }
+
+  .social-page-shell {
+    width: 100% !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    overflow-x: clip !important;
+    background: #f0f2f5 !important;
+  }
+
+  .social-page-shell *,
+  .social-page-shell *::before,
+  .social-page-shell *::after {
+    box-sizing: border-box;
+  }
+
+  .social-page-shell :where(div, section, article, aside, main, header, footer, form, nav, ul, li, p, h1, h2, h3, h4, h5, h6, span, small, strong, button, input, textarea, a) {
+    min-width: 0;
+  }
+
+  .social-page-shell :where(img, video, iframe, canvas, svg) {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Header mobile type Facebook: logo + actions, search en dessous. */
+  .social-topbar {
+    position: sticky !important;
+    top: 0;
+    z-index: 60;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-areas: "brand actions" "search search" !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    min-height: 0 !important;
+    padding: 8px var(--piehub-mobile-gutter) 7px !important;
+    margin: 0 !important;
+    border-bottom: 1px solid #e4e6eb !important;
+    background: rgba(255,255,255,.98) !important;
+    backdrop-filter: blur(10px);
+    overflow: hidden !important;
+  }
+
+  .social-topbar-left {
+    grid-area: brand;
+    display: flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .social-topbar-brand {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    gap: 7px !important;
+  }
+
+  .social-topbar-logo {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    border-radius: 10px !important;
+  }
+
+  .social-topbar-brand-text {
+    display: inline-block !important;
+    max-width: 78px !important;
+    overflow: hidden !important;
+    color: #0d1b38 !important;
+    font-size: .92rem !important;
+    font-weight: 900 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .social-topbar-site-link {
+    display: none !important;
+  }
+
+  .social-topbar-actions {
+    grid-area: actions;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+  }
+
+  .social-auth-status {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    max-width: 34px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    color: transparent !important;
+    font-size: 0 !important;
+  }
+
+  .social-auth-status > span {
+    width: 9px !important;
+    height: 9px !important;
+    margin: 0 !important;
+  }
+
+  .social-icon-button,
+  .social-profile-trigger {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    flex: 0 0 34px !important;
+    border-radius: 50% !important;
+    font-size: .9rem !important;
+  }
+
+  .social-notif-badge {
+    top: -3px !important;
+    right: -3px !important;
+  }
+
+  .social-topbar-search {
+    grid-area: search;
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    height: 38px !important;
+    margin: 0 !important;
+    padding: 0 6px 0 12px !important;
+    border-radius: 999px !important;
+    background: #f0f2f5 !important;
+    box-shadow: none !important;
+  }
+
+  .social-topbar-search-input {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    font-size: .82rem !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .social-topbar-search-input::placeholder {
+    color: #7c889a !important;
+    opacity: 1;
+  }
+
+  .social-topbar-search-button {
+    height: 28px !important;
+    min-width: 0 !important;
+    padding: 0 11px !important;
+    border-radius: 999px !important;
+    font-size: .72rem !important;
+    white-space: nowrap !important;
+  }
+
+  /* Navigation mobile horizontale, pas de débordement page. */
+  .social-mobile-tabs-wrapper {
+    position: sticky;
+    top: 89px;
+    z-index: 50;
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow: hidden !important;
+    border-bottom: 1px solid #e4e6eb;
+    background: #fff;
+  }
+
+  .social-mobile-tabs {
+    display: flex !important;
+    gap: 7px !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    padding: 7px var(--piehub-mobile-gutter) !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none;
+  }
+
+  .social-mobile-tabs::-webkit-scrollbar,
+  .social-question-categories::-webkit-scrollbar,
+  .social-feed-filter-bar::-webkit-scrollbar,
+  .social-stories-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .social-mobile-tab {
+    flex: 0 0 auto !important;
+    min-height: 34px !important;
+    padding: 0 12px !important;
+    border-radius: 999px !important;
+    font-size: .76rem !important;
+    white-space: nowrap !important;
+    scroll-snap-align: start;
+  }
+
+  /* Source layout: une seule colonne, sidebars supprimées sur mobile. */
+  .social-app-shell {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    padding: var(--piehub-mobile-gutter) var(--piehub-mobile-gutter) 86px !important;
+    margin: 0 !important;
+    gap: 8px !important;
+    overflow-x: clip !important;
+  }
+
+  .social-sidebar-left,
+  .social-sidebar-right {
+    display: none !important;
+  }
+
+  .social-main-feed {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Facebook mobile: garder le coeur social. Les panneaux croissance desktop sont cachés. */
+  .social-momentum-panel,
+  .social-onboarding-panel,
+  .social-smart-feed-panel,
+  .social-feed-insights,
+  .social-safety-panel,
+  .social-official-history-panel,
+  .social-open-questions-panel {
+    display: none !important;
+  }
+
+  .social-stories-row {
+    display: flex !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 2px 0 8px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+
+  .social-story-card {
+    flex: 0 0 72px !important;
+    max-width: 72px !important;
+  }
+
+  .social-create-card,
+  .social-post-card,
+  .social-list-card,
+  .social-search-summary,
+  .social-guide-insight-card,
+  .social-empty-state {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 0 8px !important;
+    border-radius: var(--piehub-mobile-radius) !important;
+    border: 1px solid #e4e6eb !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    background: #fff !important;
+  }
+
+  .social-create-card {
+    padding: 10px !important;
+  }
+
+  .social-create-top {
+    display: grid !important;
+    grid-template-columns: 38px minmax(0, 1fr) !important;
+    gap: 9px !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+
+  .social-create-top .social-avatar {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+  }
+
+  .social-create-input {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 40px !important;
+    height: auto !important;
+    padding: 9px 12px !important;
+    border-radius: 999px !important;
+    justify-content: flex-start !important;
+    overflow: hidden !important;
+    line-height: 1.25 !important;
+    text-align: left !important;
+    white-space: normal !important;
+  }
+
+  .social-question-categories,
+  .social-feed-filter-bar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 7px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 10px 0 0 !important;
+    padding: 0 0 2px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+
+  .social-question-categories button,
+  .social-feed-filter-bar button {
+    flex: 0 0 auto !important;
+    min-height: 34px !important;
+    max-width: 86vw !important;
+    padding: 0 12px !important;
+    border-radius: 999px !important;
+    white-space: nowrap !important;
+  }
+
+  .social-create-actions {
+    display: flex !important;
+    gap: 0 !important;
+    margin-top: 10px !important;
+    padding-top: 8px !important;
+    border-top: 1px solid #eef0f4 !important;
+  }
+
+  .social-create-action {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    height: 36px !important;
+    padding: 0 4px !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    background: transparent !important;
+    overflow: hidden !important;
+    color: #0d1b38 !important;
+    font-size: .76rem !important;
+    font-weight: 900 !important;
+    text-align: center !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .social-post-card {
+    contain: inline-size;
+  }
+
+  .social-post-header {
+    display: grid !important;
+    grid-template-columns: 40px minmax(0, 1fr) auto !important;
+    gap: 9px !important;
+    padding: 10px 10px 8px !important;
+  }
+
+  .social-post-author,
+  .social-post-author-name,
+  .social-post-meta {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .social-post-author-name {
+    display: block !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .social-post-meta {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    line-height: 1.35 !important;
+  }
+
+  .social-post-body {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 4px 10px 10px !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+    white-space: pre-wrap !important;
+  }
+
+  .social-post-body :where(p, span, strong, a, li, div),
+  .social-comment :where(p, span, strong, a, div),
+  .social-pinned-official-answer :where(p, span, strong, a, div) {
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+    white-space: normal !important;
+  }
+
+  .social-guide-insight-card,
+  .social-pinned-official-answer,
+  .social-comment,
+  .social-comments,
+  .social-comment-box,
+  .social-comments-list {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .social-guide-resources {
+    display: flex !important;
+    gap: 7px !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+  }
+
+  .social-guide-resources a,
+  .social-guide-resources button {
+    flex: 0 0 auto !important;
+    max-width: 82vw !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .social-post-reactions {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) !important;
+    gap: 6px !important;
+    padding: 8px 10px !important;
+  }
+
+  .social-post-reaction-meta {
+    grid-column: 1 / -1 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .social-post-actions {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 0 !important;
+    border-top: 1px solid #eef0f4 !important;
+    border-bottom: 1px solid #eef0f4 !important;
+  }
+
+  .social-post-action {
+    min-width: 0 !important;
+    height: 40px !important;
+    padding: 0 2px !important;
+    overflow: hidden !important;
+    border-radius: 0 !important;
+    font-size: .72rem !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .social-comment-box {
+    display: grid !important;
+    grid-template-columns: 34px minmax(0, 1fr) auto !important;
+    gap: 7px !important;
+    padding: 8px 10px 10px !important;
+  }
+
+  .social-comment-input,
+  .social-comment-box input,
+  .social-comment-box textarea {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .social-topbar-brand-text {
+    max-width: 62px !important;
+  }
+
+  .social-icon-button,
+  .social-profile-trigger,
+  .social-auth-status {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    flex-basis: 32px !important;
+  }
+
+  .social-post-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .social-post-action {
+    font-size: .76rem !important;
+  }
+}
