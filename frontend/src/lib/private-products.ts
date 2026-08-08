@@ -318,11 +318,16 @@ function toProduct(item: PrivateProductApiItem): Product {
 }
 
 export async function getProducts(): Promise<Product[]> {
-  return MOCK_PRODUCTS;
+  const response = await authenticatedFetch("/api/private/products", { cache: "no-store" }, { requireAuth: true });
+  if (!response.ok) throw new Error("Impossible de charger les produits.");
+  return ((await response.json()) as PrivateProductListResponse).products.map(toProduct);
 }
 
 export async function getProduct(id: string): Promise<Product | null> {
-  return MOCK_PRODUCTS.find((p) => p.id === id) ?? null;
+  const response = await authenticatedFetch(`/api/private/products/${encodeURIComponent(id)}`, { cache: "no-store" }, { requireAuth: true });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error("Impossible de charger ce produit.");
+  return toProduct((await response.json()) as PrivateProductApiItem);
 }
 
 export function getIncludedResources(product: Product): ProductIncludedResource[] {

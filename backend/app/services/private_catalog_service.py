@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from ..schemas import (
     AuthMessageResponse,
     CurrentSubscriptionResponse,
@@ -344,18 +346,10 @@ def _resource_user_has_access(resource_id: str, user_id: str, access_token: str 
     except Exception:
         pass
 
-    try:
-        profile = (
-            client.table("profiles")
-            .select("current_plan_id")
-            .eq("user_id", user_id)
-            .limit(1)
-            .execute()
-        )
-        rows = profile.data or []
-        return bool(rows and rows[0].get("current_plan_id"))
-    except Exception:
-        return False
+    # Un abonnement ne vaut jamais droit implicite à tout le catalogue.
+    # Les ressources sont ouvertes uniquement par une entitlement explicite,
+    # créée après validation du paiement ou par un administrateur.
+    return False
 
 
 def get_private_resource_tunnel(
@@ -576,6 +570,22 @@ def grant_product_resource_entitlements(
             message="Paiement confirmé, mais Supabase n'est pas configuré pour enregistrer les droits.",
         )
 
+    try:
+        claim = client.table("payment_access_claims").select("user_id,service_slug").eq("cart_id", cart_id).limit(1).execute()
+        if claim.data:
+            existing = claim.data[0]
+            if str(existing.get("user_id")) != str(user_id) or str(existing.get("service_slug")) != product.service_slug:
+                raise PermissionError("Ce paiement est déjà associé à un autre compte ou produit.")
+        else:
+            client.table("payment_access_claims").insert({
+                "cart_id": cart_id, "user_id": user_id, "service_slug": product.service_slug,
+                "payment_id": payment_id, "provider": payment_provider,
+            }).execute()
+    except PermissionError:
+        raise
+    except Exception as exc:
+        raise RuntimeError("Impossible de sécuriser l'attribution de ce paiement.") from exc
+
     rows = [
         {
             "user_id": user_id,
@@ -710,6 +720,14 @@ def set_current_subscription(
     client = _client_or_none(access_token)
     if client is None:
         return CurrentSubscriptionResponse(current_plan_id=plan_id, plan=None)
+
+    if plan_id is not None:
+        plan_response = client.table("subscription_plans").select("price,is_active").eq("id", plan_id).limit(1).execute()
+        rows = plan_response.data or []
+        if not rows or not rows[0].get("is_active"):
+            raise LookupError("Plan introuvable.")
+        if float(rows[0].get("price") or 0) > 0:
+            raise PermissionError("Un abonnement payant est activé uniquement après confirmation du paiement.")
 
     client.table("profiles").update({"current_plan_id": plan_id}).eq("user_id", user_id).execute()
     return get_current_subscription(user_id, access_token)
@@ -1138,13 +1156,74 @@ def _document_belongs_to_user(client, user_id: str, document_id: str) -> bool:
     return bool(case_response.data or [])
 
 
+def get_student_document_download_url(user_id: str, document_id: str, access_token: str | None = None) -> str:
+    client = _client_or_none(access_token)
+    if client is None or not _document_belongs_to_user(client, user_id, document_id):
+        raise LookupError("Document introuvable.")
+    response = client.table("case_documents").select("storage_path").eq("id", document_id).limit(1).execute()
+    path = str((response.data or [{}])[0].get("storage_path") or "")
+    if not path:
+        raise LookupError("Aucun fichier n'est attaché à ce document.")
+    signed = client.storage.from_("student-documents").create_signed_url(path, 300)
+    url = signed.get("signedURL") or signed.get("signedUrl")
+    if not url:
+        raise RuntimeError("Impossible de créer le lien sécurisé.")
+    return str(url)
+
+
+def delete_student_document(user_id: str, document_id: str, access_token: str | None = None) -> bool:
+    client = _client_or_none(access_token)
+    if client is None or not _document_belongs_to_user(client, user_id, document_id):
+        raise LookupError("Document introuvable.")
+    response = client.table("case_documents").select("storage_path").eq("id", document_id).limit(1).execute()
+    path = str((response.data or [{}])[0].get("storage_path") or "")
+    if path:
+        client.storage.from_("student-documents").remove([path])
+    client.table("case_documents").delete().eq("id", document_id).execute()
+    return True
+
+
+STUDENT_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024
+STUDENT_DOCUMENT_TYPES = {
+    ".pdf": {"application/pdf"},
+    ".jpg": {"image/jpeg"},
+    ".jpeg": {"image/jpeg"},
+    ".png": {"image/png"},
+    ".webp": {"image/webp"},
+    ".doc": {"application/msword"},
+    ".docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+}
+
+
+def validate_student_document_upload(file_bytes: bytes, filename: str, content_type: str | None) -> None:
+    suffix = Path(filename).suffix.lower()
+    allowed_mimes = STUDENT_DOCUMENT_TYPES.get(suffix)
+    if not allowed_mimes or (content_type or "").lower() not in allowed_mimes:
+        raise ValueError("Format non autorisé. Utilisez PDF, JPG, PNG, WEBP, DOC ou DOCX.")
+    if not file_bytes:
+        raise ValueError("Le fichier est vide.")
+    if len(file_bytes) > STUDENT_DOCUMENT_MAX_BYTES:
+        raise ValueError("Le fichier dépasse la limite de 10 Mo.")
+    signatures = {
+        ".pdf": (b"%PDF-",), ".jpg": (b"\xff\xd8\xff",), ".jpeg": (b"\xff\xd8\xff",),
+        ".png": (b"\x89PNG\r\n\x1a\n",), ".webp": (b"RIFF",),
+        ".doc": (b"\xd0\xcf\x11\xe0",), ".docx": (b"PK\x03\x04",),
+    }
+    if not any(file_bytes.startswith(signature) for signature in signatures[suffix]):
+        raise ValueError("Le contenu du fichier ne correspond pas à son extension.")
+    if suffix == ".webp" and file_bytes[8:12] != b"WEBP":
+        raise ValueError("Le fichier WEBP est invalide.")
+
+
 def upload_document_file(
     user_id: str,
     document_id: str,
     file_bytes: bytes,
     filename: str,
+    content_type: str | None = None,
     access_token: str | None = None,
 ) -> bool:
+    validate_student_document_upload(file_bytes, filename, content_type)
     client = _client_or_none(access_token)
     if client is None:
         return False
@@ -1181,7 +1260,7 @@ def save_private_onboarding(
 ) -> AuthMessageResponse:
     client = _client_or_none(access_token)
     if client is None:
-        return AuthMessageResponse(message="Onboarding recu. Stockage distant indisponible.")
+        raise RuntimeError("Stockage distant indisponible. Votre brouillon a été conservé.")
 
     try:
         client.table("student_onboarding").upsert(
@@ -1198,8 +1277,8 @@ def save_private_onboarding(
             },
             on_conflict="user_id",
         ).execute()
-    except Exception:
-        return AuthMessageResponse(message="Onboarding recu. Synchronisation conseiller en attente.")
+    except Exception as exc:
+        raise RuntimeError("Impossible d'enregistrer l'onboarding. Votre brouillon a été conservé.") from exc
 
     return AuthMessageResponse(message="Onboarding soumis. Validation PieAgency en attente.")
 

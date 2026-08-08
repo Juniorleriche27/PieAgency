@@ -30,6 +30,7 @@ import { PortalAccessPanel } from "@/components/portal-access-panel";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { clearStoredSession, getApiBaseUrl, type PlatformRole } from "@/lib/auth";
 import { fetchOnboardingStatus, type OnboardingStatus } from "@/lib/private-onboarding";
+import { fetchCommunityNotifications, markAllCommunityNotificationsRead, type CommunityNotificationItem } from "@/lib/community";
 
 const ONBOARDING_ALLOWED_PATHS = [
   "/espace-etudiant/onboarding",
@@ -95,6 +96,8 @@ export function PrivatePortalShell({
     () => typeof window !== "undefined" && localStorage.getItem("pie-theme") === "dark",
   );
   const [isScrolled, setIsScrolled] = useState(false);
+  const [notifications, setNotifications] = useState<CommunityNotificationItem[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const mainRef = useRef<HTMLDivElement>(null);
 
   function toggleDark() {
@@ -138,6 +141,23 @@ export function PrivatePortalShell({
       active = false;
     };
   }, [isReady, session, requiredRole]);
+
+  useEffect(() => {
+    if (!isReady || !session) return;
+    let active = true;
+    fetchCommunityNotifications().then((result) => { if (active) setNotifications(result.notifications); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [isReady, session]);
+
+  useEffect(() => {
+    function closeOverlays(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setNotificationsOpen(false);
+      setIsSidebarOpen(false);
+    }
+    document.addEventListener("keydown", closeOverlays);
+    return () => document.removeEventListener("keydown", closeOverlays);
+  }, []);
 
   // Gate: redirect student to onboarding if not validated.
   useEffect(() => {
@@ -373,13 +393,20 @@ export function PrivatePortalShell({
               {isDark ? <Sun size={17} /> : <Moon size={17} />}
             </button>
             <button
+              aria-expanded={notificationsOpen}
               aria-label="Notifications"
               className="private-icon-button"
+              onClick={() => setNotificationsOpen((open) => !open)}
               type="button"
             >
               <Bell size={18} />
+              {notifications.some((item) => !item.isRead) ? <span className="private-notification-dot" /> : null}
             </button>
           </div>
+          {notificationsOpen ? <aside className="private-notification-panel" aria-label="Notifications récentes">
+            <div className="private-notification-head"><strong>Notifications</strong>{notifications.some((item) => !item.isRead) ? <button onClick={async () => { try { const result = await markAllCommunityNotificationsRead(); setNotifications(result.notifications); } catch { /* La liste reste intacte et pourra être retentée. */ } }} type="button">Tout lire</button> : null}</div>
+            {notifications.length ? notifications.slice(0, 8).map((item) => <div className={`private-notification-item${item.isRead ? "" : " unread"}`} key={item.id}><strong>{item.title}</strong><p>{item.body}</p><small>{item.createdAt}</small></div>) : <p className="private-notification-empty">Aucune notification récente.</p>}
+          </aside> : null}
         </header>
 
         <div className="private-content">{children}</div>

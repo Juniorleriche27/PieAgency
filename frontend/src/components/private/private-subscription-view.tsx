@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   fetchCurrentSubscription,
   fetchPrivateSubscriptions,
+  selectFreeSubscription,
   type PrivateSubscriptionPlan,
   type UserSubscription,
 } from "@/lib/private-subscriptions";
@@ -175,9 +176,7 @@ export function PrivateSubscriptionView() {
                     {isCurrent ? (
                       <span className="btn sub-btn-active">Plan actuel</span>
                     ) : plan.price === 0 ? (
-                      <Link className="btn btn-primary" href="/espace-etudiant">
-                        Choisir cette offre →
-                      </Link>
+                      <button className="btn btn-primary" onClick={async () => { try { setUserSub(await selectFreeSubscription(plan.id)); } catch (error) { setErrorMessage(error instanceof Error ? error.message : "Impossible d'activer ce plan."); } }} type="button">Choisir cette offre →</button>
                     ) : (
                       <Link
                         className={`btn${isRecommended ? " sub-btn-recommended" : " btn-primary"}`}

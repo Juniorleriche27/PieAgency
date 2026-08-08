@@ -13,7 +13,7 @@ import {
 import { formatEuro, formatEuroToXof } from "@/lib/currency";
 
 type Props = {
-  products: Product[];
+  products?: Product[];
 };
 
 function badgeLabel(badge: Product["badge"]) {
@@ -23,18 +23,21 @@ function badgeLabel(badge: Product["badge"]) {
   return null;
 }
 
-export function ProductsCatalogue({ products }: Props) {
+export function ProductsCatalogue({ products = [] }: Props) {
   const [liveProducts, setLiveProducts] = useState(products);
   const [category, setCategory] = useState<ProductCategory>("Tous");
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     let active = true;
 
     async function loadProducts() {
-      const nextProducts = await getProducts();
-      if (active) {
-        setLiveProducts(nextProducts);
-      }
+      try {
+        const nextProducts = await getProducts();
+        if (active) { setLiveProducts(nextProducts); setLoadError(""); }
+      } catch { if (active) setLoadError("Impossible de charger le catalogue réel."); }
+      finally { if (active) setIsLoading(false); }
     }
 
     void loadProducts();
@@ -72,14 +75,16 @@ export function ProductsCatalogue({ products }: Props) {
           </button>
         ))}
       </div>
+      {loadError ? <div className="portal-warning" role="alert">{loadError}</div> : null}
+      {isLoading ? <div className="portal-empty">Chargement du catalogue…</div> : null}
 
-      {filtered.length === 0 ? (
+      {!isLoading && filtered.length === 0 ? (
         <div className="prod-empty">
           <ShoppingBag size={44} aria-hidden />
           <h3>Aucun produit dans cette catégorie</h3>
           <p>Essayez une autre catégorie ou consultez tous nos produits.</p>
         </div>
-      ) : (
+      ) : !isLoading ? (
         <div className="prod-grid">
           {filtered.map((product) => {
             const label = badgeLabel(product.badge);
@@ -132,7 +137,7 @@ export function ProductsCatalogue({ products }: Props) {
             );
           })}
         </div>
-      )}
+      ) : null}
 
       <div className="prod-tip">
         <strong>💡 Conseil :</strong> Ces produits vous aident à structurer votre

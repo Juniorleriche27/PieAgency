@@ -130,11 +130,11 @@ export async function fetchOnboardingStatus(): Promise<OnboardingStatus> {
       { method: "GET" },
       { requireAuth: true },
     );
-    if (!response.ok) return "not_started";
+    if (!response.ok) return null;
     const data = (await response.json()) as { onboarding_status?: OnboardingStatus };
     return data.onboarding_status ?? "not_started";
   } catch {
-    return "not_started";
+    return null;
   }
 }
 

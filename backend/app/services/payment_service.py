@@ -134,7 +134,7 @@ def _normalize_amount(amount: float) -> int | float:
     return int(rounded) if rounded.is_integer() else rounded
 
 
-def _build_checkout_meta(payload: PaymentIntentCreateRequest) -> dict[str, str]:
+def _build_checkout_meta(payload: PaymentIntentCreateRequest, user_id: str | None = None) -> dict[str, str]:
     meta = {
         "source": "pieagency-website",
         "reason": payload.reason.strip(),
@@ -143,6 +143,8 @@ def _build_checkout_meta(payload: PaymentIntentCreateRequest) -> dict[str, str]:
         meta["serviceSlug"] = payload.service_slug
     if payload.dossier_reference:
         meta["dossierReference"] = payload.dossier_reference
+    if user_id:
+        meta["userId"] = user_id
     return meta
 
 
@@ -196,7 +198,7 @@ def get_payment_config() -> PaymentConfigResponse:
     )
 
 
-def initiate_payment(payload: PaymentIntentCreateRequest) -> PaymentIntentCreateResponse:
+def initiate_payment(payload: PaymentIntentCreateRequest, user_id: str | None = None) -> PaymentIntentCreateResponse:
     _ensure_configured()
     checkout_url = settings.maketou_checkout_endpoint
     product_document_id = _resolve_product_document_id(payload.service_slug)
@@ -210,7 +212,7 @@ def initiate_payment(payload: PaymentIntentCreateRequest) -> PaymentIntentCreate
         "phone": payload.phone,
         "redirectURL": settings.maketou_return_url,
         "customerPrice": _normalize_amount(payload.amount),
-        "meta": _build_checkout_meta(payload),
+        "meta": _build_checkout_meta(payload, user_id),
     }
 
     try:
@@ -296,6 +298,7 @@ def fetch_payment_status(cart_id: str) -> PaymentStatusResponse:
     payment_id = _extract_string(data, "paymentId")
     reference = _extract_reference(data)
     service_slug = _extract_service_slug(data)
+    user_id = _extract_meta_value(data, "userId")
 
     return PaymentStatusResponse(
         provider="maketou",
@@ -305,4 +308,5 @@ def fetch_payment_status(cart_id: str) -> PaymentStatusResponse:
         payment_id=payment_id,
         reference=reference,
         service_slug=service_slug,
+        user_id=user_id,
     )

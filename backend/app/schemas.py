@@ -250,6 +250,7 @@ class PaymentStatusResponse(BaseModel):
     payment_id: str | None = None
     reference: str | None = None
     service_slug: str | None = None
+    user_id: str | None = None
 
 
 class PaymentReceiptRequest(BaseModel):

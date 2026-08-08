@@ -119,6 +119,8 @@ export function PrivateResourceTunnelView({ slug }: Props) {
       .then((payload) => {
         if (!active) return;
         setResource(payload);
+        const saved = Number(window.localStorage.getItem(`pieagency.resource.progress.${slug}`));
+        setCurrentIndex(Number.isInteger(saved) && saved >= 0 && saved < payload.sections.length ? saved : 0);
         setError(null);
       })
       .catch(() => {
@@ -132,28 +134,8 @@ export function PrivateResourceTunnelView({ slug }: Props) {
   }, [slug]);
 
   useEffect(() => {
-    function blockEvent(event: Event) {
-      event.preventDefault();
-    }
-
-    function blockKeys(event: KeyboardEvent) {
-      const key = event.key.toLowerCase();
-      if ((event.ctrlKey || event.metaKey) && ["c", "p", "s", "u", "a"].includes(key)) {
-        event.preventDefault();
-      }
-    }
-
-    document.addEventListener("copy", blockEvent);
-    document.addEventListener("cut", blockEvent);
-    document.addEventListener("contextmenu", blockEvent);
-    document.addEventListener("keydown", blockKeys);
-    return () => {
-      document.removeEventListener("copy", blockEvent);
-      document.removeEventListener("cut", blockEvent);
-      document.removeEventListener("contextmenu", blockEvent);
-      document.removeEventListener("keydown", blockKeys);
-    };
-  }, []);
+    if (resource) window.localStorage.setItem(`pieagency.resource.progress.${slug}`, String(currentIndex));
+  }, [currentIndex, resource, slug]);
 
   const section = resource?.sections[currentIndex] ?? null;
   const progress = useMemo(() => {

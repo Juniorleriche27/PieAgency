@@ -41,6 +41,9 @@ from ..services.private_catalog_service import (
     set_current_subscription,
     update_private_profile,
     upload_document_file,
+    STUDENT_DOCUMENT_MAX_BYTES,
+    get_student_document_download_url,
+    delete_student_document,
 )
 
 router = APIRouter()
@@ -94,12 +97,16 @@ def activate_private_product_access(
             detail="Le paiement n'est pas encore confirmé par MakeTou.",
         )
 
-    service_slug = payment_status.service_slug or payload.service_slug
+    service_slug = payment_status.service_slug
     if not service_slug:
         raise HTTPException(
-            status_code=400,
-            detail="Impossible d'identifier le produit payé.",
+            status_code=409,
+            detail="Le paiement ne contient pas l'identifiant sécurisé du produit.",
         )
+    if payload.service_slug and payload.service_slug != service_slug:
+        raise HTTPException(status_code=409, detail="Le produit demandé ne correspond pas au paiement confirmé.")
+    if not payment_status.user_id or str(payment_status.user_id) != str(current_user.user_id):
+        raise HTTPException(status_code=403, detail="Ce paiement n'appartient pas au compte connecté.")
 
     try:
         return grant_product_resource_entitlements(
@@ -111,6 +118,10 @@ def activate_private_product_access(
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/private/resources", response_model=PrivateResourceListResponse)
@@ -162,7 +173,12 @@ def update_private_current_subscription(
     current_user: AuthUserProfile = Depends(get_current_user),
     access_token: str = Depends(get_current_access_token),
 ) -> CurrentSubscriptionResponse:
-    return set_current_subscription(current_user.user_id, payload.plan_id, access_token)
+    try:
+        return set_current_subscription(current_user.user_id, payload.plan_id, access_token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 
 @router.get("/private/profile", response_model=PrivateProfileResponse)
@@ -206,15 +222,39 @@ async def upload_document(
     current_user: AuthUserProfile = Depends(get_current_user),
     access_token: str = Depends(get_current_access_token),
 ) -> dict[str, bool]:
-    content = await file.read()
-    ok = upload_document_file(
-        current_user.user_id,
-        document_id,
-        content,
-        file.filename or "file",
-        access_token,
-    )
+    content = await file.read(STUDENT_DOCUMENT_MAX_BYTES + 1)
+    try:
+        ok = upload_document_file(
+            user_id=current_user.user_id,
+            document_id=document_id,
+            file_bytes=content,
+            filename=file.filename or "file",
+            content_type=file.content_type,
+            access_token=access_token,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if not ok:
+        raise HTTPException(status_code=404, detail="Document introuvable ou téléversement refusé.")
     return {"ok": ok}
+
+
+@router.get("/private/documents/{document_id}/download")
+def download_document(document_id: str, current_user: AuthUserProfile = Depends(get_current_user), access_token: str = Depends(get_current_access_token)) -> dict[str, str]:
+    try:
+        return {"url": get_student_document_download_url(current_user.user_id, document_id, access_token)}
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.delete("/private/documents/{document_id}")
+def remove_document(document_id: str, current_user: AuthUserProfile = Depends(get_current_user), access_token: str = Depends(get_current_access_token)) -> dict[str, bool]:
+    try:
+        return {"ok": delete_student_document(current_user.user_id, document_id, access_token)}
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/private/onboarding", response_model=AuthMessageResponse)
@@ -223,7 +263,10 @@ def private_onboarding(
     current_user: AuthUserProfile = Depends(get_current_user),
     access_token: str = Depends(get_current_access_token),
 ) -> AuthMessageResponse:
-    return save_private_onboarding(current_user.user_id, payload, access_token)
+    try:
+        return save_private_onboarding(current_user.user_id, payload, access_token)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/private/onboarding/status", response_model=PrivateOnboardingStatusResponse)

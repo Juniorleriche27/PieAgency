@@ -23,7 +23,7 @@ import {
 import { euroToXof, formatEuro, formatEuroToXof } from "@/lib/currency";
 
 type Props = {
-  product: Product;
+  productId: string;
 };
 
 function badgeLabel(badge: Product["badge"]) {
@@ -63,23 +63,24 @@ function resourceState(
   };
 }
 
-export function ProductDetailView({ product }: Props) {
-  const [liveProduct, setLiveProduct] = useState(product);
+export function ProductDetailView({ productId }: Props) {
+  const [liveProduct, setLiveProduct] = useState<Product | null>(null);
   const [productAccess, setProductAccess] = useState<ProductAccess | null>(null);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
-  const label = badgeLabel(liveProduct.badge);
-  const includedResources = getIncludedResources(liveProduct);
+  const [loadError, setLoadError] = useState("");
+  const label = liveProduct ? badgeLabel(liveProduct.badge) : null;
+  const includedResources = liveProduct ? getIncludedResources(liveProduct) : [];
   const unlockedResourceIds = useMemo(
     () => new Set(productAccess?.unlocked_resource_ids ?? []),
     [productAccess?.unlocked_resource_ids],
   );
   const unlockedCount = includedResources.filter((resource) => unlockedResourceIds.has(resource.id)).length;
   const hasProductAccess = Boolean(productAccess?.has_access);
-  const paymentAmountCfa = euroToXof(liveProduct.price);
+  const paymentAmountCfa = euroToXof(liveProduct?.price ?? 0);
   const paymentHref = `/paiement?service=${encodeURIComponent(
-    liveProduct.serviceSlug ?? liveProduct.id,
+    liveProduct?.serviceSlug ?? productId,
   )}&amount=${encodeURIComponent(String(paymentAmountCfa))}&reason=${encodeURIComponent(
-    `Paiement pour ${liveProduct.title}`,
+    `Paiement pour ${liveProduct?.title ?? "ce produit"}`,
   )}`;
 
   useEffect(() => {
@@ -87,27 +88,30 @@ export function ProductDetailView({ product }: Props) {
 
     async function loadProduct() {
       setIsCheckingAccess(true);
-      const [nextProduct, access] = await Promise.all([
-        getProduct(product.id),
-        getProductAccess(product.id),
-      ]);
+      try {
+        const [nextProduct, access] = await Promise.all([getProduct(productId), getProductAccess(productId)]);
 
       if (!active) {
         return;
       }
 
-      if (nextProduct) {
+        if (!nextProduct) throw new Error("Produit introuvable.");
         setLiveProduct(nextProduct);
-      }
-      setProductAccess(access);
-      setIsCheckingAccess(false);
+        setProductAccess(access);
+        setLoadError("");
+      } catch { if (active) setLoadError("Impossible de charger ce produit réel."); }
+      finally { if (active) setIsCheckingAccess(false); }
     }
 
     void loadProduct();
     return () => {
       active = false;
     };
-  }, [product.id]);
+  }, [productId]);
+
+  if (!liveProduct) {
+    return <div className="prod-premium-page">{loadError ? <div className="portal-warning" role="alert">{loadError}</div> : <div className="portal-empty">Chargement du produit…</div>}</div>;
+  }
 
   return (
     <div className="prod-premium-page">

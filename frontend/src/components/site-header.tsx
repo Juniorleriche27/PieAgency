@@ -68,9 +68,10 @@ export function SiteHeader() {
   useEffect(() => {
     const stored = localStorage.getItem("pie-theme");
     const dark = stored === "dark";
-    setIsDark(dark);
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    const frame = window.requestAnimationFrame(() => setIsDark(dark));
     return () => {
+      window.cancelAnimationFrame(frame);
       document.documentElement.removeAttribute("data-theme");
     };
   }, []);

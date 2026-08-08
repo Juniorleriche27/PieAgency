@@ -7,9 +7,11 @@ import {
   CheckCircle2,
   Clock,
   FileUp,
+  Download,
   Paperclip,
   Plus,
   Upload,
+  Trash2,
   X,
   XCircle,
 } from "lucide-react";
@@ -21,6 +23,8 @@ import {
   getProfile,
   updateProfile,
   uploadDocumentFile,
+  getDocumentDownloadUrl,
+  deleteDocument,
   type CandidateDocument,
   type CandidateProfile,
   type DocumentStatus,
@@ -180,6 +184,7 @@ export function DocumentsView({ documents: initial }: Props) {
   const [docs, setDocs] = useState(initial);
   const [profile, setProfile] = useState<CandidateProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus>(null);
   const [onboardingDraft, setOnboardingDraft] = useState<OnboardingData | null>(null);
   const [finishLoading, setFinishLoading] = useState(false);
@@ -198,12 +203,19 @@ export function DocumentsView({ documents: initial }: Props) {
 
   useEffect(() => {
     let active = true;
-    void Promise.all([getDocuments(), getProfile()]).then(([d, p]) => {
-      if (!active) return;
-      setDocs(buildVisibleDocuments(d, p));
-      setProfile(p);
-      setProfileLoading(false);
-    });
+    void Promise.all([getDocuments(), getProfile()])
+      .then(([d, p]) => {
+        if (!active) return;
+        setDocs(buildVisibleDocuments(d, p));
+        setProfile(p);
+        setLoadError("");
+      })
+      .catch(() => {
+        if (active) setLoadError("Impossible de charger vos documents. Réessayez dans un instant.");
+      })
+      .finally(() => {
+        if (active) setProfileLoading(false);
+      });
     return () => { active = false; };
   }, []);
 
@@ -257,13 +269,9 @@ export function DocumentsView({ documents: initial }: Props) {
     if (result) {
       setDocs((prev) => [...prev, result]);
     } else {
-      const optimistic: CandidateDocument = {
-        id: `doc-local-${Date.now()}`,
-        title: name,
-        status: "not-started",
-        priority: "medium",
-      };
-      setDocs((prev) => [...prev, optimistic]);
+      setAddError("Le document n'a pas été enregistré. Veuillez réessayer.");
+      setAddLoading(false);
+      return;
     }
     setAddLoading(false);
     setShowAddModal(false);
@@ -344,6 +352,7 @@ export function DocumentsView({ documents: initial }: Props) {
         <h1>Mes documents</h1>
         <p>Suivez l&apos;état de vos documents et préparez votre dossier complet.</p>
       </div>
+      {loadError ? <div className="portal-warning" role="alert">{loadError}</div> : null}
 
       {showOnboardingFinish ? (
         <div className="doc-onboarding-card">
@@ -520,6 +529,10 @@ export function DocumentsView({ documents: initial }: Props) {
                           </button>
                         </>
                       )}
+                      {!isGeneratedDocument(doc) ? <>
+                        <button aria-label={`Télécharger ${doc.title}`} className="doc-attach-btn" onClick={async () => { try { window.open(await getDocumentDownloadUrl(doc.id), "_blank", "noopener,noreferrer"); } catch { setLoadError("Aucun fichier téléchargeable pour ce document."); } }} type="button"><Download size={14} /> Télécharger</button>
+                        <button aria-label={`Supprimer ${doc.title}`} className="doc-attach-btn" onClick={async () => { if (!window.confirm(`Supprimer « ${doc.title} » ?`)) return; try { await deleteDocument(doc.id); setDocs((items) => items.filter((item) => item.id !== doc.id)); } catch { setLoadError("Impossible de supprimer ce document."); } }} type="button"><Trash2 size={14} /> Supprimer</button>
+                      </> : null}
                     </div>
                   </li>
                 ))}

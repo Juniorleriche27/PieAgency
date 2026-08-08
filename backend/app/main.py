@@ -1,4 +1,8 @@
-from fastapi import FastAPI
+import logging
+import time
+from uuid import uuid4
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
@@ -25,6 +29,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+logger = logging.getLogger("pieagency.requests")
+
+
+@app.middleware("http")
+async def request_observability(request: Request, call_next):
+    request_id = request.headers.get("x-request-id") or str(uuid4())
+    request.state.request_id = request_id
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception("request_failed id=%s method=%s path=%s", request_id, request.method, request.url.path)
+        raise
+    duration_ms = round((time.perf_counter() - started) * 1000, 2)
+    response.headers["X-Request-ID"] = request_id
+    logger.info("request_complete id=%s method=%s path=%s status=%s duration_ms=%s", request_id, request.method, request.url.path, response.status_code, duration_ms)
+    return response
 
 app.include_router(health_router, prefix=settings.api_prefix, tags=["health"])
 app.include_router(ai_router, prefix=settings.api_prefix, tags=["ai"])

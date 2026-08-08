@@ -43,12 +43,19 @@ export function PrivateResourcesView() {
   const [resources, setResources] = useState<PrivateResource[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("Tous");
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     let active = true;
     fetchPrivateResources().then((data) => {
       if (active) {
         setResources(data);
+        setLoadError("");
+        setIsLoading(false);
+      }
+    }).catch(() => {
+      if (active) {
+        setLoadError("Impossible de charger les ressources sécurisées.");
         setIsLoading(false);
       }
     });
@@ -85,6 +92,8 @@ export function PrivateResourcesView() {
           </button>
         ))}
       </div>
+
+      {loadError ? <div className="portal-warning" role="alert">{loadError}</div> : null}
 
       {isLoading ? (
         <div className="res-grid">

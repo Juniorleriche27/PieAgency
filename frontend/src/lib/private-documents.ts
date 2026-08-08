@@ -35,8 +35,6 @@ type ProfileApiResponse = {
   grading_system: GradingSystem | null;
 };
 
-const MOCK_DOCUMENTS: CandidateDocument[] = [];
-
 function mapDocumentStatus(status: StudentDocumentApiItem["status"]): DocumentStatus {
   if (status === "approved") return "validated";
   if (status === "review") return "to-review";
@@ -56,18 +54,14 @@ function toCandidateDocument(item: StudentDocumentApiItem, index: number): Candi
 }
 
 export async function getProfile(): Promise<CandidateProfile> {
-  try {
-    const response = await authenticatedFetch(
+  const response = await authenticatedFetch(
       "/api/private/profile",
       { cache: "no-store" },
       { requireAuth: true },
     );
-    if (!response.ok) throw new Error();
-    const data = (await response.json()) as ProfileApiResponse;
-    return { education_level: data.education_level, grading_system: data.grading_system };
-  } catch {
-    return { education_level: null, grading_system: null };
-  }
+  if (!response.ok) throw new Error("Impossible de charger le profil.");
+  const data = (await response.json()) as ProfileApiResponse;
+  return { education_level: data.education_level, grading_system: data.grading_system };
 }
 
 export async function updateProfile(patch: Partial<CandidateProfile>): Promise<boolean> {
@@ -88,19 +82,14 @@ export async function updateProfile(patch: Partial<CandidateProfile>): Promise<b
 }
 
 export async function getDocuments(): Promise<CandidateDocument[]> {
-  try {
-    const response = await authenticatedFetch(
+  const response = await authenticatedFetch(
       "/api/private/documents",
       { cache: "no-store" },
       { requireAuth: true },
     );
-    if (!response.ok) throw new Error();
-    const payload = (await response.json()) as StudentDocumentListResponse;
-    const docs = payload.documents.map(toCandidateDocument);
-    return docs.length > 0 ? docs : MOCK_DOCUMENTS;
-  } catch {
-    return MOCK_DOCUMENTS;
-  }
+  if (!response.ok) throw new Error("Impossible de charger les documents.");
+  const payload = (await response.json()) as StudentDocumentListResponse;
+  return payload.documents.map(toCandidateDocument);
 }
 
 export async function addDocument(name: string): Promise<CandidateDocument | null> {
@@ -135,4 +124,15 @@ export async function uploadDocumentFile(documentId: string, file: File): Promis
   } catch {
     return false;
   }
+}
+
+export async function getDocumentDownloadUrl(documentId: string): Promise<string> {
+  const response = await authenticatedFetch(`/api/private/documents/${encodeURIComponent(documentId)}/download`, undefined, { requireAuth: true });
+  if (!response.ok) throw new Error("Aucun fichier téléchargeable.");
+  return ((await response.json()) as { url: string }).url;
+}
+
+export async function deleteDocument(documentId: string): Promise<void> {
+  const response = await authenticatedFetch(`/api/private/documents/${encodeURIComponent(documentId)}`, { method: "DELETE" }, { requireAuth: true });
+  if (!response.ok) throw new Error("Impossible de supprimer ce document.");
 }

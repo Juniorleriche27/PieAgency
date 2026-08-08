@@ -9,6 +9,7 @@ import {
   type CandidateAssistantResource,
   type CandidateAssistantResponse,
 } from "@/lib/private-assistant";
+import { readStoredSession } from "@/lib/auth";
 
 /* ── Suggestions by context ── */
 const defaultSuggestions = [
@@ -120,18 +121,26 @@ function AssistantViewInner() {
   const searchParams = useSearchParams();
   const contextParam = searchParams.get("context");
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content:
-        "Bonjour ! Je suis votre assistant dossier. Posez-moi vos questions sur votre procédure, vos motivations, votre entretien ou vos documents. Je suis là pour vous aider à structurer vos idées.",
-      time: nowTime(),
-    },
-  ]);
+  const historyKey = `pieagency.assistant.history.${readStoredSession()?.user.user_id ?? "anonymous"}`;
+  const initialMessage: ChatMessage = {
+    role: "assistant",
+    content: "Bonjour ! Je suis votre assistant dossier. Posez-moi vos questions sur votre procédure, vos motivations, votre entretien ou vos documents. Je suis là pour vous aider à structurer vos idées.",
+    time: nowTime(),
+  };
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = window.localStorage.getItem(historyKey);
+      return saved ? (JSON.parse(saved) as ChatMessage[]) : [initialMessage];
+    } catch { return [initialMessage]; }
+  });
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    window.localStorage.setItem(historyKey, JSON.stringify(messages.slice(-60)));
+  }, [historyKey, messages]);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -168,15 +177,6 @@ function AssistantViewInner() {
       setErrorMessage(
         error instanceof Error ? error.message : "Impossible de contacter l'assistant pour le moment.",
       );
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            "L’assistant IA est indisponible pour le moment. Ce n’est pas une réponse de dossier : le backend ne fournit pas de réponse IA active. Merci de réessayer après correction serveur.",
-          time: nowTime(),
-        },
-      ]);
     } finally {
       setIsSending(false);
     }
@@ -198,6 +198,7 @@ function AssistantViewInner() {
           <h1>Assistant dossier</h1>
           <p>Posez vos questions sur votre procédure, vos motivations, votre entretien ou vos documents.</p>
         </div>
+        <button className="btn btn-outline" onClick={() => { setMessages([initialMessage]); setErrorMessage(""); }} type="button">Nouvelle conversation</button>
       </div>
 
       {contextParam ? (

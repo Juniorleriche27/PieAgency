@@ -1,6 +1,8 @@
 import logging
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from ..dependencies.auth import get_optional_current_user
+from ..schemas import AuthUserProfile
 
 from ..schemas import (
     PaymentConfigResponse,
@@ -37,9 +39,10 @@ def read_payment_config() -> PaymentConfigResponse:
 )
 def create_payment_checkout(
     payload: PaymentIntentCreateRequest,
+    current_user: AuthUserProfile | None = Depends(get_optional_current_user),
 ) -> PaymentIntentCreateResponse:
     try:
-        return initiate_payment(payload)
+        return initiate_payment(payload, current_user.user_id if current_user else None)
     except MaketouNotConfiguredError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     except MaketouRequestError as exc:

@@ -1,4 +1,5 @@
 import { ActionLink } from "@/components/action-link";
+import Link from "next/link";
 import type { SeoLongPage } from "@/lib/seo-long-pages";
 
 type Props = {
@@ -11,9 +12,9 @@ export function SeoLongFormPage({ page }: Props) {
       <section className="seo-long-hero">
         <div className="container">
           <div className="seo-long-breadcrumb">
-            <a href="/">Accueil</a>
+            <Link href="/">Accueil</Link>
             <span>/</span>
-            <a href={page.parentPath}>{page.parentPath.includes("visa") ? "Visa" : "Campus France"}</a>
+            <Link href={page.parentPath}>{page.parentPath.includes("visa") ? "Visa" : "Campus France"}</Link>
             <span>/</span>
             <strong>{page.shortTitle}</strong>
           </div>

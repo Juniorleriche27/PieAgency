@@ -72,17 +72,19 @@ export async function fetchPrivatePaymentConfig(): Promise<PrivatePaymentConfig>
 }
 
 export async function fetchCurrentSubscription(): Promise<UserSubscription> {
-  try {
-    const response = await authenticatedFetch(
+  const response = await authenticatedFetch(
       "/api/private/subscription/current",
       { cache: "no-store" },
       { requireAuth: true },
     );
-    if (!response.ok) return { current_plan_id: null, plan: null };
-    return (await response.json()) as UserSubscription;
-  } catch {
-    return { current_plan_id: null, plan: null };
-  }
+  if (!response.ok) throw new Error("Impossible de charger votre abonnement actuel.");
+  return (await response.json()) as UserSubscription;
+}
+
+export async function selectFreeSubscription(planId: string): Promise<UserSubscription> {
+  const response = await authenticatedFetch("/api/private/subscription/current", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan_id: planId }) }, { requireAuth: true });
+  if (!response.ok) throw new Error("Impossible d'activer ce plan.");
+  return (await response.json()) as UserSubscription;
 }
 
 export async function adminCreatePlan(

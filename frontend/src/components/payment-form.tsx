@@ -402,7 +402,7 @@ export function PaymentForm() {
     const normalizedPhone = normalizePhone(form.phone);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/payments/maketou/checkout`, {
+      const response = await authenticatedFetch("/api/payments/maketou/checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -416,7 +416,7 @@ export function PaymentForm() {
           dossier_reference: form.dossierReference.trim() || null,
           reason: form.reason.trim(),
         }),
-      });
+      }, { apiBaseUrl });
 
       const payload = (await response.json().catch(() => null)) as
         | ({ detail?: string } & PaymentResponse)
