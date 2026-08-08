@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Mono, DM_Sans, Playfair_Display } from "next/font/google";
 import { SiteChrome } from "@/components/site-chrome";
 import { SITE_URL, siteKeywords } from "@/lib/seo";
@@ -73,11 +73,22 @@ export const metadata: Metadata = {
       "Accompagnement étudiant : diagnostic, Campus France, visa, Belgique, documents et suivi personnalisé.",
     images: ["/pieagency-logo.jpg"],
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "PieAgency",
+  },
+  formatDetection: { telephone: false },
   icons: {
     icon: "/pieagency-logo.jpg",
     shortcut: "/pieagency-logo.jpg",
     apple: "/pieagency-logo.jpg",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0d1b38",
+  colorScheme: "light",
 };
 
 const organizationJsonLd = {
