@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from ..schemas import (
     AuthUserProfile,
@@ -20,13 +22,18 @@ from ..schemas import (
     CommunityDirectThreadResponse,
     CommunityCommentCreateRequest,
     CommunityCommentItem,
+    CommunityCommentUpdateRequest,
     CommunityEventAttendanceResponse,
     CommunityEventCalendarItem,
     CommunityEventCreateRequest,
     CommunityFollowResponse,
     CommunityGroupCreateRequest,
     CommunityGroupItem,
+    CommunityGroupMemberItem,
+    CommunityGroupMemberRoleRequest,
     CommunityGroupMembershipResponse,
+    CommunityBlockResponse,
+    CommunityBlockListResponse,
     CommunityMutationResponse,
     CommunityNotificationItem,
     CommunityNotificationsResponse,
@@ -39,13 +46,27 @@ from ..schemas import (
     CommunityPollOptionItem,
     CommunityPostCreateRequest,
     CommunityPostItem,
+    CommunityPostUpdateRequest,
     CommunityProfileItem,
+    CommunityAssetItem,
+    CommunityStoryCreateRequest,
+    CommunityStoryItem,
 )
 from .ai_service import generate_community_reply, rewrite_community_draft, should_generate_community_reply
 from .chat_store import ensure_chat_conversation, store_chat_message
 from .supabase_service import SupabaseConfigurationError, get_supabase_client
 
 PIEHUB_PROFILE_ID = "piehub"
+COMMUNITY_ASSET_BUCKET = "community-assets"
+COMMUNITY_ASSET_MAX_BYTES = 10 * 1024 * 1024
+COMMUNITY_ASSET_MIME_TYPES = {
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+}
 
 
 class CommunityDataUnavailableError(RuntimeError):
@@ -707,6 +728,8 @@ def _is_question_post(row: dict[str, Any], comments: list[CommunityCommentItem])
     question = str(row.get("poll_question") or "").strip().lower()
     tag = str(row.get("tag") or "").strip().lower()
     return (
+        bool(row.get("is_question"))
+        or
         tag == "question"
         or content.startswith("question —")
         or content.startswith("question -")
@@ -731,6 +754,7 @@ def _build_post_item(
     liked_post_ids: set[int] | None = None,
     saved_post_ids: set[int] | None = None,
     poll_votes: dict[int, int] | None = None,
+    viewer_user_id: str | None = None,
 ) -> CommunityPostItem:
     post_id = int(row.get("id") or 0)
     options_payload = row.get("poll_options") or []
@@ -770,6 +794,9 @@ def _build_post_item(
         resource_name=row.get("resource_name"),
         resource_type=row.get("resource_type"),
         resource_size=row.get("resource_size"),
+        resource_url=row.get("resource_url"),
+        resource_mime_type=row.get("resource_mime_type"),
+        media_urls=[str(url) for url in (row.get("media_urls") or []) if url],
         question=row.get("poll_question"),
         options=options,
         comments=comments,
@@ -785,6 +812,7 @@ def _build_post_item(
         resolved_by_official=is_question and official_answer_count > 0,
         trust_label=trust_label,
         pinned_official_comment=pinned_official_comment,
+        viewer_can_edit=bool(viewer_user_id and str(row.get("author_user_id") or "") == str(viewer_user_id)),
     )
 
 
@@ -1020,6 +1048,19 @@ def _load_poll_votes(
     }
 
 
+def _load_liked_comment_ids(client, viewer_user_id: str | None, comment_ids: list[int]) -> set[int]:
+    if not viewer_user_id or not comment_ids:
+        return set()
+    response = (
+        client.table("community_comment_reactions")
+        .select("comment_id")
+        .eq("user_id", viewer_user_id)
+        .in_("comment_id", comment_ids)
+        .execute()
+    )
+    return {int(item["comment_id"]) for item in (response.data or []) if item.get("comment_id") is not None}
+
+
 def _load_post_items(
     client,
     limit: int = 20,
@@ -1031,10 +1072,21 @@ def _load_post_items(
     comment_rows = _load_comment_rows(client, ids)
     liked_post_ids, saved_post_ids = _load_reaction_sets(client, viewer_user_id, ids)
     poll_votes = _load_poll_votes(client, viewer_user_id, ids)
+    comment_ids = [int(item["id"]) for item in comment_rows if item.get("id") is not None]
+    liked_comment_ids = _load_liked_comment_ids(client, viewer_user_id, comment_ids)
     comments_by_post: dict[int, list[CommunityCommentItem]] = {}
     for item in comment_rows:
         post_id = int(item.get("post_id") or 0)
-        comments_by_post.setdefault(post_id, []).append(_build_comment_item(item))
+        comment_id = int(item.get("id") or 0)
+        comment = _build_comment_item(item).model_copy(
+            update={
+                "viewer_has_liked": comment_id in liked_comment_ids,
+                "viewer_can_edit": bool(
+                    viewer_user_id and str(item.get("author_user_id") or "") == str(viewer_user_id)
+                ),
+            }
+        )
+        comments_by_post.setdefault(post_id, []).append(comment)
 
     return [
         _build_post_item(
@@ -1043,6 +1095,7 @@ def _load_post_items(
             liked_post_ids=liked_post_ids,
             saved_post_ids=saved_post_ids,
             poll_votes=poll_votes,
+            viewer_user_id=viewer_user_id,
         )
         for item in post_rows
     ]
@@ -1262,6 +1315,7 @@ def get_community_bootstrap(
     notif_items, unread_count = _load_notifications(client, current_user.user_id) if current_user else ([], 0)
     ads_response = get_community_ads(current_user, access_token)
     approved_ads = [ad for ad in ads_response.ads if ad.moderation_status == "approved"]
+    stories = get_community_stories(current_user, access_token)
 
     return CommunityBootstrapResponse(
         current_profile_id=current_profile_id,
@@ -1272,6 +1326,7 @@ def get_community_bootstrap(
         notifications=notif_items,
         unread_notifications=unread_count,
         ads=approved_ads,
+        stories=stories,
     )
 
 
@@ -1303,6 +1358,10 @@ def create_community_post(
         "resource_name": payload.resource_name,
         "resource_type": payload.resource_type,
         "resource_size": payload.resource_size,
+        "resource_storage_path": payload.resource_storage_path,
+        "resource_url": payload.resource_url,
+        "resource_mime_type": payload.resource_mime_type,
+        "media_urls": payload.media_urls,
         "poll_question": payload.question or (payload.content.strip() if payload.post_type == "poll" else None),
         "poll_options": (
             [{"text": option, "votes": 0} for option in payload.options]
@@ -1311,6 +1370,7 @@ def create_community_post(
         ),
         "moderation_status": "pending" if payload.post_type == "resource" else "approved",
         "group_id": int(payload.group_id) if payload.group_id else None,
+        "is_question": payload.is_question,
     }
     response = client.table("community_posts").insert(insert_payload).execute()
     rows = response.data or []
@@ -1404,6 +1464,264 @@ def create_community_comment(
         assistant_comment=assistant_comment,
         assistant_replied=assistant_comment is not None,
     )
+
+
+def _can_manage_row(row: dict[str, Any], current_user: AuthUserProfile) -> bool:
+    role = getattr(current_user.role, "value", str(current_user.role))
+    return str(row.get("author_user_id") or "") == str(current_user.user_id) or role == "admin"
+
+
+def update_community_post(
+    post_id: int,
+    payload: CommunityPostUpdateRequest,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> CommunityMutationResponse:
+    client = _get_client(access_token)
+    rows = _load_post_rows(client, post_ids=[post_id], limit=1)
+    if not rows:
+        raise LookupError("Publication introuvable.")
+    row = rows[0]
+    if not _can_manage_row(row, current_user):
+        raise PermissionError("Vous ne pouvez modifier que vos propres publications.")
+
+    changes: dict[str, Any] = {}
+    if payload.tag is not None:
+        changes["tag"] = _normalize_post_tag(
+            payload.tag,
+            post_type=str(row.get("post_type") or "text"),
+            content=payload.content or str(row.get("content") or ""),
+            question=payload.question or row.get("poll_question"),
+        )
+    if payload.content is not None:
+        changes["content"] = payload.content
+    if payload.question is not None and str(row.get("post_type") or "") == "poll":
+        changes["poll_question"] = payload.question
+    if not changes:
+        raise ValueError("Aucune modification transmise.")
+
+    client.table("community_posts").update(changes).eq("id", post_id).execute()
+    post = _load_post_items(client, post_ids=[post_id], limit=1, viewer_user_id=current_user.user_id)[0]
+    return CommunityMutationResponse(post=post)
+
+
+def delete_community_post(
+    post_id: int,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> bool:
+    client = _get_client(access_token)
+    rows = _load_post_rows(client, post_ids=[post_id], limit=1)
+    if not rows:
+        raise LookupError("Publication introuvable.")
+    row = rows[0]
+    if not _can_manage_row(row, current_user):
+        raise PermissionError("Vous ne pouvez supprimer que vos propres publications.")
+    client.table("community_posts").update({"is_archived": True}).eq("id", post_id).execute()
+    _refresh_profile_counters(client, str(row.get("author_profile_id") or ""))
+    return True
+
+
+def update_community_comment(
+    comment_id: int,
+    payload: CommunityCommentUpdateRequest,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> CommunityMutationResponse:
+    client = _get_client(access_token)
+    response = client.table("community_comments").select("*").eq("id", comment_id).limit(1).execute()
+    rows = response.data or []
+    if not rows:
+        raise LookupError("Commentaire introuvable.")
+    row = rows[0]
+    if not _can_manage_row(row, current_user):
+        raise PermissionError("Vous ne pouvez modifier que vos propres commentaires.")
+    client.table("community_comments").update({"body": payload.text}).eq("id", comment_id).execute()
+    post_id = int(row.get("post_id") or 0)
+    post = _load_post_items(client, post_ids=[post_id], limit=1, viewer_user_id=current_user.user_id)[0]
+    return CommunityMutationResponse(post=post)
+
+
+def delete_community_comment(
+    comment_id: int,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> CommunityMutationResponse:
+    client = _get_client(access_token)
+    response = client.table("community_comments").select("*").eq("id", comment_id).limit(1).execute()
+    rows = response.data or []
+    if not rows:
+        raise LookupError("Commentaire introuvable.")
+    row = rows[0]
+    if not _can_manage_row(row, current_user):
+        raise PermissionError("Vous ne pouvez supprimer que vos propres commentaires.")
+    if bool(row.get("is_ai_generated")):
+        raise PermissionError("Une réponse système ne peut pas être supprimée ici.")
+    post_id = int(row.get("post_id") or 0)
+    client.table("community_comments").delete().eq("id", comment_id).execute()
+    post = _load_post_items(client, post_ids=[post_id], limit=1, viewer_user_id=current_user.user_id)[0]
+    return CommunityMutationResponse(post=post)
+
+
+def toggle_community_comment_reaction(
+    comment_id: int,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> CommunityMutationResponse:
+    client = _get_client(access_token)
+    response = client.table("community_comments").select("*").eq("id", comment_id).limit(1).execute()
+    rows = response.data or []
+    if not rows:
+        raise LookupError("Commentaire introuvable.")
+    row = rows[0]
+    existing = (
+        client.table("community_comment_reactions")
+        .select("id,role")
+        .eq("comment_id", comment_id)
+        .eq("user_id", current_user.user_id)
+        .limit(1)
+        .execute()
+    ).data or []
+    likes = int(row.get("likes_count") or 0)
+    if existing:
+        client.table("community_comment_reactions").delete().eq("id", existing[0]["id"]).execute()
+        likes = max(likes - 1, 0)
+    else:
+        client.table("community_comment_reactions").insert(
+            {"comment_id": comment_id, "user_id": current_user.user_id}
+        ).execute()
+        likes += 1
+    client.table("community_comments").update({"likes_count": likes}).eq("id", comment_id).execute()
+    post_id = int(row.get("post_id") or 0)
+    post = _load_post_items(client, post_ids=[post_id], limit=1, viewer_user_id=current_user.user_id)[0]
+    return CommunityMutationResponse(post=post)
+
+
+def register_community_post_share(
+    post_id: int,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> CommunityMutationResponse:
+    client = _get_client(access_token)
+    rows = _load_post_rows(client, post_ids=[post_id], limit=1)
+    if not rows:
+        raise LookupError("Publication introuvable.")
+    row = rows[0]
+    client.table("community_post_shares").insert(
+        {"post_id": post_id, "user_id": current_user.user_id}
+    ).execute()
+    client.table("community_posts").update(
+        {"shares_count": int(row.get("shares_count") or 0) + 1}
+    ).eq("id", post_id).execute()
+    post = _load_post_items(client, post_ids=[post_id], limit=1, viewer_user_id=current_user.user_id)[0]
+    return CommunityMutationResponse(post=post)
+
+
+def upload_community_asset(
+    file_bytes: bytes,
+    filename: str,
+    mime_type: str,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> CommunityAssetItem:
+    if not file_bytes or len(file_bytes) > COMMUNITY_ASSET_MAX_BYTES:
+        raise ValueError("Le fichier doit peser au maximum 10 Mo.")
+    normalized_mime = (mime_type or "").lower().strip()
+    if normalized_mime not in COMMUNITY_ASSET_MIME_TYPES:
+        raise ValueError("Format non autorisé. Utilisez PDF, DOC, DOCX, JPG, PNG ou WEBP.")
+    suffix = Path(filename or "fichier").suffix.lower()[:10]
+    safe_name = f"{uuid4().hex}{suffix}"
+    storage_path = f"community/{current_user.user_id}/{safe_name}"
+    client = _get_client(access_token)
+    client.storage.from_(COMMUNITY_ASSET_BUCKET).upload(
+        storage_path,
+        file_bytes,
+        {"content-type": normalized_mime, "upsert": "false"},
+    )
+    public_url = client.storage.from_(COMMUNITY_ASSET_BUCKET).get_public_url(storage_path)
+    return CommunityAssetItem(
+        storage_path=storage_path,
+        public_url=str(public_url),
+        filename=filename or safe_name,
+        mime_type=normalized_mime,
+        size=len(file_bytes),
+    )
+
+
+def _build_story_item(row: dict[str, Any], viewer_user_id: str | None) -> CommunityStoryItem:
+    return CommunityStoryItem(
+        id=str(row.get("id") or ""),
+        user_id=str(row.get("author_profile_id") or PIEHUB_PROFILE_ID),
+        content=str(row.get("content") or ""),
+        media_url=row.get("media_url"),
+        media_mime_type=row.get("media_mime_type"),
+        created_at=str(row.get("created_at") or ""),
+        expires_at=str(row.get("expires_at") or ""),
+        viewer_can_delete=bool(viewer_user_id and str(row.get("author_user_id") or "") == str(viewer_user_id)),
+    )
+
+
+def get_community_stories(current_user: AuthUserProfile | None, access_token: str | None = None) -> list[CommunityStoryItem]:
+    client = _get_client(access_token)
+    now = datetime.now(timezone.utc).isoformat()
+    response = (
+        client.table("community_stories")
+        .select("*")
+        .gt("expires_at", now)
+        .order("created_at", desc=True)
+        .limit(50)
+        .execute()
+    )
+    viewer_id = current_user.user_id if current_user else None
+    return [_build_story_item(row, viewer_id) for row in (response.data or [])]
+
+
+def create_community_story(
+    payload: CommunityStoryCreateRequest,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> CommunityStoryItem:
+    if not payload.content and not payload.media_url:
+        raise ValueError("Ajoutez un texte ou un média à votre story.")
+    client = _get_client(access_token)
+    profile = _ensure_user_profile(client, current_user)
+    response = client.table("community_stories").insert(
+        {
+            "author_profile_id": profile.id,
+            "author_user_id": current_user.user_id,
+            "content": payload.content,
+            "media_storage_path": payload.media_storage_path,
+            "media_url": payload.media_url,
+            "media_mime_type": payload.media_mime_type,
+        }
+    ).execute()
+    rows = response.data or []
+    if not rows:
+        raise CommunityDataUnavailableError("Impossible de publier la story.")
+    return _build_story_item(rows[0], current_user.user_id)
+
+
+def delete_community_story(
+    story_id: str,
+    current_user: AuthUserProfile,
+    access_token: str | None = None,
+) -> bool:
+    client = _get_client(access_token)
+    response = client.table("community_stories").select("*").eq("id", story_id).limit(1).execute()
+    rows = response.data or []
+    if not rows:
+        raise LookupError("Story introuvable.")
+    row = rows[0]
+    if not _can_manage_row(row, current_user):
+        raise PermissionError("Vous ne pouvez supprimer que votre propre story.")
+    client.table("community_stories").delete().eq("id", story_id).execute()
+    storage_path = row.get("media_storage_path")
+    if storage_path:
+        try:
+            client.storage.from_(COMMUNITY_ASSET_BUCKET).remove([storage_path])
+        except Exception:
+            pass
+    return True
 
 
 def toggle_community_post_reaction(
@@ -1530,7 +1848,7 @@ def vote_community_poll(
     return CommunityMutationResponse(post=updated_post)
 
 
-def _build_group_item(row: dict[str, Any], *, member_group_ids: set[int] | None = None) -> CommunityGroupItem:
+def _build_group_item(row: dict[str, Any], *, member_group_ids: set[int] | None = None, viewer_roles: dict[int, str] | None = None) -> CommunityGroupItem:
     group_id = int(row.get("id") or 0)
     return CommunityGroupItem(
         id=group_id,
@@ -1541,6 +1859,7 @@ def _build_group_item(row: dict[str, Any], *, member_group_ids: set[int] | None 
         member_count=int(row.get("member_count") or 0),
         is_official=bool(row.get("is_official", False)),
         is_member=group_id in (member_group_ids or set()),
+        viewer_role=(viewer_roles or {}).get(group_id),
         created_by_profile_id=str(row.get("created_by_profile_id") or "") or None,
         created_at=_format_datetime_label(row.get("created_at")),
     )
@@ -1577,17 +1896,19 @@ def _load_groups(client, viewer_user_id: str | None = None) -> list[CommunityGro
         )
         rows = response.data or []
         member_group_ids: set[int] = set()
+        viewer_roles: dict[int, str] = {}
         if viewer_user_id and rows:
             group_ids = [int(r["id"]) for r in rows if r.get("id") is not None]
             mem_resp = (
                 client.table("community_group_members")
-                .select("group_id")
+                .select("group_id,role")
                 .eq("user_id", viewer_user_id)
                 .in_("group_id", group_ids)
                 .execute()
             )
             member_group_ids = {int(m["group_id"]) for m in (mem_resp.data or []) if m.get("group_id") is not None}
-        return [_build_group_item(r, member_group_ids=member_group_ids) for r in rows]
+            viewer_roles = {int(m["group_id"]): str(m.get("role") or "member") for m in (mem_resp.data or []) if m.get("group_id") is not None}
+        return [_build_group_item(r, member_group_ids=member_group_ids, viewer_roles=viewer_roles) for r in rows]
     except Exception:
         return []
 
@@ -1932,7 +2253,7 @@ def create_community_group(
             "group_id": group_id,
             "user_id": current_user.user_id,
             "profile_id": profile_id,
-            "role": "admin",
+            "role": "owner",
         }).execute()
         group_item = _build_group_item(group_row, member_group_ids={group_id})
         return CommunityGroupMembershipResponse(group=group_item, is_member=True)
@@ -1951,7 +2272,7 @@ def toggle_community_group_membership(
     profile_id = profile.id
     existing = (
         client.table("community_group_members")
-        .select("id")
+        .select("id,role")
         .eq("group_id", group_id)
         .eq("user_id", user_id)
         .limit(1)
@@ -1961,6 +2282,8 @@ def toggle_community_group_membership(
     current_member_count = int((group_count_resp.data or [{}])[0].get("member_count") or 0)
     is_member = bool(existing.data)
     if is_member:
+        if str(existing.data[0].get("role") or "") == "owner":
+            raise CommunityDataUnavailableError("Le proprietaire doit transferer son role avant de quitter le groupe.")
         client.table("community_group_members").delete().eq("group_id", group_id).eq("user_id", user_id).execute()
         client.table("community_groups").update({"member_count": max(current_member_count - 1, 0)}).eq("id", group_id).execute()
         new_is_member = False
@@ -1986,6 +2309,40 @@ def get_community_events_calendar(
     client = _get_client(access_token)
     viewer_id = current_user.user_id if current_user else None
     return _load_events_calendar(client, viewer_id)
+
+
+def get_community_group_members(group_id: int, current_user: AuthUserProfile, access_token: str) -> list[CommunityGroupMemberItem]:
+    client = _get_client(access_token)
+    membership = client.table("community_group_members").select("role").eq("group_id", group_id).eq("user_id", current_user.user_id).limit(1).execute()
+    if not membership.data:
+        raise PermissionError("Rejoignez ce groupe pour consulter ses membres.")
+    rows = client.table("community_group_members").select("profile_id,role,joined_at").eq("group_id", group_id).order("joined_at").execute().data or []
+    items: list[CommunityGroupMemberItem] = []
+    for row in rows:
+        profile = _load_profile_by_id(client, str(row.get("profile_id") or ""))
+        if profile:
+            items.append(CommunityGroupMemberItem(profile=profile, role=str(row.get("role") or "member"), joined_at=_format_datetime_label(row.get("joined_at"))))
+    return items
+
+
+def update_community_group_member_role(group_id: int, profile_id: str, payload: CommunityGroupMemberRoleRequest, current_user: AuthUserProfile, access_token: str) -> list[CommunityGroupMemberItem]:
+    client = _get_client(access_token)
+    owner = client.table("community_group_members").select("role").eq("group_id", group_id).eq("user_id", current_user.user_id).limit(1).execute()
+    if not owner.data or owner.data[0].get("role") != "owner":
+        raise PermissionError("Seul le proprietaire peut modifier les roles.")
+    client.table("community_group_members").update({"role": payload.role}).eq("group_id", group_id).eq("profile_id", profile_id).neq("role", "owner").execute()
+    return get_community_group_members(group_id, current_user, access_token)
+
+
+def remove_community_group_member(group_id: int, profile_id: str, current_user: AuthUserProfile, access_token: str) -> list[CommunityGroupMemberItem]:
+    client = _get_client(access_token)
+    owner = client.table("community_group_members").select("role").eq("group_id", group_id).eq("user_id", current_user.user_id).limit(1).execute()
+    if not owner.data or owner.data[0].get("role") != "owner":
+        raise PermissionError("Seul le proprietaire peut retirer un membre.")
+    client.table("community_group_members").delete().eq("group_id", group_id).eq("profile_id", profile_id).neq("role", "owner").execute()
+    count = client.table("community_group_members").select("id", count="exact").eq("group_id", group_id).execute()
+    client.table("community_groups").update({"member_count": int(getattr(count, "count", 0) or 0)}).eq("id", group_id).execute()
+    return get_community_group_members(group_id, current_user, access_token)
 
 
 def create_community_event(
@@ -2082,6 +2439,41 @@ def mark_community_notification_read(
         pass
     items, unread = _load_notifications(client, current_user.user_id)
     return CommunityNotificationsResponse(notifications=items, unread_count=unread)
+
+
+def mark_all_community_notifications_read(current_user: AuthUserProfile, access_token: str) -> CommunityNotificationsResponse:
+    client = _get_client(access_token)
+    now = datetime.now(timezone.utc).isoformat()
+    client.table("community_notifications").update({"is_read": True, "read_at": now}).eq("user_id", current_user.user_id).eq("is_read", False).execute()
+    items, unread = _load_notifications(client, current_user.user_id)
+    return CommunityNotificationsResponse(notifications=items, unread_count=unread)
+
+
+def toggle_community_user_block(target_profile_id: str, current_user: AuthUserProfile, access_token: str) -> CommunityBlockResponse:
+    client = _get_client(access_token)
+    target_user_id = _profile_user_id(client, target_profile_id)
+    if not target_user_id or str(target_user_id) == str(current_user.user_id):
+        raise LookupError("Profil invalide.")
+    existing = client.table("community_user_blocks").select("id").eq("blocker_user_id", current_user.user_id).eq("blocked_user_id", target_user_id).limit(1).execute()
+    if existing.data:
+        client.table("community_user_blocks").delete().eq("blocker_user_id", current_user.user_id).eq("blocked_user_id", target_user_id).execute()
+        blocked = False
+    else:
+        client.table("community_user_blocks").insert({"blocker_user_id": current_user.user_id, "blocked_user_id": target_user_id, "blocked_profile_id": target_profile_id}).execute()
+        blocked = True
+    return CommunityBlockResponse(target_profile_id=target_profile_id, is_blocked=blocked)
+
+
+def _assert_direct_messages_allowed(client, first_user_id: str, second_user_id: str) -> None:
+    blocks = client.table("community_user_blocks").select("id").or_(f"and(blocker_user_id.eq.{first_user_id},blocked_user_id.eq.{second_user_id}),and(blocker_user_id.eq.{second_user_id},blocked_user_id.eq.{first_user_id})").limit(1).execute()
+    if blocks.data:
+        raise PermissionError("Cette conversation est bloquee.")
+
+
+def get_community_user_blocks(current_user: AuthUserProfile, access_token: str) -> CommunityBlockListResponse:
+    client = _get_client(access_token)
+    response = client.table("community_user_blocks").select("blocked_profile_id").eq("blocker_user_id", current_user.user_id).execute()
+    return CommunityBlockListResponse(blocked_profile_ids=[str(row["blocked_profile_id"]) for row in (response.data or []) if row.get("blocked_profile_id")])
 
 
 def _load_thread_messages(client, conversation_id: str) -> list[CommunityAssistantThreadMessageItem]:
@@ -2354,6 +2746,7 @@ def get_community_direct_thread(
         raise LookupError("Ce profil ne peut pas recevoir de messages privés pour le moment.")
     if str(target_user_id) == str(current_user.user_id):
         raise LookupError("Vous ne pouvez pas ouvrir une conversation avec vous-même.")
+    _assert_direct_messages_allowed(client, current_user.user_id, target_user_id)
 
     pair = _direct_pair(current_user.user_id, current_profile.id, target_user_id, target_profile_id)
     response = (
@@ -2391,6 +2784,7 @@ def send_community_direct_message(
         raise LookupError("Ce profil ne peut pas recevoir de messages privés pour le moment.")
     if str(target_user_id) == str(current_user.user_id):
         raise LookupError("Vous ne pouvez pas vous envoyer un message privé.")
+    _assert_direct_messages_allowed(client, current_user.user_id, target_user_id)
 
     thread = get_community_direct_thread(payload.target_profile_id, current_user, access_token)
     client.table("community_direct_messages").insert(

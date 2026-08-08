@@ -330,6 +330,11 @@ create table if not exists public.community_posts (
   resource_name text,
   resource_type text check (resource_type in ('pdf', 'doc')),
   resource_size text,
+  resource_storage_path text,
+  resource_url text,
+  resource_mime_type text,
+  media_urls jsonb not null default '[]'::jsonb,
+  is_question boolean not null default false,
   poll_question text,
   poll_options jsonb not null default '[]'::jsonb,
   likes_count integer not null default 0 check (likes_count >= 0),
@@ -370,6 +375,34 @@ create table if not exists public.community_poll_votes (
   option_index integer not null check (option_index >= 0),
   created_at timestamptz not null default timezone('utc', now()),
   unique (post_id, user_id)
+);
+
+create table if not exists public.community_comment_reactions (
+  id uuid primary key default gen_random_uuid(),
+  comment_id bigint not null references public.community_comments (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz not null default timezone('utc', now()),
+  unique (comment_id, user_id)
+);
+
+create table if not exists public.community_post_shares (
+  id uuid primary key default gen_random_uuid(),
+  post_id bigint not null references public.community_posts (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.community_stories (
+  id uuid primary key default gen_random_uuid(),
+  author_profile_id text not null references public.community_profiles (id) on delete cascade,
+  author_user_id uuid not null references auth.users (id) on delete cascade,
+  content text not null default '' check (char_length(content) <= 1000),
+  media_storage_path text,
+  media_url text,
+  media_mime_type text,
+  created_at timestamptz not null default timezone('utc', now()),
+  expires_at timestamptz not null default (timezone('utc', now()) + interval '24 hours'),
+  check (char_length(trim(content)) > 0 or media_url is not null)
 );
 
 create table if not exists public.community_follows (
@@ -442,6 +475,15 @@ create index if not exists community_post_reactions_post_id_idx
 
 create index if not exists community_poll_votes_post_id_idx
   on public.community_poll_votes (post_id);
+
+create index if not exists community_comment_reactions_comment_idx
+  on public.community_comment_reactions (comment_id);
+
+create index if not exists community_post_shares_post_idx
+  on public.community_post_shares (post_id, created_at desc);
+
+create index if not exists community_stories_expiry_idx
+  on public.community_stories (expires_at desc);
 
 create index if not exists community_follows_follower_user_id_idx
   on public.community_follows (follower_user_id);
@@ -564,6 +606,9 @@ alter table public.community_posts enable row level security;
 alter table public.community_comments enable row level security;
 alter table public.community_post_reactions enable row level security;
 alter table public.community_poll_votes enable row level security;
+alter table public.community_comment_reactions enable row level security;
+alter table public.community_post_shares enable row level security;
+alter table public.community_stories enable row level security;
 alter table public.community_follows enable row level security;
 alter table public.community_ai_events enable row level security;
 
@@ -786,6 +831,38 @@ with check (public.is_admin());
 insert into storage.buckets (id, name, public)
 values ('student-documents', 'student-documents', false)
 on conflict (id) do nothing;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'community-assets', 'community-assets', true, 10485760,
+  array['application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','image/jpeg','image/png','image/webp']
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "community_assets_public_read" on storage.objects;
+create policy "community_assets_public_read" on storage.objects
+for select to anon, authenticated using (bucket_id = 'community-assets');
+
+drop policy if exists "community_assets_insert_own" on storage.objects;
+create policy "community_assets_insert_own" on storage.objects
+for insert to authenticated with check (
+  bucket_id = 'community-assets'
+  and ((storage.foldername(name))[2] = auth.uid()::text or public.is_admin())
+);
+
+drop policy if exists "community_assets_update_own" on storage.objects;
+create policy "community_assets_update_own" on storage.objects
+for update to authenticated
+using (bucket_id = 'community-assets' and ((storage.foldername(name))[2] = auth.uid()::text or public.is_admin()))
+with check (bucket_id = 'community-assets' and ((storage.foldername(name))[2] = auth.uid()::text or public.is_admin()));
+
+drop policy if exists "community_assets_delete_own" on storage.objects;
+create policy "community_assets_delete_own" on storage.objects
+for delete to authenticated
+using (bucket_id = 'community-assets' and ((storage.foldername(name))[2] = auth.uid()::text or public.is_admin()));
 
 drop policy if exists "student_documents_select_own_or_admin" on storage.objects;
 create policy "student_documents_select_own_or_admin"
@@ -1021,6 +1098,36 @@ for all
 to authenticated
 using (user_id = auth.uid() or public.is_admin())
 with check (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "community_follows_owner" on public.community_follows;
+drop policy if exists "community_comment_reactions_read" on public.community_comment_reactions;
+create policy "community_comment_reactions_read"
+on public.community_comment_reactions for select to anon, authenticated using (true);
+
+drop policy if exists "community_comment_reactions_owner" on public.community_comment_reactions;
+create policy "community_comment_reactions_owner"
+on public.community_comment_reactions for all to authenticated
+using (user_id = auth.uid() or public.is_admin())
+with check (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "community_post_shares_read" on public.community_post_shares;
+create policy "community_post_shares_read"
+on public.community_post_shares for select to anon, authenticated using (true);
+
+drop policy if exists "community_post_shares_owner" on public.community_post_shares;
+create policy "community_post_shares_owner"
+on public.community_post_shares for insert to authenticated with check (user_id = auth.uid());
+
+drop policy if exists "community_stories_public_read" on public.community_stories;
+create policy "community_stories_public_read"
+on public.community_stories for select to anon, authenticated
+using (expires_at > timezone('utc', now()));
+
+drop policy if exists "community_stories_owner" on public.community_stories;
+create policy "community_stories_owner"
+on public.community_stories for all to authenticated
+using (author_user_id = auth.uid() or public.is_admin())
+with check (author_user_id = auth.uid() or public.is_admin());
 
 drop policy if exists "community_follows_owner" on public.community_follows;
 create policy "community_follows_owner"
@@ -1465,7 +1572,31 @@ create table if not exists public.community_reports (
   admin_note text,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
+  );
+
+-- Community collaboration extensions (kept idempotent for canonical installs).
+alter table public.community_group_members drop constraint if exists community_group_members_role_check;
+update public.community_group_members set role = 'owner' where role = 'admin';
+alter table public.community_group_members alter column role set default 'member';
+alter table public.community_group_members add constraint community_group_members_role_check check (role in ('owner', 'moderator', 'member'));
+alter table public.community_events_calendar add column if not exists group_id bigint references public.community_groups(id) on delete set null;
+alter table public.community_events_calendar add column if not exists meeting_url text;
+alter table public.community_notifications add column if not exists target_url text;
+alter table public.community_notifications add column if not exists read_at timestamptz;
+create table if not exists public.community_user_blocks (
+  id bigint generated by default as identity primary key,
+  blocker_user_id uuid not null references auth.users(id) on delete cascade,
+  blocked_user_id uuid not null references auth.users(id) on delete cascade,
+  blocked_profile_id uuid references public.community_profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (blocker_user_id, blocked_user_id),
+  check (blocker_user_id <> blocked_user_id)
 );
+create index if not exists community_user_blocks_blocked_idx on public.community_user_blocks (blocked_user_id, blocker_user_id);
+alter table public.community_user_blocks enable row level security;
+drop policy if exists "community_user_blocks_own" on public.community_user_blocks;
+create policy "community_user_blocks_own" on public.community_user_blocks for all to authenticated
+  using (auth.uid() = blocker_user_id) with check (auth.uid() = blocker_user_id);
 
 create table if not exists public.community_moderation_actions (
   id uuid primary key default gen_random_uuid(),

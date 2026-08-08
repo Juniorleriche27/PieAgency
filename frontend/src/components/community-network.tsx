@@ -5,18 +5,38 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { company } from "@/content/site";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import {
+  CommunityStatus,
+  CommunityToastRegion,
+  type CommunityLoadState,
+  type CommunityToast,
+} from "@/components/community/community-feedback";
+import {
+  CommunityMobileNavigation,
+  type CommunityMainTab,
+} from "@/components/community/community-mobile-navigation";
 import { getApiBaseUrl, onAuthSessionChange } from "@/lib/auth";
 import {
   createCommunityComment,
+  createCommunityStory,
   createCommunityPost,
+  deleteCommunityComment,
+  deleteCommunityPost,
+  deleteCommunityStory,
   fetchCommunityAssistantThread,
   fetchCommunityBootstrap,
   fetchCommunityDirectThread,
   fetchCommunityDirectThreads,
   fetchCommunityEventsCalendar,
   fetchCommunityGroups,
+  fetchCommunityGroupMembers,
+  updateCommunityGroupMemberRole,
+  removeCommunityGroupMember,
   fetchCommunityNotifications,
   markCommunityNotificationRead,
+  markAllCommunityNotificationsRead,
+  toggleCommunityUserBlock,
+  fetchCommunityUserBlocks,
   createCommunityGroup,
   createCommunityEvent,
   toggleCommunityGroupMembership,
@@ -30,22 +50,22 @@ import {
   createCommunityAd,
   rewriteWithAI,
   reportCommunityContent,
+  registerCommunityPostShare,
+  toggleCommunityCommentReaction,
+  updateCommunityComment,
+  updateCommunityPost,
+  uploadCommunityAsset,
   fetchGroupPosts,
   type CommunityGroupItem as ApiGroupItem,
+  type CommunityGroupMemberItem,
   type CommunityEventCalendarItem as ApiEventItem,
   type CommunityDirectThreadItem,
   type CommunityNotificationItem,
   type CommunityAdItem,
+  type CommunityStoryItem,
 } from "@/lib/community";
 
-type MainTab =
-  | "feed"
-  | "explorer"
-  | "groupes"
-  | "evenements"
-  | "ressources"
-  | "messages"
-  | "publicite";
+type MainTab = CommunityMainTab;
 type ExplorerTab = "posts" | "membres" | "hashtags";
 type GroupDetailTab = "posts" | "membres" | "ressources" | "evenements";
 type FeedFilter = "all" | "open" | "answered" | "official" | "popular";
@@ -84,6 +104,8 @@ type SocialComment = {
   isAiGenerated?: boolean;
   isPinned?: boolean;
   trustLabel?: string | null;
+  viewerHasLiked?: boolean;
+  viewerCanEdit?: boolean;
 };
 
 type PostBase = {
@@ -106,6 +128,8 @@ type PostBase = {
   viewerHasSaved?: boolean;
   viewerPollVote?: number | null;
   groupId?: string | null;
+  viewerCanEdit?: boolean;
+  mediaUrls?: string[];
 };
 
 type TextPost = PostBase & {
@@ -119,6 +143,8 @@ type ResourcePost = PostBase & {
   resourceName: string;
   resourceType: "pdf" | "doc";
   resourceSize: string;
+  resourceUrl?: string | null;
+  resourceMimeType?: string | null;
 };
 
 type PollPost = PostBase & {
@@ -130,10 +156,14 @@ type PollPost = PostBase & {
 type SocialPost = TextPost | ResourcePost | PollPost;
 
 type StoryItem = {
+  id?: string;
   userId: string;
   content: string;
   add?: boolean;
-  createdAt?: number; // timestamp ms — stories expirent apres 24H
+  createdAt?: number;
+  mediaUrl?: string | null;
+  mediaMimeType?: string | null;
+  viewerCanDelete?: boolean;
 };
 
 type GroupItem = {
@@ -168,17 +198,37 @@ type MessageItem = {
   from: "me" | "them";
   text: string;
   time: string;
-};
-
-type ToastItem = {
-  id: number;
-  text: string;
+  readAt?: string | null;
 };
 
 type ReportTarget = {
   targetType: "post" | "comment" | "ad" | "profile";
   targetId: string;
   label: string;
+};
+
+type EditTarget = {
+  kind: "post" | "comment";
+  id: number;
+  postId: number;
+  tag?: TagKey;
+  isPoll?: boolean;
+};
+
+const VISITOR_PROFILE: UserProfile = {
+  id: "visitor",
+  name: "Visiteur PieHUB",
+  tag: "Découverte",
+  country: "Communauté publique",
+  city: "",
+  bio: "Connectez-vous pour publier et personnaliser votre réseau.",
+  avatar: "PIE",
+  color: "#0d1b38",
+  followers: 0,
+  following: 0,
+  posts: 0,
+  tags: [],
+  activityLabel: "Visiteur",
 };
 
 const USERS: UserProfile[] = [
@@ -296,7 +346,7 @@ const USERS: UserProfile[] = [
   },
 ];
 
-const INITIAL_POSTS: SocialPost[] = [
+export const INITIAL_POSTS: SocialPost[] = [
   {
     id: 1,
     userId: "ibrahim",
@@ -389,7 +439,7 @@ const INITIAL_POSTS: SocialPost[] = [
   },
 ];
 
-const EXTRA_POSTS: SocialPost[] = [
+export const EXTRA_POSTS: SocialPost[] = [
   {
     id: 5,
     userId: "moussa",
@@ -405,7 +455,7 @@ const EXTRA_POSTS: SocialPost[] = [
 ];
 
 // Pas de statuts par defaut — seul le bouton "Ajouter" est toujours present
-const STORIES: StoryItem[] = [
+export const STORIES: StoryItem[] = [
   { userId: "moi", content: "Ajouter un statut", add: true },
 ];
 
@@ -482,7 +532,7 @@ const EVENTS: EventItem[] = [
   },
 ];
 
-const RESOURCES: ResourceItem[] = [
+export const RESOURCES: ResourceItem[] = [
   {
     icon: "📄",
     name: "Modele lettre de motivation Campus France",
@@ -652,64 +702,12 @@ function inferTagFromText(text: string, fallback: TagKey = "vie") {
   return fallback;
 }
 
-function readStoredArray(key: string, fallback: string[]) {
-  if (typeof window === "undefined") {
-    return fallback;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) {
-      return fallback;
-    }
-
-    const parsed = JSON.parse(raw) as string[];
-    return Array.isArray(parsed) ? parsed : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function readStoredBooleanMap(key: string, fallback: Record<string, boolean>) {
-  if (typeof window === "undefined") {
-    return fallback;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) {
-      return fallback;
-    }
-
-    const parsed = JSON.parse(raw) as Record<string, boolean>;
-    return parsed && typeof parsed === "object" ? { ...fallback, ...parsed } : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
 function findUser(userId: string) {
   return USERS.find((user) => user.id === userId) ?? USERS[0];
 }
 
 function findUserInList(users: UserProfile[], userId: string) {
   return users.find((user) => user.id === userId) ?? findUser(userId);
-}
-
-function copyPosts(posts: SocialPost[]) {
-  return posts.map((post) => {
-    if (post.type === "poll") {
-      return {
-        ...post,
-        comments: post.comments.map((comment) => ({ ...comment })),
-        options: post.options.map((option) => ({ ...option })),
-      };
-    }
-    return {
-      ...post,
-      comments: post.comments.map((comment) => ({ ...comment })),
-    };
-  });
 }
 
 function renderRichText(text: string) {
@@ -779,14 +777,6 @@ function renderRichText(text: string) {
 
   return nodes;
 }
-
-function currentClock() {
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-}
-
-
-
 
 function isTrustedProfile(user: UserProfile) {
   return Boolean(user.isOfficial || user.isAi || user.id === "piehub" || user.id === "junior" || user.id === "ibrahim");
@@ -880,29 +870,19 @@ export function CommunityNetwork() {
   const [activeTab, setActiveTab] = useState<MainTab>("feed");
   const [explorerTab, setExplorerTab] = useState<ExplorerTab>("posts");
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
-  const [communityUsers, setCommunityUsers] = useState<UserProfile[]>(USERS);
-  const [currentProfileId, setCurrentProfileId] = useState("moi");
-  const [posts, setPosts] = useState<SocialPost[]>(() => copyPosts(INITIAL_POSTS));
+  const [communityUsers, setCommunityUsers] = useState<UserProfile[]>([VISITOR_PROFILE]);
+  const [currentProfileId, setCurrentProfileId] = useState(VISITOR_PROFILE.id);
+  const [posts, setPosts] = useState<SocialPost[]>([]);
+  const [communityLoadState, setCommunityLoadState] = useState<CommunityLoadState>("loading");
   const [feedFromApi, setFeedFromApi] = useState(false);
   const [likedPostIds, setLikedPostIds] = useState<number[]>([]);
   const [savedPostIds, setSavedPostIds] = useState<number[]>([]);
   const [followingIds, setFollowingIds] = useState<string[]>([]);
   const [pollVotes, setPollVotes] = useState<Record<number, number>>({});
-  const [localStories, setLocalStories] = useState<StoryItem[]>(() => {
-    // Charger les statuts depuis localStorage et filtrer ceux > 24H
-    try {
-      const stored = localStorage.getItem("piehub-stories");
-      if (!stored) return [];
-      const parsed: StoryItem[] = JSON.parse(stored);
-      const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-      return parsed.filter((s) => (s.createdAt ?? 0) > cutoff);
-    } catch {
-      return [];
-    }
-  });
+  const [localStories, setLocalStories] = useState<StoryItem[]>([]);
   const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
-  const [groupState, setGroupState] = useState<Record<string, boolean>>(Object.fromEntries(GROUPS.map((group) => [group.name, false])));
-  const [eventState, setEventState] = useState<Record<string, boolean>>(Object.fromEntries(EVENTS.map((event) => [event.name, false])));
+  const [groupState] = useState<Record<string, boolean>>(Object.fromEntries(GROUPS.map((group) => [group.name, false])));
+  const [eventState] = useState<Record<string, boolean>>(Object.fromEntries(EVENTS.map((event) => [event.name, false])));
   const [messageOpen, setMessageOpen] = useState(false);
   const [messageTargetId, setMessageTargetId] = useState("piehub");
   const [messages, setMessages] = useState<MessageItem[]>(() => createConversationStarter("piehub"));
@@ -920,19 +900,23 @@ export function CommunityNetwork() {
   const [composeResourceSize, setComposeResourceSize] = useState("");
   const [composePollQuestion, setComposePollQuestion] = useState("");
   const [composePollOptions, setComposePollOptions] = useState(["", "", "", ""]);
+  const [composeFile, setComposeFile] = useState<File | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [hashtagFilter, setHashtagFilter] = useState<string | null>(null);
   const [selectedGroupName, setSelectedGroupName] = useState<string | null>(null);
   const [selectedApiGroupId, setSelectedApiGroupId] = useState<string | null>(null);
   const [groupDetailPosts, setGroupDetailPosts] = useState<SocialPost[]>([]);
+  const [groupDetailMembers, setGroupDetailMembers] = useState<CommunityGroupMemberItem[]>([]);
   const [groupDetailTab, setGroupDetailTab] = useState<GroupDetailTab>("posts");
   const [isLoadingGroupPosts, setIsLoadingGroupPosts] = useState(false);
+  const [isLoadingGroupMembers, setIsLoadingGroupMembers] = useState(false);
+  const [blockedProfileIds, setBlockedProfileIds] = useState<string[]>([]);
   const [composeGroupId, setComposeGroupId] = useState<string | null>(null);
   const [selectedEventName, setSelectedEventName] = useState<string | null>(null);
   const [selectedApiEventId, setSelectedApiEventId] = useState<string | null>(null);
   const [resourceFilter, setResourceFilter] = useState<"tous" | "PDF" | "DOC">("tous");
   const [searchTerm, setSearchTerm] = useState("");
-  const [loadedExtraCount, setLoadedExtraCount] = useState(0);
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [toasts, setToasts] = useState<CommunityToast[]>([]);
   const [aiReplyingPostIds, setAiReplyingPostIds] = useState<number[]>([]);
   const [isAssistantMessageLoading, setIsAssistantMessageLoading] = useState(false);
   const [apiGroups, setApiGroups] = useState<ApiGroupItem[]>([]);
@@ -966,6 +950,9 @@ export function CommunityNetwork() {
   const [reportReason, setReportReason] = useState("fausse_information");
   const [reportDetails, setReportDetails] = useState("");
   const [isReporting, setIsReporting] = useState(false);
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const apiBaseUrl = getApiBaseUrl();
   const { session, isReady: authReady } = useAuthSession(apiBaseUrl);
   const isPieAgencyConnected = Boolean(session);
@@ -984,12 +971,6 @@ export function CommunityNetwork() {
   }
 
   const resourceLibrary = [
-    ...RESOURCES.map((resource) => ({
-      ...resource,
-      source: "catalog" as const,
-      tag: inferTagFromText(resource.name, resource.type === "DOC" ? "campus" : "visa"),
-      description: `${resource.name} ${resource.author} ${resource.type} ${resource.size}`,
-    })),
     ...posts
       .filter((post): post is ResourcePost => post.type === "resource")
       .map((post) => ({
@@ -1002,6 +983,7 @@ export function CommunityNetwork() {
         source: "post" as const,
         tag: post.tag,
         description: `${post.resourceName} ${post.content} ${findCommunityUser(post.userId).name}`,
+        url: post.resourceUrl,
       })),
   ];
 
@@ -1031,6 +1013,7 @@ export function CommunityNetwork() {
     : resourceLibrary;
 
   async function hydrateCommunityFeed() {
+    setCommunityLoadState("loading");
     try {
       const payload = await fetchCommunityBootstrap();
       payload.users.forEach((user) => {
@@ -1041,10 +1024,12 @@ export function CommunityNetwork() {
         }
         USERS.push(user);
       });
-      const nextUsers = payload.users.length ? payload.users : USERS;
+      const nextUsers = payload.currentProfileId
+        ? payload.users
+        : [VISITOR_PROFILE, ...payload.users.filter((user) => user.id !== VISITOR_PROFILE.id)];
       setCommunityUsers(nextUsers);
       setFollowingIds(nextUsers.filter((user) => user.viewerIsFollowing).map((user) => user.id));
-      setPosts(payload.posts.length ? payload.posts : copyPosts(INITIAL_POSTS));
+      setPosts(payload.posts);
       setLikedPostIds(
         payload.posts.filter((post) => post.viewerHasLiked).map((post) => post.id),
       );
@@ -1061,8 +1046,18 @@ export function CommunityNetwork() {
             .map((post) => [post.id, post.viewerPollVote as number]),
         ),
       );
-      setCurrentProfileId(payload.currentProfileId ?? "moi");
+      setCurrentProfileId(payload.currentProfileId ?? VISITOR_PROFILE.id);
       setFeedFromApi(payload.posts.length > 0);
+      setCommunityLoadState(payload.posts.length ? "ready" : "empty");
+      setLocalStories((payload.stories || []).map((story: CommunityStoryItem) => ({
+        id: story.id,
+        userId: story.userId,
+        content: story.content,
+        createdAt: Date.parse(story.createdAt),
+        mediaUrl: story.mediaUrl,
+        mediaMimeType: story.mediaMimeType,
+        viewerCanDelete: story.viewerCanDelete,
+      })));
       const highestPostId = payload.posts.reduce(
         (max, post) => (post.id > max ? post.id : max),
         0,
@@ -1078,20 +1073,22 @@ export function CommunityNetwork() {
       fetchCommunityAds().then((data) => setAds(data.ads)).catch(() => {});
       // Load notifications if user is logged in
       if (payload.currentProfileId) {
-        fetchCommunityNotifications().then((data) => {
+        Promise.all([fetchCommunityNotifications(), fetchCommunityUserBlocks()]).then(([data, blocks]) => {
           setNotifications(data.notifications);
           setUnreadNotifCount(data.unreadCount);
+          setBlockedProfileIds(blocks);
         }).catch(() => {});
         fetchCommunityDirectThreads().then(setDirectThreads).catch(() => setDirectThreads([]));
       }
     } catch {
-      setCommunityUsers(USERS);
-      setPosts(copyPosts(INITIAL_POSTS));
+      setCommunityUsers([VISITOR_PROFILE]);
+      setCurrentProfileId(VISITOR_PROFILE.id);
+      setPosts([]);
       setLikedPostIds([]);
       setSavedPostIds([]);
       setPollVotes({});
-      setCurrentProfileId("moi");
       setFeedFromApi(false);
+      setCommunityLoadState("error");
     }
   }
 
@@ -1142,6 +1139,35 @@ export function CommunityNetwork() {
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    const hasOpenLayer = Boolean(
+      composeOpen || reportTarget || createGroupOpen || createEventOpen || createAdOpen ||
+      notifPanelOpen || messageOpen || profileId || storyIndex !== null || editTarget,
+    );
+    if (!hasOpenLayer) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (createAdOpen) { setCreateAdOpen(false); setAdStep(0); }
+      else if (editTarget) { setEditTarget(null); setEditDraft(""); }
+      else if (createEventOpen) setCreateEventOpen(false);
+      else if (createGroupOpen) setCreateGroupOpen(false);
+      else if (reportTarget) closeReportModal();
+      else if (composeOpen) closeCompose();
+      else if (notifPanelOpen) setNotifPanelOpen(false);
+      else if (messageOpen) setMessageOpen(false);
+      else if (profileId) setProfileId(null);
+      else if (storyIndex !== null) setStoryIndex(null);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [composeOpen, reportTarget, createGroupOpen, createEventOpen, createAdOpen, notifPanelOpen, messageOpen, profileId, storyIndex, editTarget]);
 
 
   function authProblemMessage(action: string) {
@@ -1282,13 +1308,20 @@ export function CommunityNetwork() {
     setGroupDetailTab("posts");
     setComposeGroupId(String(group.id));
     setIsLoadingGroupPosts(true);
+    setGroupDetailMembers([]);
+    setIsLoadingGroupMembers(group.isMember);
     try {
-      const gposts = await fetchGroupPosts(String(group.id));
+      const [gposts, members] = await Promise.all([
+        fetchGroupPosts(String(group.id)),
+        group.isMember ? fetchCommunityGroupMembers(group.id) : Promise.resolve([]),
+      ]);
       setGroupDetailPosts(gposts);
+      setGroupDetailMembers(members);
     } catch {
       setGroupDetailPosts([]);
     } finally {
       setIsLoadingGroupPosts(false);
+      setIsLoadingGroupMembers(false);
     }
   }
 
@@ -1398,19 +1431,11 @@ export function CommunityNetwork() {
   async function handleMarkAllNotificationsRead() {
     const unread = notifications.filter((notif) => !notif.isRead);
     if (!unread.length) return;
-    let latestNotifications = notifications;
-    let latestUnreadCount = unreadNotifCount;
-    for (const notif of unread.slice(0, 12)) {
-      try {
-        const data = await markCommunityNotificationRead(notif.id);
-        latestNotifications = data.notifications;
-        latestUnreadCount = data.unreadCount;
-      } catch {
-        // keep going for the next notification
-      }
-    }
-    setNotifications(latestNotifications);
-    setUnreadNotifCount(latestUnreadCount);
+    try {
+      const data = await markAllCommunityNotificationsRead();
+      setNotifications(data.notifications);
+      setUnreadNotifCount(data.unreadCount);
+    } catch { pushToast("Impossible de marquer les notifications comme lues."); }
   }
 
   function getNotificationIcon(type: string) {
@@ -1463,33 +1488,28 @@ export function CommunityNetwork() {
     size: string;
     author: string;
     description: string;
+    url?: string | null;
   }) {
-    const content = [
-      `PieHUB - ${resource.name}`,
-      "",
-      `Auteur: ${resource.author}`,
-      `Format: ${resource.type}`,
-      `Taille: ${resource.size}`,
-      "",
-      resource.description,
-      "",
-      "Pour obtenir la version complete ou un accompagnement, utilisez le formulaire PieAgency ou le chat du site.",
-      "Formulaire: https://pieagency.fr/contact",
-    ].join("\n");
-
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = window.URL.createObjectURL(blob);
+    if (!resource.url) {
+      pushToast("Ce fichier n’est pas encore disponible au téléchargement.");
+      return;
+    }
     const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${resource.name.replace(/[^\w.-]+/g, "_")}.txt`;
+    anchor.href = resource.url;
+    anchor.download = resource.name;
+    anchor.rel = "noopener";
+    anchor.target = "_blank";
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
-    window.URL.revokeObjectURL(url);
-    pushToast(`Ressource telechargee : ${resource.name}`);
+    pushToast(`Téléchargement lancé : ${resource.name}`);
   }
 
   function openCompose(mode: ComposeMode) {
+    if (communityLoadState === "loading" || communityLoadState === "error") {
+      pushToast("Reconnectez PieHUB avant de créer un contenu.");
+      return;
+    }
     setComposeMode(mode);
     setComposeTag(
       mode === "doc"
@@ -1504,6 +1524,10 @@ export function CommunityNetwork() {
   }
 
   function openQuestionComposer(tag: TagKey = "campus", prompt = "") {
+    if (communityLoadState === "loading" || communityLoadState === "error") {
+      pushToast("Reconnectez PieHUB avant de poser une question.");
+      return;
+    }
     setComposeMode("question");
     setComposeTag(tag);
     setComposeText(prompt);
@@ -1520,6 +1544,7 @@ export function CommunityNetwork() {
     setComposeResourceSize("");
     setComposePollQuestion("");
     setComposePollOptions(["", "", "", ""]);
+    setComposeFile(null);
     setComposeGroupId(null);
   }
 
@@ -1542,24 +1567,36 @@ export function CommunityNetwork() {
   async function publishPost() {
     const trimmedText = composeText.trim();
 
-    // Mode story/statut — gere separement, pas de publication API
     if (composeMode === "story") {
-      if (trimmedText.length < 4) {
-        pushToast("Ecrivez quelque chose pour votre statut.");
+      if (trimmedText.length < 4 && !composeFile) {
+        pushToast("Ajoutez un texte ou une image à votre story.");
         return;
       }
-      const newStory: StoryItem = {
-        userId: currentProfileId,
-        content: trimmedText,
-        createdAt: Date.now(),
-      };
-      setLocalStories((prev) => {
-        const updated = [newStory, ...prev.filter((s) => s.userId !== currentProfileId)];
-        try { localStorage.setItem("piehub-stories", JSON.stringify(updated)); } catch { /* noop */ }
-        return updated;
-      });
-      closeCompose();
-      pushToast("Statut publie. Il disparaitra apres 24h.");
+      setIsPublishing(true);
+      try {
+        const asset = composeFile ? await uploadCommunityAsset(composeFile) : null;
+        const story = await createCommunityStory({
+          content: trimmedText,
+          mediaStoragePath: asset?.storagePath,
+          mediaUrl: asset?.publicUrl,
+          mediaMimeType: asset?.mimeType,
+        });
+        setLocalStories((current) => [{
+          id: story.id,
+          userId: story.userId,
+          content: story.content,
+          createdAt: Date.parse(story.createdAt),
+          mediaUrl: story.mediaUrl,
+          mediaMimeType: story.mediaMimeType,
+          viewerCanDelete: story.viewerCanDelete,
+        }, ...current.filter((item) => item.id !== story.id)]);
+        closeCompose();
+        pushToast("Story publiée. Elle disparaîtra automatiquement après 24 h.");
+      } catch {
+        pushToast(authProblemMessage("publier une story"));
+      } finally {
+        setIsPublishing(false);
+      }
       return;
     }
 
@@ -1591,7 +1628,13 @@ export function CommunityNetwork() {
       pushToast("Ajoutez un peu plus de contexte avant de publier.");
       return;
     }
+    if (composeMode === "doc" && !composeFile) {
+      pushToast("Sélectionnez le véritable document à partager.");
+      return;
+    }
     try {
+      setIsPublishing(true);
+      const asset = composeFile ? await uploadCommunityAsset(composeFile) : null;
       const resolvedTag = resolveComposeTag(
         composeMode === "poll" ? inferredQuestion || trimmedText : trimmedText,
       );
@@ -1602,17 +1645,21 @@ export function CommunityNetwork() {
           composeMode === "doc" ? "resource" : composeMode === "poll" ? "poll" : "text",
         resourceName:
           composeMode === "doc"
-            ? composeResourceName.trim() || "Ressource PieHUB"
+            ? composeResourceName.trim() || composeFile?.name || "Ressource PieHUB"
             : undefined,
         resourceType: composeMode === "doc" ? composeResourceType : undefined,
         resourceSize:
           composeMode === "doc"
-            ? composeResourceSize.trim() || "Document"
+            ? composeResourceSize.trim() || (asset ? `${Math.max(asset.size / 1024, 1).toFixed(0)} Ko` : "Document")
             : undefined,
         question: composeMode === "poll" ? inferredQuestion : undefined,
         options: composeMode === "poll" ? normalizedOptions : undefined,
         groupId: composeGroupId,
         isQuestion: composeMode === "question",
+        resourceStoragePath: composeMode === "doc" ? asset?.storagePath : undefined,
+        resourceUrl: composeMode === "doc" ? asset?.publicUrl : undefined,
+        resourceMimeType: composeMode === "doc" ? asset?.mimeType : undefined,
+        mediaUrls: composeMode !== "doc" && asset ? [asset.publicUrl] : [],
       });
       setPosts((current) => [
         mutation.post,
@@ -1638,6 +1685,8 @@ export function CommunityNetwork() {
         return;
       }
       pushToast("Publication impossible pour le moment.");
+    } finally {
+      setIsPublishing(false);
     }
   }
   async function toggleLike(postId: number) {
@@ -1705,12 +1754,12 @@ export function CommunityNetwork() {
   async function sharePost(postId: number) {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/communaute#post-${postId}`);
-    } catch {}
-
-    setPosts((current) =>
-      current.map((post) => (post.id === postId ? { ...post, shares: post.shares + 1 } : post)),
-    );
-    pushToast("🔗 Lien copie dans le presse-papier.");
+      const mutation = await registerCommunityPostShare(postId);
+      setPosts((current) => current.map((post) => post.id === postId ? mutation.post : post));
+      pushToast("🔗 Lien copié et partage enregistré.");
+    } catch {
+      pushToast(authProblemMessage("partager cette publication"));
+    }
   }
 
   async function votePoll(postId: number, optionIndex: number) {
@@ -1753,6 +1802,85 @@ export function CommunityNetwork() {
       }
     } finally {
       setAiReplyingPostIds((current) => current.filter((id) => id !== postId));
+    }
+  }
+
+  async function toggleCommentLike(commentId: number, postId: number) {
+    try {
+      const mutation = await toggleCommunityCommentReaction(commentId);
+      setPosts((current) => current.map((post) => post.id === postId ? mutation.post : post));
+      syncPostViewState(mutation.post);
+    } catch {
+      pushToast(authProblemMessage("aimer ce commentaire"));
+    }
+  }
+
+  function editPost(post: SocialPost) {
+    const currentText = post.type === "poll" ? post.question : post.content;
+    setEditTarget({ kind: "post", id: post.id, postId: post.id, tag: post.tag, isPoll: post.type === "poll" });
+    setEditDraft(currentText);
+  }
+
+  async function removePost(postId: number) {
+    if (!window.confirm("Supprimer cette publication ? Cette action la retirera du fil.")) return;
+    try {
+      await deleteCommunityPost(postId);
+      setPosts((current) => current.filter((post) => post.id !== postId));
+      pushToast("Publication supprimée.");
+    } catch {
+      pushToast("Impossible de supprimer cette publication.");
+    }
+  }
+
+  function editComment(comment: SocialComment, postId: number) {
+    if (!comment.id) return;
+    setEditTarget({ kind: "comment", id: comment.id, postId });
+    setEditDraft(comment.text);
+  }
+
+  async function saveEdit() {
+    if (!editTarget || editDraft.trim().length < 2) return;
+    setIsSavingEdit(true);
+    try {
+      const mutation = editTarget.kind === "post"
+        ? await updateCommunityPost(
+            editTarget.id,
+            editTarget.isPoll
+              ? { question: editDraft.trim(), tag: editTarget.tag }
+              : { content: editDraft.trim(), tag: editTarget.tag },
+          )
+        : await updateCommunityComment(editTarget.id, editDraft.trim());
+      setPosts((current) => current.map((post) => post.id === editTarget.postId ? mutation.post : post));
+      setEditTarget(null);
+      setEditDraft("");
+      pushToast(editTarget.kind === "post" ? "Publication modifiée." : "Commentaire modifié.");
+    } catch {
+      pushToast("Impossible d’enregistrer cette modification.");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }
+
+  async function removeComment(comment: SocialComment, postId: number) {
+    if (!comment.id || !window.confirm("Supprimer ce commentaire ?")) return;
+    try {
+      const mutation = await deleteCommunityComment(comment.id);
+      setPosts((current) => current.map((post) => post.id === postId ? mutation.post : post));
+      pushToast("Commentaire supprimé.");
+    } catch {
+      pushToast("Impossible de supprimer ce commentaire.");
+    }
+  }
+
+  async function removeStory(story: StoryItem) {
+    if (!story.id || !story.viewerCanDelete || !window.confirm("Supprimer cette story ?")) return;
+    try {
+      await deleteCommunityStory(story.id);
+      setLocalStories((current) => current.filter((item) => item.id !== story.id));
+      setStoryIndex(null);
+      pushToast("Story supprimée.");
+    } catch {
+      pushToast("Impossible de supprimer cette story.");
     }
   }
   async function toggleFollow(userId: string) {
@@ -1862,18 +1990,11 @@ export function CommunityNetwork() {
   }
 
   function loadMore() {
-    if (feedFromApi) {
-      pushToast("Le fil PieHUB est deja synchronise avec la base de donnees.");
-      return;
-    }
-
-    if (loadedExtraCount >= EXTRA_POSTS.length) {
-      pushToast("Vous avez deja charge toutes les publications du prototype.");
-      return;
-    }
-
-    setPosts((current) => [...current, EXTRA_POSTS[loadedExtraCount]]);
-    setLoadedExtraCount((current) => current + 1);
+    pushToast(
+      feedFromApi
+        ? "Toutes les publications disponibles sont affichées."
+        : "Le fil doit être reconnecté avant de charger d’autres publications.",
+    );
     pushToast("✅ Nouvelles publications chargees.");
   }
 
@@ -1926,14 +2047,22 @@ export function CommunityNetwork() {
             </div>
           </div>
 
-          <button
-            aria-label="Signaler cette publication"
-            className="social-icon-button"
-            onClick={() => openReportModal({ targetType: "post", targetId: String(post.id), label: `Publication #${post.id}` })}
-            type="button"
-          >
-            ⚑
-          </button>
+          <div className="social-post-owner-actions">
+            {post.viewerCanEdit ? (
+              <>
+                <button onClick={() => void editPost(post)} type="button">Modifier</button>
+                <button className="is-danger" onClick={() => void removePost(post.id)} type="button">Supprimer</button>
+              </>
+            ) : null}
+            <button
+              aria-label="Signaler cette publication"
+              className="social-icon-button"
+              onClick={() => openReportModal({ targetType: "post", targetId: String(post.id), label: `Publication #${post.id}` })}
+              type="button"
+            >
+              ⚑
+            </button>
+          </div>
         </div>
 
         <div className="social-post-body">
@@ -1961,16 +2090,32 @@ export function CommunityNetwork() {
                 </div>
               ) : null}
               <Link className="social-guide-contact-link" href={`/contact?motif=${encodeURIComponent(guideTopic.contactReason)}`}>
-                Demander l'aide PieAgency
+                Demander l&apos;aide PieAgency
               </Link>
             </div>
           ) : null}
           {post.type === "poll" ? null : <p>{renderRichText(post.content)}</p>}
+          {post.mediaUrls?.length ? (
+            <div className="social-post-media-grid">
+              {post.mediaUrls.map((url) => (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img alt="Média partagé dans la publication" key={url} loading="lazy" src={url} />
+              ))}
+            </div>
+          ) : null}
 
           {post.type === "resource" ? (
             <button
               className="social-resource-box"
-              onClick={() => pushToast(`Telechargement de ${post.resourceName}...`)}
+              disabled={!post.resourceUrl}
+              onClick={() => downloadResource({
+                name: post.resourceName,
+                type: post.resourceType.toUpperCase(),
+                size: post.resourceSize,
+                author: author.name,
+                description: post.content,
+                url: post.resourceUrl,
+              })}
               type="button"
             >
               <div className={`social-resource-icon social-resource-icon-${post.resourceType}`}>
@@ -2094,14 +2239,34 @@ export function CommunityNetwork() {
                     {renderRichText(comment.text)}
                   </div>
                   <div className="social-comment-actions">
-                    <button type="button">❤️ {comment.likes}</button>
-                    <button type="button">Repondre</button>
+                    <button
+                      aria-pressed={Boolean(comment.viewerHasLiked)}
+                      className={comment.viewerHasLiked ? "is-liked" : ""}
+                      disabled={!comment.id}
+                      onClick={() => comment.id ? void toggleCommentLike(comment.id, post.id) : undefined}
+                      type="button"
+                    >❤️ {comment.likes}</button>
+                    <button
+                      onClick={() => {
+                        setCommentDrafts((current) => ({ ...current, [post.id]: `@${user.name} ` }));
+                        window.requestAnimationFrame(() => focusCommentInput(post.id));
+                      }}
+                      type="button"
+                    >
+                      Répondre
+                    </button>
                     <button
                       onClick={() => openReportModal({ targetType: "comment", targetId: String(comment.id || `${post.id}-${index}`), label: `Commentaire sur le sujet #${post.id}` })}
                       type="button"
                     >
                       Signaler
                     </button>
+                    {comment.viewerCanEdit ? (
+                      <>
+                        <button onClick={() => void editComment(comment, post.id)} type="button">Modifier</button>
+                        <button className="is-danger" onClick={() => void removeComment(comment, post.id)} type="button">Supprimer</button>
+                      </>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -2327,6 +2492,7 @@ export function CommunityNetwork() {
         <form className="social-topbar-search" onSubmit={handleSearchSubmit}>
           <span>⌕</span>
           <input
+            aria-label="Rechercher dans PieHUB"
             className="social-topbar-search-input"
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Rechercher des etudiants, posts, ressources..."
@@ -2342,32 +2508,25 @@ export function CommunityNetwork() {
           <span className={`social-auth-status ${isPieAgencyConnected ? "is-connected" : "is-disconnected"}`} title={isPieAgencyConnected ? "Session PieAgency active" : "Session PieAgency absente"}>
             <span /> {authReady ? (isPieAgencyConnected ? "Connecté" : "Non connecté") : "Vérification"}
           </span>
-          <button className="social-icon-button" onClick={() => openMessagesWith("piehub")} type="button">
+          <button aria-label="Ouvrir les messages" className="social-icon-button" onClick={() => openMessagesWith("piehub")} type="button">
             💬
           </button>
-          <button className="social-icon-button social-notif-button" onClick={() => setNotifPanelOpen(!notifPanelOpen)} type="button">
+          <button aria-expanded={notifPanelOpen} aria-label="Ouvrir les notifications" className="social-icon-button social-notif-button" onClick={() => setNotifPanelOpen(!notifPanelOpen)} type="button">
             🔔
             {unreadNotifCount > 0 ? (
               <span className="social-notif-badge">{unreadNotifCount > 9 ? "9+" : unreadNotifCount}</span>
             ) : null}
           </button>
-          <button className="social-profile-trigger" onClick={() => setProfileId(currentProfileId)} type="button">
+          <button aria-label="Ouvrir mon profil" className="social-profile-trigger" onClick={() => setProfileId(currentProfileId)} type="button">
             {currentUser.avatar}
           </button>
         </div>
       </div>
 
-      <div className="social-mobile-tabs-wrapper">
-        <div className="social-mobile-tabs">
-          <button className={`social-mobile-tab ${activeTab === "feed" ? "is-active" : ""}`} onClick={() => switchTab("feed")} type="button">Fil</button>
-          <button className={`social-mobile-tab ${activeTab === "groupes" ? "is-active" : ""}`} onClick={() => switchTab("groupes")} type="button">👥 Groupes</button>
-          <button className={`social-mobile-tab ${activeTab === "evenements" ? "is-active" : ""}`} onClick={() => switchTab("evenements")} type="button">🗓 Evenements</button>
-          <button className={`social-mobile-tab ${activeTab === "ressources" ? "is-active" : ""}`} onClick={() => switchTab("ressources")} type="button">📚 Ressources</button>
-          <button className={`social-mobile-tab ${activeTab === "publicite" ? "is-active" : ""}`} onClick={() => switchTab("publicite")} type="button">📢 Pub</button>
-          <button className={`social-mobile-tab ${activeTab === "explorer" ? "is-active" : ""}`} onClick={() => switchTab("explorer")} type="button">⌕ Explorer</button>
-          <button className={`social-mobile-tab ${activeTab === "messages" ? "is-active" : ""}`} onClick={() => openMessagesWith("piehub")} type="button">💬 Messages</button>
-        </div>
-      </div>
+      <CommunityMobileNavigation
+        activeTab={activeTab}
+        onSelect={(tab) => tab === "messages" ? openMessagesWith("piehub") : switchTab(tab)}
+      />
 
       <div className="social-app-shell">
         <aside className="social-sidebar-left">
@@ -2421,6 +2580,7 @@ export function CommunityNetwork() {
         </aside>
 
         <main className="social-main-feed" ref={mainFeedRef}>
+          <CommunityStatus state={communityLoadState} onRetry={() => void hydrateCommunityFeed()} />
           {activeTab === "feed" ? (
             <>
               {(() => {
@@ -2558,7 +2718,7 @@ export function CommunityNetwork() {
                         <button className="social-smart-feed-card" key={`smart-${post.id}`} onClick={() => focusCommentInput(post.id)} type="button">
                           <span>{reason}</span>
                           <strong>{getPostPlainText(post).slice(0, 92)}{getPostPlainText(post).length > 92 ? "…" : ""}</strong>
-                          <small>{author.name} · {post.comments.length} réponse{post.comments.length > 1 ? "s" : ""} · {post.likes} j'aime</small>
+                          <small>{author.name} · {post.comments.length} réponse{post.comments.length > 1 ? "s" : ""} · {post.likes} j&apos;aime</small>
                         </button>
                       );
                     })}
@@ -2808,9 +2968,6 @@ export function CommunityNetwork() {
                     if (!group) return null;
                     const groupCategory = group.category.toLowerCase();
                     const groupTag = (group.category || "campus") as TagKey;
-                    const groupMembers = communityUsers
-                      .filter((user) => user.id === currentProfileId || user.tags.some((tag) => tag.toLowerCase().includes(groupCategory)))
-                      .slice(0, 8);
                     const groupResources = resourceLibrary
                       .filter((resource) => resource.tag === groupTag || resource.description.toLowerCase().includes(groupCategory))
                       .slice(0, 6);
@@ -2851,7 +3008,7 @@ export function CommunityNetwork() {
                         <div className="social-group-tabs" role="tablist" aria-label="Navigation du groupe">
                           {([
                             ["posts", "Publications", groupDetailPosts.length],
-                            ["membres", "Membres", groupMembers.length],
+                            ["membres", "Membres", group.memberCount],
                             ["ressources", "Ressources", groupResources.length],
                             ["evenements", "Événements", groupEvents.length],
                           ] as const).map(([tab, label, count]) => (
@@ -2881,14 +3038,21 @@ export function CommunityNetwork() {
 
                         {groupDetailTab === "membres" ? (
                           <div className="social-group-grid">
-                            {groupMembers.map((member) => (
-                              <button className="social-member-card" key={member.id} onClick={() => setProfileId(member.id)} type="button">
+                            {groupDetailMembers.map(({ profile: member, role }) => (
+                              <div className="social-member-card" key={member.id}>
+                                <button onClick={() => setProfileId(member.id)} type="button">
                                 <span className="social-avatar" style={{ backgroundColor: member.color }}>{member.avatar}</span>
                                 <strong>{member.name}</strong>
-                                <small>{member.stageLabel || member.country}</small>
-                              </button>
+                                <small>{role === "owner" ? "Propriétaire" : role === "moderator" ? "Modérateur" : "Membre"}</small>
+                                </button>
+                                {group.viewerRole === "owner" && role !== "owner" ? <span className="social-member-admin-actions">
+                                  <button onClick={async () => { try { setGroupDetailMembers(await updateCommunityGroupMemberRole(group.id, member.id, role === "moderator" ? "member" : "moderator")); } catch { pushToast("Impossible de modifier ce rôle."); } }} type="button">{role === "moderator" ? "Retirer modérateur" : "Nommer modérateur"}</button>
+                                  <button onClick={async () => { try { setGroupDetailMembers(await removeCommunityGroupMember(group.id, member.id)); setApiGroups((items) => items.map((item) => item.id === group.id ? { ...item, memberCount: Math.max(0, item.memberCount - 1) } : item)); } catch { pushToast("Impossible de retirer ce membre."); } }} type="button">Retirer</button>
+                                </span> : null}
+                              </div>
                             ))}
-                            {!groupMembers.length ? <div className="social-list-card social-empty-state"><span className="social-list-copy"><strong>Aucun membre affiché.</strong><small>Les membres apparaîtront ici au fur et à mesure.</small></span></div> : null}
+                            {isLoadingGroupMembers ? <div className="social-list-card social-empty-state"><span className="social-list-copy"><strong>Chargement des membres...</strong></span></div> : null}
+                            {!isLoadingGroupMembers && !groupDetailMembers.length ? <div className="social-list-card social-empty-state"><span className="social-list-copy"><strong>{group.isMember ? "Aucun membre affiché." : "Liste réservée aux membres."}</strong><small>{group.isMember ? "Les membres apparaîtront ici au fur et à mesure." : "Rejoignez le groupe pour consulter la liste réelle."}</small></span></div> : null}
                           </div>
                         ) : null}
 
@@ -2932,7 +3096,7 @@ export function CommunityNetwork() {
                     </button>
                   </div>
                   <div className="social-stack">
-                    {(apiGroups.length ? [] : GROUPS).map((group) => (
+                    {([] as GroupItem[]).map((group) => (
                       <div className="social-list-card" key={`static-${group.name}`}>
                         <span className="social-list-icon" style={{ background: group.color }}>
                           {group.icon}
@@ -2952,6 +3116,14 @@ export function CommunityNetwork() {
                         </button>
                       </div>
                     ))}
+                    {!apiGroups.length ? (
+                      <div className="social-list-card social-empty-state">
+                        <span className="social-list-copy">
+                          <strong>Aucun groupe disponible</strong>
+                          <small>Les groupes réels apparaîtront ici dès qu’ils seront publiés.</small>
+                        </span>
+                      </div>
+                    ) : null}
                     {apiGroups.map((group) => (
                       <div className={`social-list-card social-group-card ${group.isMember ? "is-joined" : ""}`} key={`api-${group.id}`}>
                         <button className="social-group-card-main" onClick={() => void openGroupDetail(group)} type="button">
@@ -3075,7 +3247,7 @@ export function CommunityNetwork() {
                     </button>
                   </div>
                   <div className="social-stack">
-                    {(apiEvents.length ? [] : EVENTS).map((event) => (
+                    {([] as EventItem[]).map((event) => (
                       <div className="social-event-card" key={`static-${event.name}`}>
                         <div className="social-event-date">
                           <strong>{event.day}</strong>
@@ -3096,6 +3268,14 @@ export function CommunityNetwork() {
                         </button>
                       </div>
                     ))}
+                    {!apiEvents.length ? (
+                      <div className="social-list-card social-empty-state">
+                        <span className="social-list-copy">
+                          <strong>Aucun événement programmé</strong>
+                          <small>Les prochains événements réels apparaîtront ici.</small>
+                        </span>
+                      </div>
+                    ) : null}
                     {apiEvents.map((event) => (
                       <div className="social-event-card" key={`api-${event.id}`}>
                         <div className="social-event-date">
@@ -3265,7 +3445,8 @@ export function CommunityNetwork() {
                   {ads.filter((ad) => ad.moderationStatus === "approved").map((ad) => (
                     <div className="social-ad-card" key={ad.id}>
                       {ad.imageUrl ? (
-                        <img alt={ad.title} className="social-ad-image" src={ad.imageUrl} />
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img alt={ad.title} className="social-ad-image" decoding="async" loading="lazy" src={ad.imageUrl} />
                       ) : null}
                       <div className="social-ad-body">
                         <div className="social-ad-category">{ad.category}</div>
@@ -3403,7 +3584,7 @@ export function CommunityNetwork() {
             </span>
             <div className="social-message-title">{messageTarget.name} — {messageTarget.country}</div>
             <div className="social-message-controls">
-              <button onClick={() => pushToast("Appel en cours...")} type="button">☎</button>
+              {messageTargetId !== "piehub" ? <button aria-label={blockedProfileIds.includes(messageTargetId) ? "Débloquer ce membre" : "Bloquer ce membre"} onClick={async () => { try { const blocked = await toggleCommunityUserBlock(messageTargetId); setBlockedProfileIds((current) => blocked ? [...new Set([...current, messageTargetId])] : current.filter((id) => id !== messageTargetId)); pushToast(blocked ? "Membre bloqué." : "Membre débloqué."); } catch { pushToast("Impossible de modifier le blocage."); } }} type="button">{blockedProfileIds.includes(messageTargetId) ? "🔓" : "⊘"}</button> : null}
               <button onClick={() => setMessageOpen(false)} type="button">✕</button>
             </div>
           </div>
@@ -3414,7 +3595,7 @@ export function CommunityNetwork() {
             {messages.map((message, index) => (
               <div className={`social-message-line is-${message.from}`} key={`${message.time}-${index}`}>
                 <div className={`social-message-bubble is-${message.from}`}>{message.text}</div>
-                <div className={`social-message-time is-${message.from}`}>{message.time}</div>
+                <div className={`social-message-time is-${message.from}`}>{message.time}{message.from === "me" ? ` · ${message.readAt ? "Lu" : "Envoyé"}` : ""}</div>
               </div>
             ))}
             {isAssistantMessageLoading ? (
@@ -3433,17 +3614,26 @@ export function CommunityNetwork() {
 
       {storyIndex !== null && activeLocalStories[storyIndex] ? (
         <div className="social-modal-overlay" onClick={() => setStoryIndex(null)} role="presentation">
-          <div className="social-story-modal" onClick={(event) => event.stopPropagation()} role="presentation">
+          <div aria-modal="true" className="social-story-modal" onClick={(event) => event.stopPropagation()} role="dialog">
             <div className="social-story-modal-head">
               <strong>{selectedStoryUser.name}</strong>
-              <button onClick={() => setStoryIndex(null)} type="button">✕</button>
+              <div>
+                {activeLocalStories[storyIndex].viewerCanDelete ? (
+                  <button onClick={() => void removeStory(activeLocalStories[storyIndex])} type="button">Supprimer</button>
+                ) : null}
+                <button aria-label="Fermer la story" onClick={() => setStoryIndex(null)} type="button">✕</button>
+              </div>
             </div>
             <div className="social-story-modal-body">
               <span className="social-avatar social-avatar-xl" style={{ backgroundColor: selectedStoryUser.color }}>
                 {selectedStoryUser.avatar}
               </span>
               <div className="social-story-country">{selectedStoryUser.country}</div>
-              <div className="social-story-box">{storyIndex !== null && activeLocalStories[storyIndex] ? activeLocalStories[storyIndex].content : ""}</div>
+              {activeLocalStories[storyIndex].mediaUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img alt="Média de la story" className="social-story-media" src={activeLocalStories[storyIndex].mediaUrl || ""} />
+              ) : null}
+              <div className="social-story-box">{activeLocalStories[storyIndex].content}</div>
             </div>
           </div>
         </div>
@@ -3451,7 +3641,7 @@ export function CommunityNetwork() {
 
       {profileId ? (
         <div className="social-modal-overlay" onClick={() => setProfileId(null)} role="presentation">
-          <div className="social-profile-modal" onClick={(event) => event.stopPropagation()} role="presentation">
+          <div aria-modal="true" className="social-profile-modal" onClick={(event) => event.stopPropagation()} role="dialog">
             <div className="social-profile-cover" style={{ background: `linear-gradient(135deg, ${selectedProfile.color}, ${selectedProfile.color}88)` }}>
               <button className="social-profile-close" onClick={() => setProfileId(null)} type="button">✕</button>
               <span className="social-avatar social-avatar-hero" style={{ backgroundColor: selectedProfile.color }}>
@@ -3522,7 +3712,7 @@ export function CommunityNetwork() {
 
       {composeOpen ? (
         <div className="social-modal-overlay" onClick={closeCompose} role="presentation">
-          <div className="social-compose-modal" onClick={(event) => event.stopPropagation()} role="presentation">
+          <div aria-modal="true" className="social-compose-modal" onClick={(event) => event.stopPropagation()} role="dialog">
             <div className="social-compose-head">
               <strong>{composeMode === "story" ? "Publier un statut" : composeMode === "question" ? "Poser une question" : "Creer une publication"}</strong>
               <button onClick={closeCompose} type="button">✕</button>
@@ -3562,6 +3752,18 @@ export function CommunityNetwork() {
                   </button>
                 ))}
               </div>
+
+              {composeMode === "doc" || composeMode === "story" || composeMode === "text" ? (
+                <label className="social-file-picker">
+                  <span>{composeMode === "doc" ? "Document réel *" : "Image facultative"}</span>
+                  <input
+                    accept={composeMode === "doc" ? ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" : "image/jpeg,image/png,image/webp"}
+                    onChange={(event) => setComposeFile(event.target.files?.[0] || null)}
+                    type="file"
+                  />
+                  <small>{composeFile ? `${composeFile.name} · ${(composeFile.size / 1024 / 1024).toFixed(2)} Mo` : "Maximum 10 Mo"}</small>
+                </label>
+              ) : null}
 
               {composeMode === "poll" ? (
                 <div className="social-compose-poll-fields">
@@ -3653,7 +3855,38 @@ export function CommunityNetwork() {
             </div>
             <div className="social-compose-footer">
               <span>{composeText.trim().length} caracteres</span>
-              <button className="social-primary-pill" onClick={publishPost} type="button">Publier</button>
+              <button className="social-primary-pill" disabled={isPublishing} onClick={publishPost} type="button">
+                {isPublishing ? "Publication…" : "Publier"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+
+      {editTarget ? (
+        <div className="social-modal-overlay" onClick={() => { setEditTarget(null); setEditDraft(""); }} role="presentation">
+          <div aria-labelledby="community-edit-title" aria-modal="true" className="social-compose-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+            <div className="social-compose-head">
+              <strong id="community-edit-title">
+                Modifier {editTarget.kind === "post" ? "la publication" : "le commentaire"}
+              </strong>
+              <button aria-label="Fermer l’éditeur" onClick={() => { setEditTarget(null); setEditDraft(""); }} type="button">✕</button>
+            </div>
+            <div className="social-compose-body">
+              <textarea
+                autoFocus
+                className="social-compose-textarea"
+                maxLength={editTarget.kind === "post" ? 4000 : 2000}
+                onChange={(event) => setEditDraft(event.target.value)}
+                value={editDraft}
+              />
+            </div>
+            <div className="social-compose-footer">
+              <span>{editDraft.trim().length} caractères</span>
+              <button className="social-primary-pill" disabled={isSavingEdit || editDraft.trim().length < 2} onClick={() => void saveEdit()} type="button">
+                {isSavingEdit ? "Enregistrement…" : "Enregistrer"}
+              </button>
             </div>
           </div>
         </div>
@@ -3662,7 +3895,7 @@ export function CommunityNetwork() {
 
       {reportTarget ? (
         <div className="social-modal-overlay" onClick={closeReportModal} role="presentation">
-          <div className="social-compose-modal social-report-modal" onClick={(event) => event.stopPropagation()} role="presentation">
+          <div aria-modal="true" className="social-compose-modal social-report-modal" onClick={(event) => event.stopPropagation()} role="dialog">
             <div className="social-compose-head">
               <strong>Signaler un contenu</strong>
               <button onClick={closeReportModal} type="button">✕</button>
@@ -3701,7 +3934,7 @@ export function CommunityNetwork() {
 
       {createGroupOpen ? (
         <div className="social-modal-overlay" onClick={() => setCreateGroupOpen(false)} role="presentation">
-          <div className="social-compose-modal" onClick={(event) => event.stopPropagation()} role="presentation">
+          <div aria-modal="true" className="social-compose-modal" onClick={(event) => event.stopPropagation()} role="dialog">
             <div className="social-compose-head">
               <strong>Créer un groupe</strong>
               <button onClick={() => setCreateGroupOpen(false)} type="button">✕</button>
@@ -3760,7 +3993,7 @@ export function CommunityNetwork() {
 
       {createEventOpen ? (
         <div className="social-modal-overlay" onClick={() => setCreateEventOpen(false)} role="presentation">
-          <div className="social-compose-modal" onClick={(event) => event.stopPropagation()} role="presentation">
+          <div aria-modal="true" className="social-compose-modal" onClick={(event) => event.stopPropagation()} role="dialog">
             <div className="social-compose-head">
               <strong>Créer un événement</strong>
               <button onClick={() => setCreateEventOpen(false)} type="button">✕</button>
@@ -3875,7 +4108,7 @@ export function CommunityNetwork() {
 
       {createAdOpen ? (
         <div className="social-modal-overlay" onClick={() => { setCreateAdOpen(false); setAdStep(0); }} role="presentation">
-          <div className="social-compose-modal social-ad-modal" onClick={(event) => event.stopPropagation()} role="presentation">
+          <div aria-modal="true" className="social-compose-modal social-ad-modal" onClick={(event) => event.stopPropagation()} role="dialog">
             <div className="social-compose-head">
               <strong>Créer une publicité — Étape {adStep + 1} / 3</strong>
               <button onClick={() => { setCreateAdOpen(false); setAdStep(0); }} type="button">✕</button>
@@ -3961,7 +4194,10 @@ export function CommunityNetwork() {
                   />
                   <div className="social-ad-preview">
                     <div className="social-ad-preview-label">Aperçu :</div>
-                    {adForm.image_url ? <img alt="preview" className="social-ad-image" src={adForm.image_url} /> : null}
+                    {adForm.image_url ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img alt="Aperçu de la publicité" className="social-ad-image" decoding="async" src={adForm.image_url} />
+                    ) : null}
                     <div className="social-ad-category">{adForm.category}</div>
                     <div className="social-ad-title">{adForm.title || "Titre de la publicité"}</div>
                     <div className="social-ad-desc">{adForm.body || "Description..."}</div>
@@ -4007,13 +4243,7 @@ export function CommunityNetwork() {
         </div>
       ) : null}
 
-      {toasts.length ? (
-        <div className="social-toast-stack">
-          {toasts.map((toast) => (
-            <div className="social-toast" key={toast.id}>{toast.text}</div>
-          ))}
-        </div>
-      ) : null}
+      <CommunityToastRegion toasts={toasts} />
     </div>
   );
 }

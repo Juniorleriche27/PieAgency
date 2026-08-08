@@ -487,6 +487,8 @@ class CommunityCommentItem(BaseModel):
     is_ai_generated: bool = False
     is_pinned: bool = False
     trust_label: str | None = None
+    viewer_has_liked: bool = False
+    viewer_can_edit: bool = False
 
 
 class CommunityPostItem(BaseModel):
@@ -501,6 +503,9 @@ class CommunityPostItem(BaseModel):
     resource_name: str | None = None
     resource_type: Literal["pdf", "doc"] | None = None
     resource_size: str | None = None
+    resource_url: str | None = None
+    resource_mime_type: str | None = None
+    media_urls: list[str] = Field(default_factory=list)
     question: str | None = None
     options: list[CommunityPollOptionItem] = Field(default_factory=list)
     comments: list[CommunityCommentItem] = Field(default_factory=list)
@@ -516,6 +521,18 @@ class CommunityPostItem(BaseModel):
     resolved_by_official: bool = False
     trust_label: str | None = None
     pinned_official_comment: CommunityCommentItem | None = None
+    viewer_can_edit: bool = False
+
+
+class CommunityStoryItem(BaseModel):
+    id: str
+    user_id: str
+    content: str = ""
+    media_url: str | None = None
+    media_mime_type: str | None = None
+    created_at: str
+    expires_at: str
+    viewer_can_delete: bool = False
 
 
 class CommunityBootstrapResponse(BaseModel):
@@ -527,6 +544,7 @@ class CommunityBootstrapResponse(BaseModel):
     notifications: list["CommunityNotificationItem"] = Field(default_factory=list)
     unread_notifications: int = 0
     ads: list["CommunityAdItem"] = Field(default_factory=list)
+    stories: list[CommunityStoryItem] = Field(default_factory=list)
 
 
 class CommunityPostCreateRequest(BaseModel):
@@ -536,12 +554,16 @@ class CommunityPostCreateRequest(BaseModel):
     resource_name: str | None = Field(default=None, max_length=160)
     resource_type: Literal["pdf", "doc"] | None = None
     resource_size: str | None = Field(default=None, max_length=40)
+    resource_storage_path: str | None = Field(default=None, max_length=500)
+    resource_url: str | None = Field(default=None, max_length=1000)
+    resource_mime_type: str | None = Field(default=None, max_length=160)
+    media_urls: list[str] = Field(default_factory=list, max_length=4)
     question: str | None = Field(default=None, max_length=300)
     options: list[str] = Field(default_factory=list, max_length=6)
     group_id: str | None = None
     is_question: bool = False
 
-    @field_validator("tag", "content", "resource_name", "resource_size", "question", mode="before")
+    @field_validator("tag", "content", "resource_name", "resource_size", "resource_storage_path", "resource_url", "resource_mime_type", "question", mode="before")
     @classmethod
     def strip_community_post_strings(cls, value: str | None) -> str | None:
         if value is None:
@@ -557,6 +579,17 @@ class CommunityPostCreateRequest(BaseModel):
         return [item.strip() for item in value if item and item.strip()]
 
 
+class CommunityPostUpdateRequest(BaseModel):
+    tag: str | None = Field(default=None, min_length=2, max_length=40)
+    content: str | None = Field(default=None, min_length=4, max_length=4000)
+    question: str | None = Field(default=None, max_length=300)
+
+    @field_validator("tag", "content", "question", mode="before")
+    @classmethod
+    def strip_community_post_update(cls, value: str | None) -> str | None:
+        return value.strip() if value is not None else None
+
+
 class CommunityCommentCreateRequest(BaseModel):
     text: str = Field(min_length=2, max_length=2000)
 
@@ -564,6 +597,35 @@ class CommunityCommentCreateRequest(BaseModel):
     @classmethod
     def strip_community_comment(cls, value: str) -> str:
         return value.strip()
+
+
+class CommunityCommentUpdateRequest(BaseModel):
+    text: str = Field(min_length=2, max_length=2000)
+
+    @field_validator("text", mode="before")
+    @classmethod
+    def strip_community_comment_update(cls, value: str) -> str:
+        return value.strip()
+
+
+class CommunityAssetItem(BaseModel):
+    storage_path: str
+    public_url: str
+    filename: str
+    mime_type: str
+    size: int
+
+
+class CommunityStoryCreateRequest(BaseModel):
+    content: str = Field(default="", max_length=1000)
+    media_storage_path: str | None = Field(default=None, max_length=500)
+    media_url: str | None = Field(default=None, max_length=1000)
+    media_mime_type: str | None = Field(default=None, max_length=160)
+
+    @field_validator("content", "media_storage_path", "media_url", "media_mime_type", mode="before")
+    @classmethod
+    def strip_story_strings(cls, value: str | None) -> str | None:
+        return value.strip() if value is not None else None
 
 
 class CommunityPollVoteRequest(BaseModel):
@@ -1230,6 +1292,7 @@ class CommunityGroupItem(BaseModel):
     member_count: int = 0
     is_official: bool = False
     is_member: bool = False
+    viewer_role: Literal["owner", "moderator", "member"] | None = None
     created_by_profile_id: str | None = None
     created_at: str = ""
 
@@ -1251,6 +1314,25 @@ class CommunityGroupCreateRequest(BaseModel):
 class CommunityGroupMembershipResponse(BaseModel):
     group: CommunityGroupItem
     is_member: bool
+
+
+class CommunityGroupMemberItem(BaseModel):
+    profile: CommunityProfileItem
+    role: Literal["owner", "moderator", "member"] = "member"
+    joined_at: str = ""
+
+
+class CommunityGroupMemberRoleRequest(BaseModel):
+    role: Literal["moderator", "member"]
+
+
+class CommunityBlockResponse(BaseModel):
+    target_profile_id: str
+    is_blocked: bool
+
+
+class CommunityBlockListResponse(BaseModel):
+    blocked_profile_ids: list[str] = Field(default_factory=list)
 
 
 class CommunityEventCalendarItem(BaseModel):

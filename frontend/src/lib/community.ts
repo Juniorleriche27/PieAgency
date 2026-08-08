@@ -33,6 +33,8 @@ export type CommunityComment = {
   isAiGenerated?: boolean;
   isPinned?: boolean;
   trustLabel?: string | null;
+  viewerHasLiked: boolean;
+  viewerCanEdit: boolean;
 };
 
 export type CommunityPollOption = {
@@ -59,6 +61,8 @@ type CommunityPostBase = {
   resolvedByOfficial: boolean;
   trustLabel?: string | null;
   pinnedOfficialComment?: CommunityComment | null;
+  viewerCanEdit: boolean;
+  mediaUrls: string[];
 };
 
 export type CommunityPost =
@@ -72,6 +76,8 @@ export type CommunityPost =
       resourceName: string;
       resourceType: "pdf" | "doc";
       resourceSize: string;
+      resourceUrl: string | null;
+      resourceMimeType: string | null;
     })
   | (CommunityPostBase & {
       type: "poll";
@@ -89,6 +95,26 @@ export type CommunityBootstrapData = {
   notifications?: CommunityNotificationItem[];
   unreadNotifications?: number;
   ads?: CommunityAdItem[];
+  stories?: CommunityStoryItem[];
+};
+
+export type CommunityStoryItem = {
+  id: string;
+  userId: string;
+  content: string;
+  mediaUrl: string | null;
+  mediaMimeType: string | null;
+  createdAt: string;
+  expiresAt: string;
+  viewerCanDelete: boolean;
+};
+
+export type CommunityAssetItem = {
+  storagePath: string;
+  publicUrl: string;
+  filename: string;
+  mimeType: string;
+  size: number;
 };
 
 export type CommunityMutationData = {
@@ -102,6 +128,7 @@ export type CommunityThreadMessage = {
   from: "me" | "them";
   text: string;
   time: string;
+  readAt?: string | null;
 };
 
 export type CommunityThreadData = {
@@ -132,6 +159,7 @@ type CommunityGroupApi = {
   member_count: number;
   is_official: boolean;
   is_member: boolean;
+  viewer_role: "owner" | "moderator" | "member" | null;
   created_by_profile_id: string | null;
   created_at: string;
 };
@@ -188,6 +216,7 @@ type CommunityBootstrapApi = {
   notifications?: CommunityNotificationApi[];
   unread_notifications?: number;
   ads?: CommunityAdApi[];
+  stories?: CommunityStoryApi[];
 };
 
 type CommunityCommentApi = {
@@ -200,6 +229,8 @@ type CommunityCommentApi = {
   is_ai_generated?: boolean;
   is_pinned?: boolean;
   trust_label?: string | null;
+  viewer_has_liked?: boolean;
+  viewer_can_edit?: boolean;
 };
 
 type CommunityPostApi = {
@@ -215,6 +246,9 @@ type CommunityPostApi = {
   resource_name?: string | null;
   resource_type?: "pdf" | "doc" | null;
   resource_size?: string | null;
+  resource_url?: string | null;
+  resource_mime_type?: string | null;
+  media_urls?: string[];
   question?: string | null;
   options?: CommunityPollOption[];
   viewer_has_liked?: boolean;
@@ -229,6 +263,18 @@ type CommunityPostApi = {
   resolved_by_official?: boolean;
   trust_label?: string | null;
   pinned_official_comment?: CommunityCommentApi | null;
+  viewer_can_edit?: boolean;
+};
+
+type CommunityStoryApi = {
+  id: string;
+  user_id: string;
+  content: string;
+  media_url?: string | null;
+  media_mime_type?: string | null;
+  created_at: string;
+  expires_at: string;
+  viewer_can_delete?: boolean;
 };
 
 type CommunityMutationApi = {
@@ -404,6 +450,8 @@ function mapComment(item: CommunityCommentApi): CommunityComment {
     isAiGenerated: item.is_ai_generated,
     isPinned: item.is_pinned,
     trustLabel: item.trust_label ?? null,
+    viewerHasLiked: Boolean(item.viewer_has_liked),
+    viewerCanEdit: Boolean(item.viewer_can_edit),
   };
 }
 
@@ -428,6 +476,8 @@ function mapBase(item: CommunityPostApi): CommunityPostBase {
     resolvedByOfficial: Boolean(item.resolved_by_official),
     trustLabel: item.trust_label ?? null,
     pinnedOfficialComment: item.pinned_official_comment ? mapComment(item.pinned_official_comment) : null,
+    viewerCanEdit: Boolean(item.viewer_can_edit),
+    mediaUrls: item.media_urls || [],
   };
 }
 
@@ -452,6 +502,8 @@ function mapPost(item: CommunityPostApi): CommunityPost {
       resourceName: item.resource_name || "Ressource PieHUB",
       resourceType: item.resource_type || "pdf",
       resourceSize: item.resource_size || "N/A",
+      resourceUrl: item.resource_url ?? null,
+      resourceMimeType: item.resource_mime_type ?? null,
     };
   }
 
@@ -463,12 +515,13 @@ function mapPost(item: CommunityPostApi): CommunityPost {
 }
 
 
-function mapThreadMessage(item: { id: string; from_role: "me" | "them"; text: string; time: string }): CommunityThreadMessage {
+function mapThreadMessage(item: { id: string; from_role: "me" | "them"; text: string; time: string; read_at?: string | null }): CommunityThreadMessage {
   return {
     id: item.id,
     from: item.from_role,
     text: item.text,
     time: item.time,
+    readAt: item.read_at,
   };
 }
 
@@ -497,6 +550,19 @@ function mapMutation(item: CommunityMutationApi): CommunityMutationData {
   };
 }
 
+function mapStory(item: CommunityStoryApi): CommunityStoryItem {
+  return {
+    id: item.id,
+    userId: item.user_id,
+    content: item.content,
+    mediaUrl: item.media_url ?? null,
+    mediaMimeType: item.media_mime_type ?? null,
+    createdAt: item.created_at,
+    expiresAt: item.expires_at,
+    viewerCanDelete: Boolean(item.viewer_can_delete),
+  };
+}
+
 export async function fetchCommunityBootstrap(): Promise<CommunityBootstrapData> {
   const response = await authenticatedFetch("/api/community/bootstrap");
   if (!response.ok) {
@@ -513,6 +579,7 @@ export async function fetchCommunityBootstrap(): Promise<CommunityBootstrapData>
     notifications: (payload.notifications || []).map(mapNotification),
     unreadNotifications: payload.unread_notifications ?? 0,
     ads: (payload.ads || []).map(mapAd),
+    stories: (payload.stories || []).map(mapStory),
   };
 }
 
@@ -527,6 +594,10 @@ export async function createCommunityPost(payload: {
   options?: string[];
   groupId?: string | null;
   isQuestion?: boolean;
+  resourceStoragePath?: string;
+  resourceUrl?: string;
+  resourceMimeType?: string;
+  mediaUrls?: string[];
 }): Promise<CommunityMutationData> {
   const response = await authenticatedFetch(
     "/api/community/posts",
@@ -546,6 +617,10 @@ export async function createCommunityPost(payload: {
         options: payload.options || [],
         group_id: payload.groupId ?? null,
         is_question: Boolean(payload.isQuestion),
+        resource_storage_path: payload.resourceStoragePath,
+        resource_url: payload.resourceUrl,
+        resource_mime_type: payload.resourceMimeType,
+        media_urls: payload.mediaUrls || [],
       }),
     },
     { requireAuth: true },
@@ -579,6 +654,119 @@ export async function createCommunityComment(
   }
 
   return mapMutation((await response.json()) as CommunityMutationApi);
+}
+
+export async function updateCommunityPost(postId: number, payload: { content?: string; question?: string; tag?: string }): Promise<CommunityMutationData> {
+  const response = await authenticatedFetch(
+    `/api/community/posts/${postId}`,
+    { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) },
+    { requireAuth: true },
+  );
+  if (!response.ok) throw new Error("COMMUNITY_POST_UPDATE_FAILED");
+  return mapMutation((await response.json()) as CommunityMutationApi);
+}
+
+export async function deleteCommunityPost(postId: number): Promise<void> {
+  const response = await authenticatedFetch(
+    `/api/community/posts/${postId}`,
+    { method: "DELETE" },
+    { requireAuth: true },
+  );
+  if (!response.ok) throw new Error("COMMUNITY_POST_DELETE_FAILED");
+}
+
+export async function updateCommunityComment(commentId: number, text: string): Promise<CommunityMutationData> {
+  const response = await authenticatedFetch(
+    `/api/community/comments/${commentId}`,
+    { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) },
+    { requireAuth: true },
+  );
+  if (!response.ok) throw new Error("COMMUNITY_COMMENT_UPDATE_FAILED");
+  return mapMutation((await response.json()) as CommunityMutationApi);
+}
+
+export async function deleteCommunityComment(commentId: number): Promise<CommunityMutationData> {
+  const response = await authenticatedFetch(
+    `/api/community/comments/${commentId}`,
+    { method: "DELETE" },
+    { requireAuth: true },
+  );
+  if (!response.ok) throw new Error("COMMUNITY_COMMENT_DELETE_FAILED");
+  return mapMutation((await response.json()) as CommunityMutationApi);
+}
+
+export async function toggleCommunityCommentReaction(commentId: number): Promise<CommunityMutationData> {
+  const response = await authenticatedFetch(
+    `/api/community/comments/${commentId}/reaction`,
+    { method: "POST" },
+    { requireAuth: true },
+  );
+  if (!response.ok) throw new Error("COMMUNITY_COMMENT_REACTION_FAILED");
+  return mapMutation((await response.json()) as CommunityMutationApi);
+}
+
+export async function registerCommunityPostShare(postId: number): Promise<CommunityMutationData> {
+  const response = await authenticatedFetch(
+    `/api/community/posts/${postId}/shares`,
+    { method: "POST" },
+    { requireAuth: true },
+  );
+  if (!response.ok) throw new Error("COMMUNITY_SHARE_FAILED");
+  return mapMutation((await response.json()) as CommunityMutationApi);
+}
+
+export async function uploadCommunityAsset(file: File): Promise<CommunityAssetItem> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await authenticatedFetch(
+    "/api/community/assets/upload",
+    { method: "POST", body: formData },
+    { requireAuth: true },
+  );
+  if (!response.ok) throw new Error("COMMUNITY_ASSET_UPLOAD_FAILED");
+  const item = await response.json() as {
+    storage_path: string; public_url: string; filename: string; mime_type: string; size: number;
+  };
+  return {
+    storagePath: item.storage_path,
+    publicUrl: item.public_url,
+    filename: item.filename,
+    mimeType: item.mime_type,
+    size: item.size,
+  };
+}
+
+export async function createCommunityStory(payload: {
+  content: string;
+  mediaStoragePath?: string;
+  mediaUrl?: string;
+  mediaMimeType?: string;
+}): Promise<CommunityStoryItem> {
+  const response = await authenticatedFetch(
+    "/api/community/stories",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: payload.content,
+        media_storage_path: payload.mediaStoragePath,
+        media_url: payload.mediaUrl,
+        media_mime_type: payload.mediaMimeType,
+      }),
+    },
+    { requireAuth: true },
+  );
+  if (!response.ok) throw new Error("COMMUNITY_STORY_CREATE_FAILED");
+  return mapStory((await response.json()) as CommunityStoryApi);
+}
+
+export async function deleteCommunityStory(storyId: string): Promise<void> {
+  const response = await authenticatedFetch(
+    `/api/community/stories/${encodeURIComponent(storyId)}`,
+    { method: "DELETE" },
+    { requireAuth: true },
+  );
+  if (!response.ok) throw new Error("COMMUNITY_STORY_DELETE_FAILED");
 }
 
 export async function toggleCommunityReaction(
@@ -705,8 +893,15 @@ export type CommunityGroupItem = {
   memberCount: number;
   isOfficial: boolean;
   isMember: boolean;
+  viewerRole: "owner" | "moderator" | "member" | null;
   createdByProfileId: string | null;
   createdAt: string;
+};
+
+export type CommunityGroupMemberItem = {
+  profile: CommunityUser;
+  role: "owner" | "moderator" | "member";
+  joinedAt: string;
 };
 
 export type CommunityEventCalendarItem = {
@@ -750,6 +945,7 @@ function mapGroup(item: CommunityGroupApi): CommunityGroupItem {
     memberCount: item.member_count,
     isOfficial: item.is_official,
     isMember: item.is_member,
+    viewerRole: item.viewer_role,
     createdByProfileId: item.created_by_profile_id,
     createdAt: item.created_at,
   };
@@ -825,6 +1021,27 @@ export async function toggleCommunityGroupMembership(
   return { group: mapGroup(data.group), isMember: data.is_member };
 }
 
+export async function fetchCommunityGroupMembers(groupId: number): Promise<CommunityGroupMemberItem[]> {
+  const response = await authenticatedFetch(`/api/community/groups/${groupId}/members`, undefined, { requireAuth: true });
+  if (!response.ok) throw new Error("GROUP_MEMBERS_FAILED");
+  const payload = (await response.json()) as Array<{ profile: CommunityBootstrapApi["profiles"][number]; role: "owner" | "moderator" | "member"; joined_at: string }>;
+  return payload.map((item) => ({ profile: mapUser(item.profile), role: item.role, joinedAt: item.joined_at }));
+}
+
+export async function updateCommunityGroupMemberRole(groupId: number, profileId: string, role: "moderator" | "member"): Promise<CommunityGroupMemberItem[]> {
+  const response = await authenticatedFetch(`/api/community/groups/${groupId}/members/${profileId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role }) }, { requireAuth: true });
+  if (!response.ok) throw new Error("GROUP_MEMBER_ROLE_FAILED");
+  const payload = (await response.json()) as Array<{ profile: CommunityBootstrapApi["profiles"][number]; role: "owner" | "moderator" | "member"; joined_at: string }>;
+  return payload.map((item) => ({ profile: mapUser(item.profile), role: item.role, joinedAt: item.joined_at }));
+}
+
+export async function removeCommunityGroupMember(groupId: number, profileId: string): Promise<CommunityGroupMemberItem[]> {
+  const response = await authenticatedFetch(`/api/community/groups/${groupId}/members/${profileId}`, { method: "DELETE" }, { requireAuth: true });
+  if (!response.ok) throw new Error("GROUP_MEMBER_REMOVE_FAILED");
+  const payload = (await response.json()) as Array<{ profile: CommunityBootstrapApi["profiles"][number]; role: "owner" | "moderator" | "member"; joined_at: string }>;
+  return payload.map((item) => ({ profile: mapUser(item.profile), role: item.role, joinedAt: item.joined_at }));
+}
+
 export async function fetchCommunityEventsCalendar(): Promise<CommunityEventCalendarItem[]> {
   const response = await authenticatedFetch("/api/community/events-calendar");
   if (!response.ok) return [];
@@ -895,6 +1112,25 @@ export async function markCommunityNotificationRead(
     notifications: payload.notifications.map(mapNotification),
     unreadCount: payload.unread_count,
   };
+}
+
+export async function markAllCommunityNotificationsRead(): Promise<CommunityNotificationsData> {
+  const response = await authenticatedFetch("/api/community/notifications/read-all", { method: "POST" }, { requireAuth: true });
+  if (!response.ok) throw new Error("NOTIFICATIONS_READ_ALL_FAILED");
+  const payload = (await response.json()) as { notifications: CommunityNotificationApi[]; unread_count: number };
+  return { notifications: payload.notifications.map(mapNotification), unreadCount: payload.unread_count };
+}
+
+export async function toggleCommunityUserBlock(profileId: string): Promise<boolean> {
+  const response = await authenticatedFetch(`/api/community/profiles/${profileId}/block`, { method: "POST" }, { requireAuth: true });
+  if (!response.ok) throw new Error("COMMUNITY_BLOCK_FAILED");
+  return ((await response.json()) as { is_blocked: boolean }).is_blocked;
+}
+
+export async function fetchCommunityUserBlocks(): Promise<string[]> {
+  const response = await authenticatedFetch("/api/community/blocks", undefined, { requireAuth: true });
+  if (!response.ok) return [];
+  return ((await response.json()) as { blocked_profile_ids: string[] }).blocked_profile_ids;
 }
 
 // ── Ads ──────────────────────────────────────────────────────────────────────
