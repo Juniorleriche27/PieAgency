@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Mono, DM_Sans, Playfair_Display } from "next/font/google";
 import { SiteChrome } from "@/components/site-chrome";
 import "./globals.css";
@@ -28,11 +28,23 @@ export const metadata: Metadata = {
   },
   description:
     "PieAgency accompagne les etudiants vers la France et la Belgique avec une methode claire, humaine et structuree.",
+  applicationName: "PieAgency",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "PieAgency",
+  },
+  formatDetection: { telephone: false },
   icons: {
     icon: "/pieagency-logo.jpg",
     shortcut: "/pieagency-logo.jpg",
     apple: "/pieagency-logo.jpg",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0d1b38",
+  colorScheme: "light",
 };
 
 export default function RootLayout({

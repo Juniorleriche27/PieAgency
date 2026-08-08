@@ -1,4 +1,5 @@
 import { PrivatePortalShell } from "@/components/private/private-portal-shell";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 
 export default function StudentPortalLayout({
   children,
@@ -6,6 +7,9 @@ export default function StudentPortalLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <PrivatePortalShell requiredRole="student">{children}</PrivatePortalShell>
+    <>
+      <PrivatePortalShell requiredRole="student">{children}</PrivatePortalShell>
+      <PwaInstallPrompt />
+    </>
   );
 }
