@@ -19034,3 +19034,55 @@ html[data-theme="dark"]:not(:has(.private-app-shell)) .btn-outline:hover {
     font-size: .76rem !important;
   }
 }
+
+/* PieHUB desktop: trois colonnes avec défilements réellement indépendants. */
+@media (min-width: 861px) {
+  .social-page-shell {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .social-app-shell {
+    align-items: stretch;
+    box-sizing: border-box;
+    height: calc(100dvh - 68px);
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: 22px;
+  }
+
+  .social-sidebar-left,
+  .social-main-feed,
+  .social-sidebar-right {
+    height: 100%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .social-sidebar-left,
+  .social-sidebar-right {
+    position: relative;
+    top: auto;
+  }
+
+  .social-sidebar-left::-webkit-scrollbar,
+  .social-main-feed::-webkit-scrollbar,
+  .social-sidebar-right::-webkit-scrollbar {
+    display: none;
+    height: 0;
+    width: 0;
+  }
+
+  .social-sidebar-left:focus-visible,
+  .social-main-feed:focus-visible,
+  .social-sidebar-right:focus-visible {
+    outline: 2px solid rgba(200, 149, 42, 0.55);
+    outline-offset: -2px;
+  }
+}

@@ -2529,7 +2529,7 @@ export function CommunityNetwork() {
       />
 
       <div className="social-app-shell">
-        <aside className="social-sidebar-left">
+        <aside aria-label="Navigation communautaire" className="social-sidebar-left" tabIndex={0}>
           <div className="social-profile-card">
             <span className="social-avatar social-avatar-lg" style={{ backgroundColor: currentUser.color }}>
               {currentUser.avatar}
@@ -2579,7 +2579,7 @@ export function CommunityNetwork() {
           </div>
         </aside>
 
-        <main className="social-main-feed" ref={mainFeedRef}>
+        <main aria-label="Fil communautaire" className="social-main-feed" ref={mainFeedRef} tabIndex={0}>
           <CommunityStatus state={communityLoadState} onRetry={() => void hydrateCommunityFeed()} />
           {activeTab === "feed" ? (
             <>
@@ -3476,7 +3476,7 @@ export function CommunityNetwork() {
           ) : null}
         </main>
 
-        <aside className="social-sidebar-right">
+        <aside aria-label="Informations communautaires" className="social-sidebar-right" tabIndex={0}>
           <div className="social-widget social-guide-widget">
             <div className="social-widget-title">
               <strong>🤖 Guide PieHUB</strong>
