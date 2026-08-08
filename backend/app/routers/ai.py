@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
-from ..dependencies.auth import get_optional_access_token, get_optional_current_user
+from ..dependencies.auth import get_optional_authenticated_access_token, get_optional_current_user
 from ..schemas import (
     AIChatRequest,
     AIChatResponse,
@@ -34,7 +34,7 @@ def community_reply(payload: CommunityAIReplyRequest) -> CommunityAIReplyRespons
 def chat_with_assistant(
     payload: AIChatRequest,
     current_user: AuthUserProfile | None = Depends(get_optional_current_user),
-    access_token: str | None = Depends(get_optional_access_token),
+    access_token: str | None = Depends(get_optional_authenticated_access_token),
 ) -> AIChatResponse:
     return generate_chat_response(payload, current_user, access_token)
 
@@ -43,7 +43,7 @@ def chat_with_assistant(
 def stream_chat_with_assistant(
     payload: AIChatRequest,
     current_user: AuthUserProfile | None = Depends(get_optional_current_user),
-    access_token: str | None = Depends(get_optional_access_token),
+    access_token: str | None = Depends(get_optional_authenticated_access_token),
 ) -> StreamingResponse:
     return StreamingResponse(
         stream_chat_response(payload, current_user, access_token),

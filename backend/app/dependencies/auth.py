@@ -32,11 +32,15 @@ def get_optional_current_user(
 
     try:
         return get_current_user_profile(access_token)
-    except (InactiveProfileError, InvalidTokenError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(exc),
-        ) from exc
+    except (InactiveProfileError, InvalidTokenError):
+        return None
+
+
+def get_optional_authenticated_access_token(
+    access_token: str | None = Depends(get_optional_access_token),
+    current_user: AuthUserProfile | None = Depends(get_optional_current_user),
+) -> str | None:
+    return access_token if current_user is not None else None
 
 
 def get_current_user(

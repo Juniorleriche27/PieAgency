@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, File as FastAPIFile, HTTPException, Uplo
 from ..dependencies.auth import (
     get_current_access_token,
     get_current_user,
-    get_optional_access_token,
+    get_optional_authenticated_access_token,
     get_optional_current_user,
     require_admin_user,
 )
@@ -100,7 +100,7 @@ router = APIRouter()
 @router.get("/community/bootstrap", response_model=CommunityBootstrapResponse)
 def community_bootstrap(
     current_user: AuthUserProfile | None = Depends(get_optional_current_user),
-    access_token: str | None = Depends(get_optional_access_token),
+    access_token: str | None = Depends(get_optional_authenticated_access_token),
 ) -> CommunityBootstrapResponse:
     try:
         return get_community_bootstrap(current_user, access_token)
@@ -241,7 +241,7 @@ async def community_upload_asset(
 @router.get("/community/stories", response_model=list[CommunityStoryItem])
 def community_stories(
     current_user: AuthUserProfile | None = Depends(get_optional_current_user),
-    access_token: str | None = Depends(get_optional_access_token),
+    access_token: str | None = Depends(get_optional_authenticated_access_token),
 ) -> list[CommunityStoryItem]:
     return get_community_stories(current_user, access_token)
 
@@ -422,7 +422,7 @@ def community_direct_message(
 @router.get("/community/groups", response_model=list[CommunityGroupItem])
 def community_get_groups(
     current_user: AuthUserProfile | None = Depends(get_optional_current_user),
-    access_token: str | None = Depends(get_optional_access_token),
+    access_token: str | None = Depends(get_optional_authenticated_access_token),
 ):
     return get_community_groups(current_user, access_token)
 
@@ -478,7 +478,7 @@ def community_remove_group_member(group_id: int, profile_id: str, current_user: 
 @router.get("/community/events-calendar", response_model=list[CommunityEventCalendarItem])
 def community_get_events_calendar(
     current_user: AuthUserProfile | None = Depends(get_optional_current_user),
-    access_token: str | None = Depends(get_optional_access_token),
+    access_token: str | None = Depends(get_optional_authenticated_access_token),
 ):
     return get_community_events_calendar(current_user, access_token)
 
@@ -545,7 +545,7 @@ def community_get_user_blocks(current_user: AuthUserProfile = Depends(get_curren
 @router.get("/community/ads", response_model=CommunityAdsResponse)
 def community_get_ads(
     current_user: AuthUserProfile | None = Depends(get_optional_current_user),
-    access_token: str | None = Depends(get_optional_access_token),
+    access_token: str | None = Depends(get_optional_authenticated_access_token),
 ) -> CommunityAdsResponse:
     return get_community_ads(current_user, access_token)
 
