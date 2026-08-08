@@ -142,7 +142,7 @@ async function performSessionRefresh(
         return latestSession;
       }
 
-      if ([400, 401, 403].includes(response.status)) {
+      if ([400, 401, 403, 422].includes(response.status)) {
         clearStoredSession();
         return null;
       }
@@ -220,6 +220,11 @@ export async function authenticatedFetch(
 
   const refreshedSession = await refreshStoredSession(apiBaseUrl);
   if (!refreshedSession?.access_token || refreshedSession.access_token === session.access_token) {
+    if (!requireAuth) {
+      const publicHeaders = new Headers(init?.headers);
+      publicHeaders.delete("Authorization");
+      return fetch(`${apiBaseUrl}${path}`, { ...init, headers: publicHeaders });
+    }
     return response;
   }
 

@@ -10,6 +10,7 @@ type InstallPromptEvent = Event & {
 
 const DISMISS_KEY = "pieagency-install-prompt-dismissed-at";
 const REMIND_AFTER_MS = 14 * 24 * 60 * 60 * 1000;
+const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
 function isStandalone() {
   return (
@@ -29,9 +30,33 @@ export function PwaInstallPrompt() {
 
     let refreshing = false;
     const hadController = Boolean(navigator.serviceWorker.controller);
-    navigator.serviceWorker.register("/sw.js", { scope: "/" }).then((registration) => {
-      registration.update().catch(() => undefined);
+    let registration: ServiceWorkerRegistration | null = null;
+    const activateWaitingWorker = () => {
+      registration?.waiting?.postMessage({ type: "SKIP_WAITING" });
+    };
+    const checkForUpdate = () => {
+      if (!navigator.onLine || document.visibilityState === "hidden") return;
+      registration?.update().then(activateWaitingWorker).catch(() => undefined);
+    };
+
+    navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }).then((nextRegistration) => {
+      registration = nextRegistration;
+      activateWaitingWorker();
+      nextRegistration.update().catch(() => undefined);
+      nextRegistration.addEventListener("updatefound", () => {
+        const worker = nextRegistration.installing;
+        worker?.addEventListener("statechange", () => {
+          if (worker.state === "installed") activateWaitingWorker();
+        });
+      });
     }).catch(() => undefined);
+
+    const updateTimer = window.setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") checkForUpdate();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("online", checkForUpdate);
 
     const onControllerChange = () => {
       // Pas de rechargement lors de la toute première installation du worker.
@@ -41,7 +66,12 @@ export function PwaInstallPrompt() {
     };
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
 
-    return () => navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+    return () => {
+      window.clearInterval(updateTimer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("online", checkForUpdate);
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+    };
   }, []);
 
   useEffect(() => {

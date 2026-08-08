@@ -1,4 +1,4 @@
-const CACHE_NAME = "pieagency-shell-v1";
+const CACHE_NAME = "pieagency-shell-v2";
 const OFFLINE_URLS = ["/icons/pieagency-192.png"];
 
 self.addEventListener("install", (event) => {
@@ -19,6 +19,10 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+});
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
@@ -30,7 +34,24 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (["style", "script", "image", "font"].includes(request.destination)) {
+  if (["style", "script"].includes(request.destination)) {
+    // Le code de l'application privilégie toujours le réseau. Le cache ne sert
+    // que de secours hors ligne afin qu'une version installée ne reste jamais figée.
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request)),
+    );
+    return;
+  }
+
+  if (["image", "font"].includes(request.destination)) {
     event.respondWith(
       caches.match(request).then(
         (cached) =>
