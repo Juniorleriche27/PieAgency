@@ -1,4 +1,4 @@
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 
 from ..schemas import AuthUserProfile, PlatformRole
 from ..services.auth_service import (
@@ -6,6 +6,7 @@ from ..services.auth_service import (
     InvalidTokenError,
     get_current_user_profile,
 )
+from ..security.session_cookies import ACCESS_COOKIE
 
 
 def _extract_bearer_token(authorization: str | None) -> str | None:
@@ -19,9 +20,13 @@ def _extract_bearer_token(authorization: str | None) -> str | None:
 
 
 def get_optional_access_token(
+    request: Request,
     authorization: str | None = Header(default=None),
 ) -> str | None:
-    return _extract_bearer_token(authorization)
+    bearer_token = _extract_bearer_token(authorization)
+    if bearer_token:
+        return bearer_token
+    return request.cookies.get(ACCESS_COOKIE)
 
 
 def get_optional_current_user(

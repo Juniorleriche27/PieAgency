@@ -4,8 +4,10 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from .config import settings
+from .security.session_cookies import ACCESS_COOKIE, REFRESH_COOKIE
 from .routers.ai import router as ai_router
 from .routers.auth import router as auth_router
 from .routers.candidate import router as candidate_router
@@ -31,6 +33,24 @@ app.add_middleware(
 )
 
 logger = logging.getLogger("pieagency.requests")
+
+
+@app.middleware("http")
+async def cookie_csrf_guard(request: Request, call_next):
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        uses_cookie_auth = bool(
+            request.cookies.get(ACCESS_COOKIE) or request.cookies.get(REFRESH_COOKIE)
+        )
+        if uses_cookie_auth:
+            origin = request.headers.get("origin")
+            if not origin or origin.rstrip("/") not in {
+                allowed.rstrip("/") for allowed in settings.cors_origins
+            }:
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "Origine non autorisee pour cette session web."},
+                )
+    return await call_next(request)
 
 
 @app.middleware("http")

@@ -391,6 +391,23 @@ class AuthMessageResponse(BaseModel):
     message: str
 
 
+class SSOAuthorizeRequest(BaseModel):
+    client_id: str = Field(min_length=3, max_length=120)
+    redirect_uri: str = Field(min_length=10, max_length=500)
+
+
+class SSOAuthorizeResponse(BaseModel):
+    code: str
+    expires_in: int
+
+
+class SSOExchangeRequest(BaseModel):
+    code: str = Field(min_length=20, max_length=512)
+    client_id: str = Field(min_length=3, max_length=120)
+    client_secret: str = Field(min_length=16, max_length=512)
+    redirect_uri: str = Field(min_length=10, max_length=500)
+
+
 class AIMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str = Field(min_length=1, max_length=4000)

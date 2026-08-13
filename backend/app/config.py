@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     airtable_api_base_url: str = "https://api.airtable.com/v0"
     airtable_request_timeout_seconds: float = 20.0
     admin_emails: str = ""
+    auth_refresh_cookie_max_age_seconds: int = 60 * 60 * 24 * 30
+    assistant_sso_client_id: str = "assistant-pieagency"
+    assistant_sso_client_secret: str = ""
+    assistant_sso_redirect_uri: str = "http://localhost:8000/api/v1/auth/sso/callback"
+    sso_authorization_code_ttl_seconds: int = 60
     resend_api_key: str = ""
     receipt_from_email: str = "PieAgency <contact@pieagency.fr>"
     maketou_base_url: str = "https://api.maketou.net"

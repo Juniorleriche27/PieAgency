@@ -12,183 +12,121 @@ export type AuthUserProfile = {
 };
 
 export type AuthSession = {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  expires_at?: number | null;
-  token_type: string;
   user: AuthUserProfile;
 };
 
 export type AuthSignUpResponse = {
   status: "ok" | "pending_confirmation";
   message: string;
-  session?: AuthSession | null;
+  authenticated: boolean;
   user?: AuthUserProfile | null;
 };
 
-const AUTH_STORAGE_KEY = "pieagency.auth.session";
 const AUTH_EVENT_NAME = "pieagency-auth-changed";
-const AUTH_REFRESH_SKEW_SECONDS = 5 * 60;
-const AUTH_REFRESH_GRACE_SECONDS = 24 * 60 * 60;
-
-let refreshInFlight: Promise<AuthSession | null> | null = null;
+let memorySession: AuthSession | null = null;
+let sessionRequestInFlight: Promise<AuthSession | null> | null = null;
+let refreshInFlight: Promise<boolean> | null = null;
 
 export function getApiBaseUrl() {
   return process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001";
 }
 
-export function readStoredSession(): AuthSession | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const rawValue = window.localStorage.getItem(AUTH_STORAGE_KEY);
-  if (!rawValue) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(rawValue) as AuthSession;
-    if (!parsed?.access_token || !parsed?.refresh_token || !parsed?.user) {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
-      return null;
-    }
-    return parsed;
-  } catch {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    return null;
-  }
-}
-
-function isSessionExpired(session: AuthSession, graceSeconds = 0) {
-  if (!session.expires_at) {
-    return false;
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  return session.expires_at + graceSeconds <= now;
-}
-
-function shouldRefreshSession(session: AuthSession) {
-  if (!session.expires_at) {
-    return false;
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  return session.expires_at - AUTH_REFRESH_SKEW_SECONDS <= now;
-}
-
 function dispatchAuthChange() {
-  if (typeof window === "undefined") {
-    return;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(AUTH_EVENT_NAME));
   }
+}
 
-  window.dispatchEvent(new Event(AUTH_EVENT_NAME));
+export function readStoredSession(): AuthSession | null {
+  return memorySession;
 }
 
 export function saveStoredSession(session: AuthSession) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+  memorySession = session;
   dispatchAuthChange();
 }
 
 export function clearStoredSession() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  memorySession = null;
   dispatchAuthChange();
 }
 
 export function onAuthSessionChange(callback: () => void) {
-  if (typeof window === "undefined") {
-    return () => undefined;
-  }
-
+  if (typeof window === "undefined") return () => undefined;
   const handler = () => callback();
   window.addEventListener(AUTH_EVENT_NAME, handler);
-  window.addEventListener("storage", handler);
-  return () => {
-    window.removeEventListener(AUTH_EVENT_NAME, handler);
-    window.removeEventListener("storage", handler);
-  };
+  return () => window.removeEventListener(AUTH_EVENT_NAME, handler);
 }
 
-async function performSessionRefresh(
-  apiBaseUrl: string,
-  currentSession: AuthSession,
-): Promise<AuthSession | null> {
-  const attemptedRefreshToken = currentSession.refresh_token;
-
-  try {
-    const response = await fetch(`${apiBaseUrl}/api/auth/refresh`, {
+async function refreshWebSession(apiBaseUrl: string): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = fetch(`${apiBaseUrl}/api/auth/web/refresh`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        refresh_token: attemptedRefreshToken,
-      }),
+      credentials: "include",
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          clearStoredSession();
+          return false;
+        }
+        const user = (await response.json()) as AuthUserProfile;
+        saveStoredSession({ user });
+        return true;
+      })
+      .catch(() => false)
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+}
+
+async function requestCurrentSession(apiBaseUrl: string): Promise<AuthSession | null> {
+  try {
+    let response = await fetch(`${apiBaseUrl}/api/auth/me`, {
+      credentials: "include",
     });
 
-    if (!response.ok) {
-      const latestSession = readStoredSession();
-      if (latestSession?.refresh_token && latestSession.refresh_token !== attemptedRefreshToken) {
-        return latestSession;
-      }
-
-      if ([400, 401, 403, 422].includes(response.status)) {
-        clearStoredSession();
-        return null;
-      }
-
-      return isSessionExpired(currentSession, AUTH_REFRESH_GRACE_SECONDS) ? null : currentSession;
+    if (response.status === 401 && (await refreshWebSession(apiBaseUrl))) {
+      response = await fetch(`${apiBaseUrl}/api/auth/me`, {
+        credentials: "include",
+      });
     }
 
-    const payload = (await response.json()) as AuthSession;
-    saveStoredSession(payload);
-    return payload;
+    if (!response.ok) {
+      clearStoredSession();
+      return null;
+    }
+
+    const user = (await response.json()) as AuthUserProfile;
+    const session = { user };
+    memorySession = session;
+    return session;
   } catch {
-    return isSessionExpired(currentSession, AUTH_REFRESH_GRACE_SECONDS) ? null : currentSession;
+    return memorySession;
   }
-}
-
-export async function refreshStoredSession(
-  apiBaseUrl = getApiBaseUrl(),
-): Promise<AuthSession | null> {
-  const currentSession = readStoredSession();
-  if (!currentSession?.refresh_token) {
-    clearStoredSession();
-    return null;
-  }
-
-  if (!refreshInFlight) {
-    refreshInFlight = performSessionRefresh(apiBaseUrl, currentSession).finally(() => {
-      refreshInFlight = null;
-    });
-  }
-
-  return refreshInFlight;
 }
 
 export async function ensureActiveSession(
   apiBaseUrl = getApiBaseUrl(),
 ): Promise<AuthSession | null> {
-  const currentSession = readStoredSession();
-  if (!currentSession) {
-    return null;
+  if (!sessionRequestInFlight) {
+    sessionRequestInFlight = requestCurrentSession(apiBaseUrl).finally(() => {
+      sessionRequestInFlight = null;
+    });
   }
+  return sessionRequestInFlight;
+}
 
-  if (!shouldRefreshSession(currentSession)) {
-    return currentSession;
+export async function signOutWebSession(apiBaseUrl = getApiBaseUrl()) {
+  try {
+    await fetch(`${apiBaseUrl}/api/auth/web/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
+  } finally {
+    clearStoredSession();
   }
-
-  return refreshStoredSession(apiBaseUrl);
 }
 
 export async function authenticatedFetch(
@@ -204,34 +142,22 @@ export async function authenticatedFetch(
     throw new Error("AUTH_REQUIRED");
   }
 
-  const headers = new Headers(init?.headers);
-  if (session) {
-    headers.set("Authorization", `Bearer ${session.access_token}`);
-  }
-
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
-    headers,
+    credentials: "include",
   });
 
-  if (response.status !== 401 || !session?.refresh_token) {
+  if (response.status !== 401 || !session) {
     return response;
   }
 
-  const refreshedSession = await refreshStoredSession(apiBaseUrl);
-  if (!refreshedSession?.access_token || refreshedSession.access_token === session.access_token) {
-    if (!requireAuth) {
-      const publicHeaders = new Headers(init?.headers);
-      publicHeaders.delete("Authorization");
-      return fetch(`${apiBaseUrl}${path}`, { ...init, headers: publicHeaders });
-    }
+  const refreshed = await refreshWebSession(apiBaseUrl);
+  if (!refreshed) {
     return response;
   }
 
-  const retryHeaders = new Headers(init?.headers);
-  retryHeaders.set("Authorization", `Bearer ${refreshedSession.access_token}`);
   return fetch(`${apiBaseUrl}${path}`, {
     ...init,
-    headers: retryHeaders,
+    credentials: "include",
   });
 }

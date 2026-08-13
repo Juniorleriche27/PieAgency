@@ -73,10 +73,14 @@ function PasswordToggleIcon({ visible }: { visible: boolean }) {
 }
 
 function getRedirectPath(session: AuthSession, nextPath: string) {
+  const safeNext = nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "";
+  if (safeNext.startsWith("/sso/authorize")) {
+    return safeNext;
+  }
   if (session.user.role === "admin") {
     return "/admin";
   }
-  return nextPath || "/espace-etudiant";
+  return safeNext || "/espace-etudiant";
 }
 
 function decodeAuthUrlValue(value: string | null) {
@@ -241,8 +245,9 @@ export function AuthForm() {
   }
 
   async function handleSignIn() {
-    const response = await fetch(`${apiBaseUrl}/api/auth/sign-in`, {
+    const response = await fetch(`${apiBaseUrl}/api/auth/web/sign-in`, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },
@@ -256,14 +261,16 @@ export function AuthForm() {
       throw new Error(await readErrorMessage(response));
     }
 
-    const payload = (await response.json()) as AuthSession;
-    saveStoredSession(payload);
-    router.push(getRedirectPath(payload, nextPath));
+    const user = (await response.json()) as AuthSession["user"];
+    const session: AuthSession = { user };
+    saveStoredSession(session);
+    router.push(getRedirectPath(session, nextPath));
   }
 
   async function handleSignUp() {
-    const response = await fetch(`${apiBaseUrl}/api/auth/sign-up`, {
+    const response = await fetch(`${apiBaseUrl}/api/auth/web/sign-up`, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },
@@ -283,9 +290,10 @@ export function AuthForm() {
     const payload = (await response.json()) as AuthSignUpResponse;
     setInfoMessage(payload.message);
 
-    if (payload.session) {
-      saveStoredSession(payload.session);
-      router.push(getRedirectPath(payload.session, nextPath));
+    if (payload.authenticated && payload.user) {
+      const session: AuthSession = { user: payload.user };
+      saveStoredSession(session);
+      router.push(getRedirectPath(session, nextPath));
       return;
     }
 

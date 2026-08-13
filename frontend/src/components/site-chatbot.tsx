@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ensureActiveSession, getApiBaseUrl } from "@/lib/auth";
+import { getApiBaseUrl } from "@/lib/auth";
 import { CALENDLY_HREF } from "@/content/site";
 
 type ChatRole = "user" | "assistant";
@@ -384,17 +384,12 @@ export function SiteChatbot() {
     streamDoneRef.current = false;
 
     try {
-      const session = await ensureActiveSession(apiBaseUrl);
-      const headers = new Headers({
-        "Content-Type": "application/json",
-      });
-      if (session) {
-        headers.set("Authorization", `Bearer ${session.access_token}`);
-      }
-
       const response = await fetch(`${apiBaseUrl}/api/ai/chat/stream`, {
         method: "POST",
-        headers,
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           page_path: pathname,
           conversation_id: conversationId,

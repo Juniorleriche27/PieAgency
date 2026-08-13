@@ -2,11 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Moon, Sun, User } from "lucide-react";
 import { ActionLink } from "@/components/action-link";
-import { clearStoredSession, readStoredSession } from "@/lib/auth";
+import { useAuthSession } from "@/hooks/use-auth-session";
+import { getApiBaseUrl, signOutWebSession } from "@/lib/auth";
 
 const campusFranceItems = {
   groups: [
@@ -56,9 +57,11 @@ type DropdownKey = "campus-france" | "belgique" | "ressources" | "procedure" | n
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
+  const { session } = useAuthSession(apiBaseUrl);
+  const sessionRole = session?.user.role ?? null;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [sessionRole, setSessionRole] = useState<"student" | "admin" | null>(null);
   const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(false);
@@ -90,20 +93,6 @@ export function SiteHeader() {
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  useEffect(() => {
-    function syncSession() {
-      const session = readStoredSession();
-      setSessionRole(session?.user.role ?? null);
-    }
-    syncSession();
-    window.addEventListener("pieagency-auth-changed", syncSession);
-    window.addEventListener("storage", syncSession);
-    return () => {
-      window.removeEventListener("pieagency-auth-changed", syncSession);
-      window.removeEventListener("storage", syncSession);
-    };
   }, []);
 
   useEffect(() => {
@@ -140,8 +129,8 @@ export function SiteHeader() {
   const accountHref = sessionRole === "admin" ? "/admin" : "/espace-etudiant";
   const accountLabel = sessionRole === "admin" ? "Admin" : sessionRole === "student" ? "Mon espace" : "Connexion";
 
-  function handleLogout() {
-    clearStoredSession();
+  async function handleLogout() {
+    await signOutWebSession(apiBaseUrl);
     setIsMenuOpen(false);
   }
 

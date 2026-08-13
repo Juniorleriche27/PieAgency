@@ -28,7 +28,7 @@ import type { ComponentType, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PortalAccessPanel } from "@/components/portal-access-panel";
 import { useAuthSession } from "@/hooks/use-auth-session";
-import { clearStoredSession, getApiBaseUrl, type PlatformRole } from "@/lib/auth";
+import { getApiBaseUrl, signOutWebSession, type PlatformRole } from "@/lib/auth";
 import { fetchOnboardingStatus, type OnboardingStatus } from "@/lib/private-onboarding";
 import { fetchCommunityNotifications, markAllCommunityNotificationsRead, type CommunityNotificationItem } from "@/lib/community";
 
@@ -191,8 +191,8 @@ export function PrivatePortalShell({
       ]
     : [{ href: "/", label: "Site public", icon: Globe2 }];
 
-  function handleLogout() {
-    clearStoredSession();
+  async function handleLogout() {
+    await signOutWebSession(apiBaseUrl);
     router.push(`/connexion?next=${encodeURIComponent(pathname)}`);
   }
 
