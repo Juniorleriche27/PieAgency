@@ -3,6 +3,7 @@ import { DM_Mono, DM_Sans, Playfair_Display } from "next/font/google";
 import { SiteChrome } from "@/components/site-chrome";
 import { SITE_URL, siteKeywords } from "@/lib/seo";
 import "./globals.css";
+import "./auth-central.css";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",

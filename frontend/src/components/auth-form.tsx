@@ -16,8 +16,6 @@ type AuthMode =
   | "forgot-password"
   | "reset-password";
 
-type AuthTab = "sign-in" | "sign-up" | "forgot-password";
-
 type ErrorPayload = {
   detail?: string;
 };
@@ -101,13 +99,6 @@ function getRequestedMode(modeParam: string | null): AuthMode {
     return "forgot-password";
   }
   return "sign-in";
-}
-
-function getActiveTab(mode: AuthMode): AuthTab {
-  if (mode === "reset-password") {
-    return "forgot-password";
-  }
-  return mode;
 }
 
 export function AuthForm() {
@@ -391,36 +382,11 @@ export function AuthForm() {
     }
   }
 
-  const activeTab = getActiveTab(mode);
   const isPasswordMode = mode === "sign-in" || mode === "sign-up" || mode === "reset-password";
 
   return (
     <div className="auth-shell">
       <div className="auth-card">
-        <div className="auth-tabs" role="tablist" aria-label="Mode de connexion">
-          <button
-            className={`auth-tab ${activeTab === "sign-in" ? "active" : ""}`}
-            onClick={() => switchMode("sign-in")}
-            type="button"
-          >
-            Connexion
-          </button>
-          <button
-            className={`auth-tab ${activeTab === "forgot-password" ? "active" : ""}`}
-            onClick={() => switchMode("forgot-password")}
-            type="button"
-          >
-            Mot de passe oublie
-          </button>
-          <button
-            className={`auth-tab ${activeTab === "sign-up" ? "active" : ""}`}
-            onClick={() => switchMode("sign-up")}
-            type="button"
-          >
-            Creer un compte
-          </button>
-        </div>
-
         <div className="auth-copy">
           <div className="portal-card-kicker">
             {mode === "sign-in"
@@ -442,12 +408,12 @@ export function AuthForm() {
           </h2>
           <p>
             {mode === "sign-in"
-              ? "Connectez-vous pour acceder a votre espace etudiant ou admin."
+              ? "Utilisez votre compte PieAgency pour accéder à vos espaces et produits."
               : mode === "sign-up"
-                ? "Le compte est rattache a Supabase Auth. Un email de confirmation sera envoye avant la premiere connexion."
+                ? "Créez votre compte PieAgency. Un e-mail de confirmation pourra être demandé avant la première connexion."
                 : mode === "forgot-password"
-                  ? "Entrez votre email pour recevoir un lien de reinitialisation sur la page de connexion."
-                  : "Choisissez un nouveau mot de passe pour finaliser la reinitialisation."}
+                  ? "Indiquez votre e-mail. Nous vous enverrons un lien sécurisé pour choisir un nouveau mot de passe."
+                  : "Choisissez un nouveau mot de passe pour finaliser la récupération de votre compte."}
           </p>
         </div>
 
@@ -481,9 +447,20 @@ export function AuthForm() {
 
           {isPasswordMode ? (
             <div className="auth-field">
-              <label htmlFor="password">
-                {mode === "reset-password" ? "Nouveau mot de passe" : "Mot de passe"}
-              </label>
+              <div className="auth-field-heading">
+                <label htmlFor="password">
+                  {mode === "reset-password" ? "Nouveau mot de passe" : "Mot de passe"}
+                </label>
+                {mode === "sign-in" ? (
+                  <button
+                    className="auth-inline-action"
+                    onClick={() => switchMode("forgot-password")}
+                    type="button"
+                  >
+                    Mot de passe oublié ?
+                  </button>
+                ) : null}
+              </div>
               <div className="auth-password-wrap">
                 <input
                   id="password"
@@ -580,6 +557,23 @@ export function AuthForm() {
                     : "Mettre a jour le mot de passe"}
           </button>
         </form>
+
+        <div className="auth-secondary-actions">
+          {mode === "sign-in" ? (
+            <p>
+              Pas encore de compte ?
+              <button onClick={() => switchMode("sign-up")} type="button">
+                Créer un compte
+              </button>
+            </p>
+          ) : null}
+
+          {mode === "sign-up" || mode === "forgot-password" || mode === "reset-password" ? (
+            <button className="auth-back-action" onClick={() => switchMode("sign-in")} type="button">
+              Retour à la connexion
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   );

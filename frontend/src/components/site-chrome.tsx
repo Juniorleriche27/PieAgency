@@ -14,12 +14,13 @@ export function SiteChrome({
 }>) {
   const pathname = usePathname();
   const isCommunityRoute = pathname === "/communaute";
+  const isAuthRoute = pathname === "/connexion" || pathname.startsWith("/sso/");
   const isPrivateRoute =
     pathname === "/admin" ||
     pathname.startsWith("/admin/") ||
     pathname === "/espace-etudiant" ||
     pathname.startsWith("/espace-etudiant/");
-  const useMinimalChrome = isCommunityRoute || isPrivateRoute;
+  const useMinimalChrome = isCommunityRoute || isPrivateRoute || isAuthRoute;
   const showConversionBar = !useMinimalChrome && pathname !== "/contact" && pathname !== "/paiement";
 
   return (
