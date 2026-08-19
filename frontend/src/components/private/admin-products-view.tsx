@@ -3,9 +3,6 @@
 import {
   Archive,
   Boxes,
-  CheckCircle2,
-  Eye,
-  LinkIcon,
   Pencil,
   Plus,
   Search,

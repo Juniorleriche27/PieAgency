@@ -12,18 +12,13 @@ function SSOAuthorizeContent() {
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
   const { session, isReady } = useAuthSession(apiBaseUrl);
   const [error, setError] = useState<string | null>(null);
+  const clientId = searchParams.get("client_id") ?? "";
+  const redirectUri = searchParams.get("redirect_uri") ?? "";
+  const state = searchParams.get("state") ?? "";
+  const invalidRequest = isReady && (!clientId || !redirectUri || !state);
 
   useEffect(() => {
-    if (!isReady) return;
-
-    const clientId = searchParams.get("client_id") ?? "";
-    const redirectUri = searchParams.get("redirect_uri") ?? "";
-    const state = searchParams.get("state") ?? "";
-
-    if (!clientId || !redirectUri || !state) {
-      setError("Demande SSO invalide.");
-      return;
-    }
+    if (!isReady || invalidRequest) return;
 
     if (!session) {
       const next = `/sso/authorize?${searchParams.toString()}`;
@@ -73,7 +68,7 @@ function SSOAuthorizeContent() {
     return () => {
       cancelled = true;
     };
-  }, [apiBaseUrl, isReady, router, searchParams, session]);
+  }, [apiBaseUrl, clientId, invalidRequest, isReady, redirectUri, router, searchParams, session, state]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">

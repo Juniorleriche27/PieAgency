@@ -78,7 +78,6 @@ export function StudentSpaceView() {
   const [dashboard, setDashboard] = useState<StudentDashboardResponse>(
     emptyStudentDashboard,
   );
-  const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
   const currentStep = dashboard.steps.find((step) => step.status === "current") ?? dashboard.steps.find((step) => step.status === "todo") ?? null;
@@ -121,14 +120,12 @@ export function StudentSpaceView() {
 
     if (!session || !canViewStudentSpace) {
       setDashboard(emptyStudentDashboard);
-      setIsLoading(false);
       return;
     }
 
     let active = true;
 
     async function loadDashboard() {
-      setIsLoading(true);
       setLoadError("");
 
       try {
@@ -156,10 +153,6 @@ export function StudentSpaceView() {
             ? error.message
             : "Impossible de charger le suivi du dossier.",
         );
-      } finally {
-        if (active) {
-          setIsLoading(false);
-        }
       }
     }
 

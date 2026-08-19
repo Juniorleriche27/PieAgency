@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { getStoredResources, setStoredResources } from "@/lib/admin-store";
+import { setStoredResources } from "@/lib/admin-store";
 import {
   fetchPrivateResources,
   RESOURCE_CATEGORIES,
