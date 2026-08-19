@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, CheckCheck, Map } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useState } from "react";
-import { completeStep, startStep } from "@/lib/progressive-path";
+import { completeStep } from "@/lib/progressive-path";
 
 const STEP_LABELS: Record<string, string> = {
   "understand-profile":              "Comprendre mon profil",
@@ -40,6 +40,7 @@ function BannerInner() {
   const stepId   = params.get("step");
   const [loading, setLoading] = useState(false);
   const [done, setDone]       = useState(false);
+  const [error, setError]     = useState<string | null>(null);
 
   if (from !== "parcours-guide") return null;
 
@@ -50,13 +51,13 @@ function BannerInner() {
 
   async function handleComplete() {
     if (!stepId || loading) return;
+    setError(null);
     setLoading(true);
     try {
-      // Try complete first; if it fails (not started), start then complete
       const result = await completeStep(stepId);
       if (!result) {
-        await startStep(stepId);
-        await completeStep(stepId);
+        setError("Cette étape ne peut pas être terminée depuis cette page. Revenez au parcours guidé pour vérifier l’étape active.");
+        return;
       }
       setDone(true);
       router.push("/espace-etudiant/parcours-guide");
@@ -73,6 +74,9 @@ function BannerInner() {
           <span className="copilot-banner-title">Vous êtes ici depuis votre parcours guidé</span>
           {stepLabel && (
             <span className="copilot-banner-step">Étape liée : {stepLabel}</span>
+          )}
+          {error && (
+            <span className="copilot-banner-step" role="alert">{error}</span>
           )}
         </div>
       </div>

@@ -661,17 +661,21 @@ def complete_candidate_progressive_path_step(
     if client is None:
         return _fallback_path(candidate_id)
 
-    step_rows = _get_active_step_rows(client)
-    current_step = next((item for item in step_rows if str(item.get("id")) == step_id), None)
-    if current_step is None:
+    path = _load_path_response(client, candidate_id)
+    step = next((item for item in path.steps if item.id == step_id), None)
+    if step is None:
         raise LookupError("Etape introuvable.")
+    if step.status == ProgressivePathStepStatus.COMPLETED:
+        return path
+    if path.current_step is None or not step.is_current:
+        raise PermissionError("Seule l'etape courante peut etre terminee.")
 
-    current_order = int(current_step.get("step_order") or 0)
+    step_rows = _get_active_step_rows(client)
     next_step = next(
         (
             item
             for item in step_rows
-            if int(item.get("step_order") or 0) > current_order
+            if int(item.get("step_order") or 0) > step.order
         ),
         None,
     )
@@ -696,9 +700,12 @@ def reopen_candidate_progressive_path_step(
     if client is None:
         return _fallback_path(candidate_id)
 
-    step_rows = _get_active_step_rows(client)
-    if not any(str(item.get("id")) == step_id for item in step_rows):
+    path = _load_path_response(client, candidate_id)
+    step = next((item for item in path.steps if item.id == step_id), None)
+    if step is None:
         raise LookupError("Etape introuvable.")
+    if step.status != ProgressivePathStepStatus.COMPLETED:
+        raise PermissionError("Seule une etape terminee peut etre rouverte.")
 
     _set_step_status(client, candidate_id, step_id, ProgressivePathStepStatus.IN_PROGRESS)
     _set_current_step(client, candidate_id, step_id)
