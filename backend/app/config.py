@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -33,6 +34,8 @@ class Settings(BaseSettings):
     assistant_sso_client_id: str = "assistant-pieagency"
     assistant_sso_client_secret: str = ""
     assistant_sso_redirect_uri: str = "http://localhost:8000/api/v1/auth/sso/callback"
+    assistant_api_base_url: str = ""
+    assistant_api_timeout_seconds: float = 55.0
     sso_authorization_code_ttl_seconds: int = 60
     resend_api_key: str = ""
     receipt_from_email: str = "PieAgency <contact@pieagency.fr>"
@@ -52,6 +55,16 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @property
+    def assistant_api_origin(self) -> str:
+        configured = self.assistant_api_base_url.strip()
+        if configured:
+            return configured.rstrip("/")
+        parsed = urlsplit(self.assistant_sso_redirect_uri)
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+        return "http://localhost:8000"
 
     @property
     def cors_origins(self) -> list[str]:

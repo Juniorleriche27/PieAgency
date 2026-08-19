@@ -121,7 +121,9 @@ function AssistantViewInner() {
   const searchParams = useSearchParams();
   const contextParam = searchParams.get("context");
 
-  const historyKey = `pieagency.assistant.history.${readStoredSession()?.user.user_id ?? "anonymous"}`;
+  const userScope = readStoredSession()?.user.user_id ?? "anonymous";
+  const historyKey = `pieagency.assistant.history.${userScope}`;
+  const conversationKey = `pieagency.assistant.conversation.${userScope}`;
   const initialMessage: ChatMessage = {
     role: "assistant",
     content: "Bonjour ! Je suis votre assistant dossier. Posez-moi vos questions sur votre procédure, vos motivations, votre entretien ou vos documents. Je suis là pour vous aider à structurer vos idées.",
@@ -134,6 +136,13 @@ function AssistantViewInner() {
     } catch { return [initialMessage]; }
   });
   const [input, setInput] = useState("");
+  const [conversationId, setConversationId] = useState<string | null>(() => {
+    try {
+      return window.localStorage.getItem(conversationKey);
+    } catch {
+      return null;
+    }
+  });
   const [isSending, setIsSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -141,6 +150,14 @@ function AssistantViewInner() {
   useEffect(() => {
     window.localStorage.setItem(historyKey, JSON.stringify(messages.slice(-60)));
   }, [historyKey, messages]);
+
+  useEffect(() => {
+    if (conversationId) {
+      window.localStorage.setItem(conversationKey, conversationId);
+    } else {
+      window.localStorage.removeItem(conversationKey);
+    }
+  }, [conversationId, conversationKey]);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -162,7 +179,9 @@ function AssistantViewInner() {
         message: content,
         context_source: "progressive_path",
         current_step_id: contextParam ?? null,
+        conversation_id: conversationId,
       });
+      setConversationId(response.conversation_id ?? null);
 
       setMessages((prev) => [
         ...prev,
@@ -198,7 +217,7 @@ function AssistantViewInner() {
           <h1>Assistant dossier</h1>
           <p>Posez vos questions sur votre procédure, vos motivations, votre entretien ou vos documents.</p>
         </div>
-        <button className="btn btn-outline" onClick={() => { setMessages([initialMessage]); setErrorMessage(""); }} type="button">Nouvelle conversation</button>
+        <button className="btn btn-outline" onClick={() => { setMessages([initialMessage]); setConversationId(null); setErrorMessage(""); }} type="button">Nouvelle conversation</button>
       </div>
 
       {contextParam ? (

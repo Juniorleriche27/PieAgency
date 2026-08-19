@@ -15,8 +15,6 @@ from ..schemas import (
     AIChatResponse,
     AIPageInsightResponse,
     AuthUserProfile,
-    CandidateAssistantChatRequest,
-    CandidateAssistantChatResponse,
     CommunityAIReplyRequest,
     CommunityAIReplyResponse,
 )
@@ -759,65 +757,3 @@ def stream_chat_response(
         for chunk in _iter_text_chunks(fallback.answer, size=8):
             yield _format_sse("chunk", {"text": chunk})
         yield _format_sse("done", fallback_done_payload)
-
-
-def generate_candidate_assistant_response(
-    request: CandidateAssistantChatRequest,
-    current_user: AuthUserProfile,
-    access_token: str | None = None,
-) -> CandidateAssistantChatResponse:
-    if not settings.ai_gateway_enabled:
-        return CandidateAssistantChatResponse(
-            answer=(
-                "L'assistant dossier est indisponible pour le moment : l'AI Gateway du backend "
-                "n'est pas configurée ou joignable."
-            ),
-            used_prompt="fallback_unconfigured_gateway",
-            used_context={"candidate_profile": False, "progressive_path": False, "recommendations": False, "resources": False},
-            rag={"used": False, "resources": []},
-        )
-
-    rag_context = retrieve_rag_context(request.message) if request.message else ""
-    system_prompt = f"""
-Tu es l'assistant dossier privé de PieAgency.
-Tu aides un candidat connecté à comprendre sa procédure, structurer son dossier, ses motivations, son entretien, ses documents et son visa.
-Tu réponds en français, de manière concrète, utile et directe.
-Tu n'inventes pas de garantie d'admission ou de visa.
-Tu peux proposer les ressources PieAgency pertinentes si utile.
-
-Contexte global PieAgency:
-{SITE_KNOWLEDGE}
-
-Contexte RAG éventuel:
-{rag_context or 'Aucun extrait RAG disponible.'}
-""".strip()
-    user_prompt = f"""
-Utilisateur: {current_user.full_name or current_user.email or current_user.user_id}
-Contexte source: {request.context_source or 'progressive_path'}
-Etape actuelle: {request.current_step_id or 'non précisée'}
-Question: {request.message}
-
-Retourne une réponse claire et actionnable. Pas de JSON.
-""".strip()
-
-    try:
-        answer = _gateway_chat_text(
-            [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ]
-        )
-        return CandidateAssistantChatResponse(
-            answer=answer,
-            used_prompt="ai_gateway_candidate_assistant",
-            used_context={"candidate_profile": True, "progressive_path": bool(request.current_step_id), "recommendations": True, "resources": bool(rag_context)},
-            rag={"used": bool(rag_context), "resources": []},
-        )
-    except Exception:
-        logger.exception("Unable to generate candidate assistant response through AI Gateway")
-        return CandidateAssistantChatResponse(
-            answer="L'assistant dossier est momentanément indisponible : l'AI Gateway n'a pas répondu correctement.",
-            used_prompt="fallback_gateway_error",
-            used_context={"candidate_profile": False, "progressive_path": False, "recommendations": False, "resources": False},
-            rag={"used": False, "resources": []},
-        )

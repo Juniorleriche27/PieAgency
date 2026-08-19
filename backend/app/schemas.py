@@ -762,6 +762,7 @@ class CandidateAssistantChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=3000)
     context_source: str | None = Field(default="progressive_path", max_length=80)
     current_step_id: str | None = Field(default=None, max_length=80)
+    conversation_id: str | None = Field(default=None, max_length=64)
 
     @field_validator("message", mode="before")
     @classmethod
@@ -771,6 +772,7 @@ class CandidateAssistantChatRequest(BaseModel):
 
 class CandidateAssistantChatResponse(BaseModel):
     answer: str
+    conversation_id: str | None = None
     used_prompt: str | None = None
     used_context: dict[str, bool] = Field(default_factory=dict)
     rag: dict[str, Any] = Field(default_factory=dict)

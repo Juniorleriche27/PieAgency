@@ -26,6 +26,7 @@ export type CandidateAssistantResource = {
 
 export type CandidateAssistantResponse = {
   answer: string;
+  conversation_id?: string | null;
   used_prompt?: string;
   used_context?: {
     candidate_profile?: boolean;
@@ -44,6 +45,7 @@ export async function sendCandidateAssistantMessage(payload: {
   message: string;
   context_source?: string;
   current_step_id?: string | null;
+  conversation_id?: string | null;
 }): Promise<CandidateAssistantResponse> {
   const body: Record<string, unknown> = {
     message: payload.message,
@@ -51,6 +53,9 @@ export async function sendCandidateAssistantMessage(payload: {
   };
   if (payload.current_step_id) {
     body.current_step_id = payload.current_step_id;
+  }
+  if (payload.conversation_id) {
+    body.conversation_id = payload.conversation_id;
   }
 
   const response = await authenticatedFetch(
