@@ -763,6 +763,7 @@ class CandidateAssistantChatRequest(BaseModel):
     context_source: str | None = Field(default="progressive_path", max_length=80)
     current_step_id: str | None = Field(default=None, max_length=80)
     conversation_id: str | None = Field(default=None, max_length=64)
+    requested_action: str = Field(default="general_chat", max_length=80)
 
     @field_validator("message", mode="before")
     @classmethod
@@ -776,6 +777,44 @@ class CandidateAssistantChatResponse(BaseModel):
     used_prompt: str | None = None
     used_context: dict[str, bool] = Field(default_factory=dict)
     rag: dict[str, Any] = Field(default_factory=dict)
+
+
+class AssistantContextStudentV1(BaseModel):
+    full_name: str | None = None
+    country: str | None = None
+    project_name: str | None = None
+    status_label: str | None = None
+
+
+class AssistantContextStepV1(BaseModel):
+    id: str
+    title: str
+    order: int
+    status: str
+    short_description: str | None = None
+    progress_percent: int | None = None
+
+
+class AssistantContextDossierV1(BaseModel):
+    case_reference: str | None = None
+    project_name: str | None = None
+    status_label: str | None = None
+    next_action: str | None = None
+    document_status_counts: dict[str, int] = Field(default_factory=dict)
+    official_deposit_declared: bool = False
+    official_deposit_status: str | None = None
+
+
+class AssistantContextSnapshotV1(BaseModel):
+    contract_version: Literal["pieagency.context.v1"] = "pieagency.context.v1"
+    source: Literal["pieagency_private"] = "pieagency_private"
+    requested_action: str = "general_chat"
+    generated_at: str
+    student: AssistantContextStudentV1
+    current_step: AssistantContextStepV1 | None = None
+    dossier: AssistantContextDossierV1 | None = None
+    retrieval_hints: list[str] = Field(default_factory=list)
+
 
 class ProgressivePathStepStatus(str, Enum):
     NOT_STARTED = "not_started"

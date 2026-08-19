@@ -180,6 +180,7 @@ function AssistantViewInner() {
         context_source: "progressive_path",
         current_step_id: contextParam ?? null,
         conversation_id: conversationId,
+        requested_action: contextParam ? "assist_current_step" : "general_chat",
       });
       setConversationId(response.conversation_id ?? null);
 

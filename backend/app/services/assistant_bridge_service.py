@@ -6,6 +6,7 @@ import httpx
 
 from ..config import settings
 from ..schemas import AuthUserProfile, CandidateAssistantChatRequest, CandidateAssistantChatResponse
+from .assistant_context_service import build_assistant_context_snapshot
 from .sso_service import SSOServiceError, issue_authorization_code
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ def _assistant_chat_url() -> str:
 def generate_candidate_assistant_response(
     request: CandidateAssistantChatRequest,
     current_user: AuthUserProfile,
+    access_token: str | None,
 ) -> CandidateAssistantChatResponse:
     try:
         authorization_code = issue_authorization_code(
@@ -32,9 +34,11 @@ def generate_candidate_assistant_response(
     except SSOServiceError as exc:
         raise AssistantBridgeError("Impossible d'autoriser Assistant pour ce compte PieAgency.") from exc
 
+    context = build_assistant_context_snapshot(request, current_user, access_token)
     payload: dict[str, object] = {
         "authorization_code": authorization_code,
         "message": request.message,
+        "context": context.model_dump(mode="json", exclude_none=True),
     }
     if request.conversation_id:
         payload["conversation_id"] = request.conversation_id
@@ -75,7 +79,7 @@ def generate_candidate_assistant_response(
         used_prompt="assistant_pieagency",
         used_context={
             "candidate_profile": True,
-            "progressive_path": False,
+            "progressive_path": context.current_step is not None,
             "recommendations": False,
             "resources": bool(resources),
         },

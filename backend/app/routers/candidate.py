@@ -105,8 +105,9 @@ def declare_official_deposit(
 def candidate_assistant_chat(
     body: CandidateAssistantChatRequest,
     current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
 ) -> CandidateAssistantChatResponse:
     try:
-        return generate_candidate_assistant_response(body, current_user)
+        return generate_candidate_assistant_response(body, current_user, access_token)
     except AssistantBridgeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

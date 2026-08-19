@@ -46,10 +46,12 @@ export async function sendCandidateAssistantMessage(payload: {
   context_source?: string;
   current_step_id?: string | null;
   conversation_id?: string | null;
+  requested_action?: string;
 }): Promise<CandidateAssistantResponse> {
   const body: Record<string, unknown> = {
     message: payload.message,
     context_source: payload.context_source ?? "progressive_path",
+    requested_action: payload.requested_action ?? "general_chat",
   };
   if (payload.current_step_id) {
     body.current_step_id = payload.current_step_id;
