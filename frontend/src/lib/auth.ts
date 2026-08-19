@@ -1,3 +1,5 @@
+import { revokeAssistantSession } from "@/lib/assistant-session";
+
 export type PlatformRole = "student" | "admin";
 
 export type AuthUserProfile = {
@@ -42,6 +44,10 @@ export function readStoredSession(): AuthSession | null {
 }
 
 export function saveStoredSession(session: AuthSession) {
+  const previousUserId = memorySession?.user.user_id;
+  if (previousUserId && previousUserId !== session.user.user_id) {
+    void revokeAssistantSession();
+  }
   memorySession = session;
   dispatchAuthChange();
 }
@@ -120,10 +126,13 @@ export async function ensureActiveSession(
 
 export async function signOutWebSession(apiBaseUrl = getApiBaseUrl()) {
   try {
-    await fetch(`${apiBaseUrl}/api/auth/web/logout`, {
-      method: "POST",
-      credentials: "include",
-    });
+    await Promise.allSettled([
+      fetch(`${apiBaseUrl}/api/auth/web/logout`, {
+        method: "POST",
+        credentials: "include",
+      }),
+      revokeAssistantSession(),
+    ]);
   } finally {
     clearStoredSession();
   }
