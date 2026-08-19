@@ -167,8 +167,8 @@ def _product(
 
 def _assistant_action(step_id: str) -> ProgressivePathRecommendationAction:
     return _action(
-        "Poser une question a l'assistant dossier",
-        "Demandez a l'assistant de vous aider sur cette etape.",
+        "Demander a l'Agent PieAgency",
+        "Demandez a l'Agent de vous aider sur cette etape sans modifier votre progression.",
         "assistant_dossier",
         f"/espace-etudiant/assistant?context={step_id}",
     )

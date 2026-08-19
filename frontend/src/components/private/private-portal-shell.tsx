@@ -56,7 +56,7 @@ const studentNav: NavItem[] = [
   { href: "/espace-etudiant/documents", label: "Mes documents", icon: FileText },
   { href: "/espace-etudiant/ressources", label: "Mes ressources", icon: BookOpen },
   { href: "/espace-etudiant/produits", label: "Produits digitaux", icon: Package },
-  { href: "/espace-etudiant/assistant", label: "Assistant dossier", icon: MessageCircle },
+  { href: "/espace-etudiant/assistant", label: "Agent PieAgency", icon: MessageCircle },
   { href: "/espace-etudiant/abonnement", label: "Abonnement", icon: CreditCard },
   { href: "/communaute", label: "Communauté", icon: Users },
   { href: "/espace-etudiant/aide", label: "Aide", icon: HelpCircle },

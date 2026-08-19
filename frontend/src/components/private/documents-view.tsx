@@ -186,7 +186,14 @@ export function DocumentsView({ documents: initial }: Props) {
   const [profileLoading, setProfileLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus>(null);
-  const [onboardingDraft, setOnboardingDraft] = useState<OnboardingData | null>(null);
+  const [onboardingDraft, setOnboardingDraft] = useState<OnboardingData | null>(() => {
+    try {
+      const rawDraft = window.localStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
+      return rawDraft ? (JSON.parse(rawDraft) as OnboardingData) : null;
+    } catch {
+      return null;
+    }
+  });
   const [finishLoading, setFinishLoading] = useState(false);
   const [finishError, setFinishError] = useState("");
   const [finishDone, setFinishDone] = useState(false);
@@ -224,16 +231,6 @@ export function DocumentsView({ documents: initial }: Props) {
     void fetchOnboardingStatus().then((status) => {
       if (active) setOnboardingStatus(status);
     });
-
-    const rawDraft = window.localStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
-    if (rawDraft) {
-      try {
-        setOnboardingDraft(JSON.parse(rawDraft) as OnboardingData);
-      } catch {
-        window.localStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
-      }
-    }
-
     return () => { active = false; };
   }, []);
 
@@ -530,6 +527,13 @@ export function DocumentsView({ documents: initial }: Props) {
                         </>
                       )}
                       {!isGeneratedDocument(doc) ? <>
+                        <Link
+                          aria-label={`Analyser ${doc.title} avec l’Agent PieAgency`}
+                          className="doc-attach-btn"
+                          href={`/espace-etudiant/assistant?action=document_review&document=${encodeURIComponent(doc.id)}&context=documents`}
+                        >
+                          <CheckCircle2 size={14} /> Analyser avec l’Agent
+                        </Link>
                         <button aria-label={`Télécharger ${doc.title}`} className="doc-attach-btn" onClick={async () => { try { window.open(await getDocumentDownloadUrl(doc.id), "_blank", "noopener,noreferrer"); } catch { setLoadError("Aucun fichier téléchargeable pour ce document."); } }} type="button"><Download size={14} /> Télécharger</button>
                         <button aria-label={`Supprimer ${doc.title}`} className="doc-attach-btn" onClick={async () => { if (!window.confirm(`Supprimer « ${doc.title} » ?`)) return; try { await deleteDocument(doc.id); setDocs((items) => items.filter((item) => item.id !== doc.id)); } catch { setLoadError("Impossible de supprimer ce document."); } }} type="button"><Trash2 size={14} /> Supprimer</button>
                       </> : null}

@@ -46,6 +46,18 @@ const suggestionsByContext: Record<string, string[]> = {
     "Comment améliorer mon projet d'études ?",
     "Comment justifier mon choix de formation ?",
   ],
+  "prepare-campus-france-interview": [
+    "Lance une simulation d'entretien Campus France.",
+    "Pose-moi une question d'entretien et évalue ma réponse.",
+    "Comment présenter mon projet professionnel à l'oral ?",
+    "Quelles erreurs dois-je éviter pendant l'entretien ?",
+  ],
+  "prepare-motivation-letters": [
+    "Aide-moi à rédiger une lettre de motivation personnalisée.",
+    "Analyse la cohérence de ma motivation avec mon projet d'études.",
+    "Comment adapter ma lettre à une formation précise ?",
+    "Corrige et renforce ma motivation sans inventer d'informations.",
+  ],
   "visa": [
     "Quels éléments préparer pour le visa ?",
     "Quels documents vérifier maintenant ?",
@@ -54,11 +66,31 @@ const suggestionsByContext: Record<string, string[]> = {
     "Que dois-je faire à cette étape ?",
     "Aide-moi à définir mon projet professionnel.",
   ],
+  "prepare-visa-file": [
+    "Analyse les points de vigilance de mon dossier visa.",
+    "Quels justificatifs dois-je contrôler en priorité ?",
+    "Aide-moi à préparer mes explications pour le visa.",
+    "Que dois-je vérifier avant mon rendez-vous visa ?",
+  ],
+  documents: [
+    "Analyse ce document et signale les incohérences importantes.",
+    "Quels éléments de ce document dois-je améliorer ?",
+    "Résume ce document et dis-moi ce qui manque pour mon dossier.",
+    "Vérifie si ce document est cohérent avec mon projet.",
+  ],
 };
 
 function getSuggestions(context: string | null): string[] {
   if (context && suggestionsByContext[context]) return suggestionsByContext[context];
   return defaultSuggestions;
+}
+
+function actionForContext(context: string | null): string {
+  if (context === "prepare-motivation-letters") return "motivation_draft";
+  if (context === "prepare-campus-france-interview") return "interview_prep";
+  if (context === "prepare-visa-file") return "visa_guidance";
+  if (context === "documents") return "document_review";
+  return context ? "assist_current_step" : "general_chat";
 }
 
 /* ── Helpers ── */
@@ -120,13 +152,15 @@ type ChatMessage = {
 function AssistantViewInner() {
   const searchParams = useSearchParams();
   const contextParam = searchParams.get("context");
+  const actionParam = searchParams.get("action");
+  const documentParam = searchParams.get("document");
 
   const userScope = readStoredSession()?.user.user_id ?? "anonymous";
   const historyKey = `pieagency.assistant.history.${userScope}`;
   const conversationKey = `pieagency.assistant.conversation.${userScope}`;
   const initialMessage: ChatMessage = {
     role: "assistant",
-    content: "Bonjour ! Je suis votre assistant dossier. Posez-moi vos questions sur votre procédure, vos motivations, votre entretien ou vos documents. Je suis là pour vous aider à structurer vos idées.",
+    content: "Bonjour ! Je suis l’Agent PieAgency. Je peux analyser vos documents, travailler vos motivations, préparer votre entretien, vous aider sur le visa et répondre à vos questions à partir de votre contexte PieAgency.",
     time: nowTime(),
   };
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
@@ -180,7 +214,8 @@ function AssistantViewInner() {
         context_source: "progressive_path",
         current_step_id: contextParam ?? null,
         conversation_id: conversationId,
-        requested_action: contextParam ? "assist_current_step" : "general_chat",
+        requested_action: actionParam ?? actionForContext(contextParam),
+        document_id: documentParam,
       });
       setConversationId(response.conversation_id ?? null);
 
@@ -215,8 +250,8 @@ function AssistantViewInner() {
       <div className="pas-header">
         <MessageCircle size={28} className="pas-header-icon" />
         <div>
-          <h1>Assistant dossier</h1>
-          <p>Posez vos questions sur votre procédure, vos motivations, votre entretien ou vos documents.</p>
+          <h1>Agent PieAgency</h1>
+          <p>Analyse, rédaction, entretien, visa et documents — avec le contexte de votre espace privé.</p>
         </div>
         <button className="btn btn-outline" onClick={() => { setMessages([initialMessage]); setConversationId(null); setErrorMessage(""); }} type="button">Nouvelle conversation</button>
       </div>
@@ -325,7 +360,7 @@ function AssistantViewInner() {
 /* ── Exported component (wraps in Suspense for useSearchParams) ── */
 export function PrivateAssistantView() {
   return (
-    <Suspense fallback={<div className="pas-page"><div className="pas-header"><MessageCircle size={28} /><div><h1>Assistant dossier</h1><p>Chargement...</p></div></div></div>}>
+    <Suspense fallback={<div className="pas-page"><div className="pas-header"><MessageCircle size={28} /><div><h1>Agent PieAgency</h1><p>Chargement...</p></div></div></div>}>
       <AssistantViewInner />
     </Suspense>
   );

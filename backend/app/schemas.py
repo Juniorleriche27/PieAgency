@@ -764,6 +764,7 @@ class CandidateAssistantChatRequest(BaseModel):
     current_step_id: str | None = Field(default=None, max_length=80)
     conversation_id: str | None = Field(default=None, max_length=64)
     requested_action: str = Field(default="general_chat", max_length=80)
+    document_id: str | None = Field(default=None, max_length=120)
 
     @field_validator("message", mode="before")
     @classmethod

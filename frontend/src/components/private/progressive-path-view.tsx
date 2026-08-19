@@ -38,7 +38,6 @@ import {
   type PlatformType,
   type ProgressivePath,
   type ProgressiveStep,
-  type RecommendationAction,
   type StepStatus,
 } from "@/lib/progressive-path";
 
@@ -428,7 +427,7 @@ function RelatedModules({
   if (recommendations.assistant_action) {
     modules.push({
       icon: <MessageCircle size={18} />,
-      title: "Assistant dossier",
+      title: "Agent PieAgency",
       desc: "Posez vos questions sur cette étape.",
       href: recommendations.assistant_action.target_path,
       label: "Ouvrir l'assistant",
