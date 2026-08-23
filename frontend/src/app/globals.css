@@ -14789,6 +14789,18 @@ body.chat-open .wa-float {
 }
 .btn-success:hover:not(:disabled) { background: #15803d; border-color: #15803d; }
 .btn-success:disabled { opacity: 0.5; cursor: not-allowed; }
+.pp-step-blockers {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid #f3d39a;
+  border-radius: 10px;
+  background: #fff8e8;
+  color: #7a5412;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.pp-step-blockers strong { display: block; margin-bottom: 4px; }
+.pp-step-blockers ul { margin: 0; padding-left: 18px; }
 .btn-outline {
   background: transparent;
   border: 2px solid var(--primary, #2563eb);

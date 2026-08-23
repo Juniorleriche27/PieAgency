@@ -103,7 +103,7 @@ function nowTime() {
 }
 
 function accessLabel(access: CandidateAssistantResource["access"]) {
-  if (access === "free") return "Ressource gratuite";
+  if (access === "free") return "Ressource disponible";
   if (access === "included") return "Inclus dans votre accès";
   return "Produit recommandé pour aller plus loin";
 }

@@ -401,7 +401,7 @@ SUBSCRIPTION_PLANS = [
         billing_period="monthly",
         features=[
             "Checklist de base",
-            "Quelques ressources gratuites",
+            "Aperçu des ressources",
             "Aperçu des produits",
         ],
         service_slug="gratuit",

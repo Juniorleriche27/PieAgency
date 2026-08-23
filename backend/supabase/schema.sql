@@ -1693,7 +1693,7 @@ values
     'Gratuit',
     'Commencez votre préparation',
     0, 'EUR', 'monthly',
-    '["Checklist de base","Quelques ressources gratuites","Aperçu des produits"]'::jsonb,
+    '["Checklist de base","Aperçu des ressources","Aperçu des produits"]'::jsonb,
     false, 'gratuit', 0
   ),
   (

@@ -243,11 +243,12 @@ function NextStepZone({
         {!isHistorical && (step.status === "not_started" || step.status === "in_progress") && !step.is_locked ? (
           <button
             className="btn btn-success pp-next-btn"
-            disabled={actionLoading}
+            disabled={actionLoading || (step.status === "in_progress" && !step.can_complete)}
             onClick={() => step.status === "not_started" ? onStart(step.id) : onComplete(step.id)}
+            title={step.status === "in_progress" && !step.can_complete ? step.blocking_reasons.join(" • ") || "Cette étape n'est pas encore prête à être validée." : undefined}
             type="button"
           >
-            <CheckCircle2 size={14} /> J&apos;ai terminé cette étape
+            <CheckCircle2 size={14} /> {step.status === "not_started" ? "Commencer cette étape" : "J'ai terminé cette étape"}
           </button>
         ) : isHistorical && onReturnToCurrent ? (
           <button
@@ -266,6 +267,17 @@ function NextStepZone({
           <MessageCircle size={14} /> Poser une question à Assistant.genie
         </AssistantGenieTrigger>
       </div>
+
+      {!isHistorical && step.status === "in_progress" && !step.can_complete ? (
+        <div className="pp-step-blockers" role="status">
+          <strong>Avant de valider cette étape :</strong>
+          <ul>
+            {(step.blocking_reasons.length > 0 ? step.blocking_reasons : ["Terminez d'abord les actions demandées pour cette étape."]).map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -323,7 +335,7 @@ function OptionsSection({
 }) {
   // Guidance is the primary source; fallback to recommendations if guidance absent
   const freeTitle  = guidance?.free_option?.title       ?? "Continuer seul";
-  const freeBody   = guidance?.free_option?.description ?? "Vous pouvez avancer seul avec les ressources gratuites disponibles pour cette étape.";
+  const freeBody   = guidance?.free_option?.description ?? "Vous pouvez avancer avec les ressources disponibles pour cette étape.";
   const freeHref   = appendCopilotParams(guidance?.free_option?.target_path ?? recommendations.free_action?.target_path ?? "/espace-etudiant/ressources", "visit-resources");
 
   const hasFreeSrc = guidance?.free_option ?? recommendations.free_action;
@@ -803,6 +815,7 @@ export function ProgressivePathView() {
 
   async function runAction(fn: () => Promise<ProgressivePath | null>) {
     setActionLoading(true);
+    setErrorMessage("");
     try {
       const result = await fn();
       if (result) {
@@ -810,9 +823,9 @@ export function ProgressivePathView() {
         // refresh guidance so phase + recommendations stay in sync
         const guide = await fetchGuidance();
         setGuidance(guide);
-      } else {
-        setErrorMessage("Une erreur est survenue. Veuillez réessayer.");
       }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Impossible d'effectuer cette action pour le moment.");
     } finally {
       setActionLoading(false);
     }

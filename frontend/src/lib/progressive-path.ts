@@ -87,14 +87,13 @@ export type OfficialDepositBody = {
   comment: string;
 };
 
-async function mutate(path: string): Promise<ProgressivePath | null> {
-  try {
-    const res = await authenticatedFetch(path, { method: "POST" }, { requireAuth: true });
-    if (!res.ok) throw new Error();
-    return (await res.json()) as ProgressivePath;
-  } catch {
-    return null;
+async function mutate(path: string): Promise<ProgressivePath> {
+  const res = await authenticatedFetch(path, { method: "POST" }, { requireAuth: true });
+  if (!res.ok) {
+    const payload = (await res.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(payload?.detail || "Impossible d'effectuer cette action pour le moment.");
   }
+  return (await res.json()) as ProgressivePath;
 }
 
 export async function fetchProgressivePath(): Promise<ProgressivePath> {
