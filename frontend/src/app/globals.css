@@ -14647,6 +14647,7 @@ body.chat-open .wa-float {
   cursor: default;
   flex-shrink: 0;
 }
+/* Completed phases stay reviewable without changing the active progression step. */
 .pp-phase-button {
   padding: 0;
   border: 0;
