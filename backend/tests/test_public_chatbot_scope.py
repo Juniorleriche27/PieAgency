@@ -76,3 +76,15 @@ def test_private_scope_detection_catches_documents_and_personal_strategy():
     assert ai_service._public_chat_requires_private_space(
         request("Combien coûte l'accompagnement PieAgency ?")
     ) is False
+
+
+def test_marketing_fallback_remains_useful_without_gateway():
+    response = ai_service._chat_fallback(
+        request("Quels services propose PieAgency et comment ça marche ?")
+    )
+    assert response.source == "fallback"
+    assert "PieAgency" in response.answer
+    assert "espace étudiant" in response.answer
+    assert "Assistant.genie" in response.answer
+    assert "problème technique" not in response.answer
+    assert response.escalation_recommended is False

@@ -281,19 +281,48 @@ def _get_last_user_message(request: AIChatRequest) -> str:
 
 
 def _chat_fallback(request: AIChatRequest) -> AIChatResponse:
-    page = get_page_context(request.page_path)
+    message = _get_last_user_message(request).casefold().strip()
+
+    if any(term in message for term in ("prix", "tarif", "tarifs", "coût", "cout", "combien")):
+        answer = (
+            "Les tarifs PieAgency dépendent du service ou de l'accompagnement choisi. "
+            "Le chatbot public ne doit pas inventer de prix : consultez l'offre concernée ou contactez PieAgency "
+            "pour obtenir le montant applicable et savoir ce qui est inclus."
+        )
+        actions = ["Voir les offres PieAgency", "Parler a un conseiller"]
+    elif any(term in message for term in ("rendez-vous", "rendez vous", "rdv", "contact", "conseiller")):
+        answer = (
+            "Vous pouvez contacter PieAgency depuis la page Contact ou prendre un rendez-vous pour être orienté vers "
+            "le bon accompagnement. Pour une analyse personnalisée de votre dossier, utilisez ensuite votre espace étudiant "
+            "et Assistant.genie."
+        )
+        actions = ["Prendre un RDV gratuit", "Ouvrir mon espace étudiant"]
+    elif any(term in message for term in ("produit", "produits", "outil", "outils", "ressource", "ressources")):
+        answer = (
+            "PieAgency propose aussi des ressources et produits digitaux pour aider sur certaines étapes du parcours. "
+            "Ils restent facultatifs : dans l'espace étudiant, le cockpit et Assistant.genie les recommandent uniquement "
+            "quand ils sont pertinents pour l'étape en cours."
+        )
+        actions = ["Voir les offres PieAgency", "Ouvrir mon espace étudiant"]
+    elif any(term in message for term in ("comment ça marche", "comment ca marche", "fonctionnement", "accompagnement")):
+        answer = (
+            "PieAgency accompagne les étudiants avec un parcours structuré : compréhension du profil, préparation du dossier, "
+            "documents, étapes de candidature et suivi. Le site public présente les services ; l'espace étudiant sert au suivi "
+            "personnalisé et Assistant.genie accompagne l'étudiant dans son parcours."
+        )
+        actions = ["Voir les offres PieAgency", "Ouvrir mon espace étudiant", "Parler a un conseiller"]
+    else:
+        answer = (
+            "PieAgency peut vous renseigner sur ses services, ses offres, ses produits digitaux, son fonctionnement, les rendez-vous "
+            "et les moyens de contact. Pour toute analyse personnalisée de dossier ou de procédure, utilisez l'espace étudiant "
+            "et Assistant.genie."
+        )
+        actions = ["Voir les offres PieAgency", "Parler a un conseiller", "Ouvrir mon espace étudiant"]
+
     return AIChatResponse(
-        answer=(
-            "L'assistant IA est indisponible pour le moment : la configuration IA du backend production "
-            "n'est pas active. Ce message n'est pas une réponse automatique au dossier ; il signale "
-            "un problème technique à corriger côté serveur."
-        ),
-        suggested_actions=[
-            "Réessayer plus tard",
-            str(page["cta_label"]),
-            "Contacter PieAgency",
-        ],
-        escalation_recommended=True,
+        answer=answer,
+        suggested_actions=actions[:3],
+        escalation_recommended=False,
         source="fallback",
     )
 
