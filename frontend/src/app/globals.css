@@ -14345,6 +14345,23 @@ body.chat-open .wa-float {
   position: relative;
 }
 
+.pp-ti-select {
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.pp-ti-select:not(:disabled) { cursor: pointer; }
+.pp-ti-select:disabled { cursor: default; }
+.pp-ti-selected { background: color-mix(in srgb, var(--primary, #2563eb) 8%, transparent); }
+.pp-ti-done-item .pp-ti-select:not(:disabled):hover .pp-ti-title span { color: var(--primary, #2563eb); }
+
 .pp-ti-item + .pp-ti-item::before {
   content: "";
   position: absolute;
@@ -14630,6 +14647,16 @@ body.chat-open .wa-float {
   cursor: default;
   flex-shrink: 0;
 }
+.pp-phase-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.pp-phase-button:hover .pp-phase-label { text-decoration: underline; }
+.pp-phase-button:focus-visible { outline: 2px solid var(--primary, #2563eb); outline-offset: 4px; border-radius: 8px; }
 .pp-phase-dot {
   width: 30px;
   height: 30px;

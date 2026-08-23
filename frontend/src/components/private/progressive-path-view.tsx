@@ -18,7 +18,6 @@ import {
   MessageCircle,
   Package,
   Play,
-  RotateCcw,
   ShoppingBag,
   Sparkles,
   Zap,
@@ -30,7 +29,6 @@ import {
   declareOfficialDeposit,
   fetchGuidance,
   fetchProgressivePath,
-  reopenStep,
   startStep,
   type Guidance,
   type OfficialDeposit,
@@ -112,22 +110,45 @@ function currentPhaseIndex(steps: ProgressiveStep[], guidancePhase?: string | nu
   return PHASES.findIndex((ph) => phaseStatus(steps, ph.stepOrders) === "active");
 }
 
-function PhaseTunnel({ steps, guidancePhase }: { steps: ProgressiveStep[]; guidancePhase?: string | null }) {
+function PhaseTunnel({
+  steps,
+  guidancePhase,
+  onSelectStep,
+}: {
+  steps: ProgressiveStep[];
+  guidancePhase?: string | null;
+  onSelectStep?: (stepId: string) => void;
+}) {
   const activeIdx = currentPhaseIndex(steps, guidancePhase);
   return (
     <div className="pp-phases-wrap">
       <div className="pp-phases">
         {PHASES.map((phase, idx) => {
           const status = phaseStatus(steps, phase.stepOrders);
+          const historicalStep = [...steps]
+            .filter((step) => phase.stepOrders.includes(step.order) && step.status === "completed")
+            .sort((a, b) => b.order - a.order)[0];
+          const content = (
+            <div className={`pp-phase-item pp-phase-${status}`}>
+              <div className="pp-phase-dot">
+                {status === "done" ? <CheckCircle2 size={13} /> : status === "active" ? <Zap size={12} /> : status === "blocked" ? <AlertCircle size={12} /> : <span>{idx + 1}</span>}
+              </div>
+              <span className="pp-phase-label">{phase.short}</span>
+            </div>
+          );
           return (
             <div className="pp-phase-slot" key={phase.id}>
               {idx > 0 && <div className={`pp-phase-line${status === "done" || idx <= activeIdx ? " pp-phase-line-done" : ""}`} />}
-              <div className={`pp-phase-item pp-phase-${status}`}>
-                <div className="pp-phase-dot">
-                  {status === "done" ? <CheckCircle2 size={13} /> : status === "active" ? <Zap size={12} /> : status === "blocked" ? <AlertCircle size={12} /> : <span>{idx + 1}</span>}
-                </div>
-                <span className="pp-phase-label">{phase.short}</span>
-              </div>
+              {status === "done" && historicalStep && onSelectStep ? (
+                <button
+                  className="pp-phase-button"
+                  onClick={() => onSelectStep(historicalStep.id)}
+                  title={`Consulter l'étape validée : ${historicalStep.title}`}
+                  type="button"
+                >
+                  {content}
+                </button>
+              ) : content}
             </div>
           );
         })}
@@ -161,16 +182,18 @@ function NextStepZone({
   step,
   guidance,
   actionLoading,
+  isHistorical = false,
   onStart,
   onComplete,
-  onReopen,
+  onReturnToCurrent,
 }: {
   step: ProgressiveStep;
   guidance: Guidance | null;
   actionLoading: boolean;
+  isHistorical?: boolean;
   onStart: (id: string) => void;
   onComplete: (id: string) => void;
-  onReopen: (id: string) => void;
+  onReturnToCurrent?: () => void;
 }) {
   const title     = guidance?.title     ?? step.title;
   const objective = guidance?.objective ?? step.short_description;
@@ -184,7 +207,7 @@ function NextStepZone({
       <div className="pp-next-step-header">
         <div>
           <span className="pp-next-step-kicker">
-            {phase ? (
+            {isHistorical ? "Étape déjà validée" : phase ? (
               <><Sparkles size={12} className="pp-kicker-spark" /> Phase : {phase}</>
             ) : "Votre prochaine étape"}
           </span>
@@ -201,7 +224,7 @@ function NextStepZone({
       </div>
 
       <div className="pp-next-step-todo">
-        <p className="pp-next-step-todo-label">Ce que vous devez faire maintenant</p>
+        <p className="pp-next-step-todo-label">{isHistorical ? "Rappel de cette étape" : "Ce que vous devez faire maintenant"}</p>
         <ol>
           {todos.map((line, i) => <li key={i}>{line}</li>)}
         </ol>
@@ -217,7 +240,7 @@ function NextStepZone({
             <ExternalLink size={14} />
           </Link>
         ) : null}
-        {(step.status === "not_started" || step.status === "in_progress") && !step.is_locked ? (
+        {!isHistorical && (step.status === "not_started" || step.status === "in_progress") && !step.is_locked ? (
           <button
             className="btn btn-success pp-next-btn"
             disabled={actionLoading}
@@ -226,14 +249,13 @@ function NextStepZone({
           >
             <CheckCircle2 size={14} /> J&apos;ai terminé cette étape
           </button>
-        ) : step.status === "completed" ? (
+        ) : isHistorical && onReturnToCurrent ? (
           <button
             className="btn btn-ghost pp-next-btn"
-            disabled={actionLoading}
-            onClick={() => onReopen(step.id)}
+            onClick={onReturnToCurrent}
             type="button"
           >
-            <RotateCcw size={14} /> Rouvrir cette étape
+            Retour à mon étape actuelle
           </button>
         ) : null}
         <AssistantGenieTrigger
@@ -469,7 +491,15 @@ function StepDot({ status, isLocked }: { status: StepStatus; isLocked: boolean }
   }
 }
 
-function TimelinePanel({ steps }: { steps: ProgressiveStep[] }) {
+function TimelinePanel({
+  steps,
+  selectedStepId,
+  onSelectStep,
+}: {
+  steps: ProgressiveStep[];
+  selectedStepId: string | null;
+  onSelectStep: (stepId: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const done = steps.filter((s) => s.status === "completed").length;
 
@@ -485,26 +515,36 @@ function TimelinePanel({ steps }: { steps: ProgressiveStep[] }) {
       </button>
       {open ? (
         <ol className="pp-timeline">
-          {steps.map((step) => (
-            <li
-              className={`pp-ti-item${step.is_current ? " pp-ti-current" : ""}${step.status === "completed" ? " pp-ti-done-item" : ""}${step.is_locked ? " pp-ti-locked-item" : ""}`}
-              key={step.id}
-            >
-              <div className="pp-ti-marker">
-                <StepDot isLocked={step.is_locked} status={step.status} />
-              </div>
-              <div className="pp-ti-body">
-                <div className="pp-ti-title">
-                  <span>{step.title}</span>
-                  {step.status === "completed" ? (
-                    <span className="pp-ti-badge pp-ti-badge-done">Terminé</span>
-                  ) : step.is_current ? (
-                    <span className="pp-ti-badge pp-ti-badge-current">En cours</span>
-                  ) : null}
-                </div>
-              </div>
-            </li>
-          ))}
+          {steps.map((step) => {
+            const canInspect = step.status === "completed" || step.is_current;
+            return (
+              <li
+                className={`pp-ti-item${step.is_current ? " pp-ti-current" : ""}${step.status === "completed" ? " pp-ti-done-item" : ""}${step.is_locked ? " pp-ti-locked-item" : ""}${selectedStepId === step.id ? " pp-ti-selected" : ""}`}
+                key={step.id}
+              >
+                <button
+                  className="pp-ti-select"
+                  disabled={!canInspect}
+                  onClick={() => canInspect && onSelectStep(step.id)}
+                  type="button"
+                >
+                  <div className="pp-ti-marker">
+                    <StepDot isLocked={step.is_locked} status={step.status} />
+                  </div>
+                  <div className="pp-ti-body">
+                    <div className="pp-ti-title">
+                      <span>{step.title}</span>
+                      {step.status === "completed" ? (
+                        <span className="pp-ti-badge pp-ti-badge-done">Terminé</span>
+                      ) : step.is_current ? (
+                        <span className="pp-ti-badge pp-ti-badge-current">En cours</span>
+                      ) : null}
+                    </div>
+                  </div>
+                </button>
+              </li>
+            );
+          })}
         </ol>
       ) : null}
     </aside>
@@ -737,6 +777,7 @@ export function ProgressivePathView() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -779,14 +820,13 @@ export function ProgressivePathView() {
 
   const handleStart    = (id: string) => runAction(() => startStep(id));
   const handleComplete = (id: string) => runAction(() => completeStep(id));
-  const handleReopen   = (id: string) => runAction(() => reopenStep(id));
   const handleDeposit  = (body: OfficialDepositBody) => runAction(() => declareOfficialDeposit(body));
 
   if (isLoading) {
     return <ProgressivePathLoader />;
   }
 
-  if (errorMessage || !data) {
+  if (!data) {
     return (
       <div className="pp-page">
         <div className="portal-warning">{errorMessage || "Parcours non disponible."}</div>
@@ -795,6 +835,9 @@ export function ProgressivePathView() {
   }
 
   const { current_step, progress_percent, steps, official_deposit, recommendations } = data;
+  const selectedStep = selectedStepId ? steps.find((step) => step.id === selectedStepId) ?? null : null;
+  const displayedStep = selectedStep ?? current_step;
+  const isHistoricalView = Boolean(selectedStep && current_step && selectedStep.id !== current_step.id);
 
   if (!Array.isArray(steps) || !recommendations || !official_deposit) {
     return (
@@ -825,19 +868,24 @@ export function ProgressivePathView() {
       </div>
 
       {/* Phase tunnel */}
-      <PhaseTunnel steps={steps} guidancePhase={guidance?.phase} />
+      <PhaseTunnel
+        steps={steps}
+        guidancePhase={guidance?.phase}
+        onSelectStep={(stepId) => setSelectedStepId(stepId)}
+      />
 
       {errorMessage ? <div className="portal-warning">{errorMessage}</div> : null}
 
-      {/* Next step */}
-      {current_step ? (
+      {/* Next step / consultation historique */}
+      {displayedStep ? (
         <NextStepZone
-          step={current_step}
-          guidance={guidance}
+          step={displayedStep}
+          guidance={isHistoricalView ? null : guidance}
           actionLoading={actionLoading}
+          isHistorical={isHistoricalView}
           onStart={handleStart}
           onComplete={handleComplete}
-          onReopen={handleReopen}
+          onReturnToCurrent={() => setSelectedStepId(null)}
         />
       ) : (
         <div className="pp-next-step pp-next-step-done">
@@ -848,15 +896,17 @@ export function ProgressivePathView() {
       )}
 
       {/* Avertissement officiel */}
-      {guidance?.official_warning ? (
+      {!isHistoricalView && guidance?.official_warning ? (
         <OfficialWarningBlock text={guidance.official_warning} />
       ) : null}
 
       {/* Options */}
-      <OptionsSection guidance={guidance} recommendations={recommendations} />
+      {!isHistoricalView ? (
+        <OptionsSection guidance={guidance} recommendations={recommendations} />
+      ) : null}
 
       {/* Related modules */}
-      <RelatedModules step={current_step} recommendations={recommendations} />
+      <RelatedModules step={displayedStep} recommendations={isHistoricalView ? { current_step_id: displayedStep?.id ?? "", free_action: null, recommended_product: null, assistant_action: null, document_action: null } : recommendations} />
 
       {/* Official deposit */}
       {(showDepositBlock || official_deposit.has_declared) ? (
@@ -868,7 +918,14 @@ export function ProgressivePathView() {
       ) : null}
 
       {/* Secondary timeline */}
-      <TimelinePanel steps={steps} />
+      <TimelinePanel
+        steps={steps}
+        selectedStepId={selectedStepId}
+        onSelectStep={(stepId) => {
+          const selected = steps.find((step) => step.id === stepId);
+          setSelectedStepId(selected?.is_current ? null : stepId);
+        }}
+      />
     </div>
   );
 }
