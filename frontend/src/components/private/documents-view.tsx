@@ -1,6 +1,7 @@
 "use client";
 
 import { CopilotBanner } from "@/components/private/copilot-banner";
+import { AssistantGenieTrigger } from "@/components/private/assistant-genie-trigger";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -32,6 +33,10 @@ import {
   type GradingSystem,
 } from "@/lib/private-documents";
 import { buildDefaultDocumentTemplates, buildDocumentTemplates } from "@/lib/document-templates";
+import {
+  fetchProgressivePath,
+  type ProgressivePath,
+} from "@/lib/progressive-path";
 import {
   fetchOnboardingStatus,
   ONBOARDING_DRAFT_STORAGE_KEY,
@@ -205,16 +210,18 @@ export function DocumentsView({ documents: initial }: Props) {
   const [addError, setAddError] = useState("");
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const [path, setPath] = useState<ProgressivePath | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const rowFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     let active = true;
-    void Promise.all([getDocuments(), getProfile()])
-      .then(([d, p]) => {
+    void Promise.all([getDocuments(), getProfile(), fetchProgressivePath()])
+      .then(([d, p, pathResult]) => {
         if (!active) return;
         setDocs(buildVisibleDocuments(d, p));
         setProfile(p);
+        setPath(pathResult);
         setLoadError("");
       })
       .catch(() => {
@@ -257,6 +264,14 @@ export function DocumentsView({ documents: initial }: Props) {
     setShowAddModal(true);
   }
 
+  async function refreshPath() {
+    try {
+      setPath(await fetchProgressivePath());
+    } catch {
+      // The document operation remains valid even if the path refresh is temporarily unavailable.
+    }
+  }
+
   async function handleAdd() {
     const name = addName === "Autre" ? addCustom.trim() : addName.trim();
     if (!name) { setAddError("Veuillez saisir un nom de document."); return; }
@@ -275,6 +290,7 @@ export function DocumentsView({ documents: initial }: Props) {
     if (addFile && result) {
       await uploadDocumentFile(result.id, addFile);
     }
+    await refreshPath();
   }
 
   async function handleRowUpload(doc: CandidateDocument, file: File) {
@@ -290,12 +306,13 @@ export function DocumentsView({ documents: initial }: Props) {
       setDocs((prev) =>
         prev.map((d) =>
           d.id === doc.id
-            ? { ...persistedDoc, status: "in-progress" as DocumentStatus, lastUpdated: new Date().toISOString().slice(0, 10) }
+            ? { ...persistedDoc, status: "to-review" as DocumentStatus, lastUpdated: new Date().toISOString().slice(0, 10) }
             : d,
         ),
       );
       setUploadSuccess(persistedDoc.id);
       setTimeout(() => setUploadSuccess(null), 3000);
+      await refreshPath();
     } else if (persistedDoc.id !== doc.id) {
       setDocs((prev) => prev.map((d) => (d.id === doc.id ? persistedDoc : d)));
     }
@@ -335,6 +352,19 @@ export function DocumentsView({ documents: initial }: Props) {
     }
   }
 
+  const documentRelatedStepIds = new Set([
+    "prepare-study-project",
+    "prepare-career-project",
+    "prepare-cv",
+    "prepare-motivation-letters",
+    "prepare-documents",
+    "prepare-visa-file",
+  ]);
+  const currentPathStep = path?.current_step ?? null;
+  const showPathImpact = Boolean(
+    currentPathStep && documentRelatedStepIds.has(currentPathStep.id),
+  );
+
   const showSetup = !profileLoading && profile && !profile.education_level;
   const showOnboardingFinish =
     onboardingStatus !== null &&
@@ -350,6 +380,30 @@ export function DocumentsView({ documents: initial }: Props) {
         <p>Suivez l&apos;état de vos documents et préparez votre dossier complet.</p>
       </div>
       {loadError ? <div className="portal-warning" role="alert">{loadError}</div> : null}
+
+      {showPathImpact && currentPathStep ? (
+        <section className="portal-card doc-path-impact" aria-labelledby="doc-path-impact-title">
+          <div className="portal-card-head">
+            <div>
+              <div className="portal-card-kicker">Impact sur mon parcours</div>
+              <h2 id="doc-path-impact-title">{currentPathStep.title}</h2>
+            </div>
+            <span className={currentPathStep.can_complete ? "portal-tone good" : "portal-tone attention"}>
+              {currentPathStep.can_complete ? "Prêt à valider" : "Action requise"}
+            </span>
+          </div>
+          <p className="doc-path-impact-action">{currentPathStep.next_action}</p>
+          {currentPathStep.blocking_reasons.length ? (
+            <ul className="doc-path-impact-blockers">
+              {currentPathStep.blocking_reasons.slice(0, 4).map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="doc-path-impact-ready">Les preuves documentaires nécessaires sont satisfaites.</p>
+          )}
+        </section>
+      ) : null}
 
       {showOnboardingFinish ? (
         <div className="doc-onboarding-card">
@@ -527,13 +581,16 @@ export function DocumentsView({ documents: initial }: Props) {
                         </>
                       )}
                       {!isGeneratedDocument(doc) ? <>
-                        <Link
-                          aria-label={`Analyser ${doc.title} avec l’Agent PieAgency`}
+                        <AssistantGenieTrigger
+                          ariaLabel={`Analyser ${doc.title} avec Assistant.genie`}
                           className="doc-attach-btn"
-                          href={`/espace-etudiant/assistant?action=document_review&document=${encodeURIComponent(doc.id)}&context=documents`}
+                          documentId={doc.id}
+                          message={`Analyse ce document : ${doc.title}. Dis-moi ce qui est correct, ce qui bloque mon dossier et ce que je dois améliorer maintenant.`}
+                          requestedAction="document_review"
+                          autoSend
                         >
-                          <CheckCircle2 size={14} /> Analyser avec l’Agent
-                        </Link>
+                          <CheckCircle2 size={14} /> Analyser avec Assistant.genie
+                        </AssistantGenieTrigger>
                         <button aria-label={`Télécharger ${doc.title}`} className="doc-attach-btn" onClick={async () => { try { window.open(await getDocumentDownloadUrl(doc.id), "_blank", "noopener,noreferrer"); } catch { setLoadError("Aucun fichier téléchargeable pour ce document."); } }} type="button"><Download size={14} /> Télécharger</button>
                         <button aria-label={`Supprimer ${doc.title}`} className="doc-attach-btn" onClick={async () => { if (!window.confirm(`Supprimer « ${doc.title} » ?`)) return; try { await deleteDocument(doc.id); setDocs((items) => items.filter((item) => item.id !== doc.id)); } catch { setLoadError("Impossible de supprimer ce document."); } }} type="button"><Trash2 size={14} /> Supprimer</button>
                       </> : null}

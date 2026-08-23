@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AssistantGenieTrigger } from "@/components/private/assistant-genie-trigger";
 import { HelpCircle, Mail, MessageCircle, ShieldCheck } from "lucide-react";
 
 export const metadata = { title: "Aide | Espace étudiant — PieAgency" };
@@ -7,7 +8,11 @@ export default function StudentHelpPage() {
   return <div className="private-help-page">
     <header><HelpCircle size={30} /><div><h1>Centre d’aide</h1><p>Choisissez le canal adapté à votre besoin.</p></div></header>
     <div className="private-help-grid">
-      <Link href="/espace-etudiant/assistant"><MessageCircle size={24} /><strong>Agent PieAgency</strong><span>Analyse, rédaction et préparation à partir de votre contexte PieAgency.</span></Link>
+      <AssistantGenieTrigger
+        className="private-help-genie-trigger"
+        message="Aide-moi à identifier le bon type d'aide pour ma situation actuelle dans PieAgency."
+        requestedAction="help_router"
+      ><MessageCircle size={24} /><strong>Assistant.genie</strong><span>Analyse, rédaction et préparation à partir de votre contexte PieAgency.</span></AssistantGenieTrigger>
       <Link href="/communaute"><ShieldCheck size={24} /><strong>Communauté PieHUB</strong><span>Échanger avec les étudiants et consulter les réponses utiles.</span></Link>
       <Link href="/contact"><Mail size={24} /><strong>Contacter PieAgency</strong><span>Demande personnelle, document sensible ou accompagnement.</span></Link>
     </div>

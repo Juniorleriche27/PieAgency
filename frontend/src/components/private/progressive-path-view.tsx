@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AssistantGenieTrigger } from "@/components/private/assistant-genie-trigger";
 import {
   AlertCircle,
   ArrowRight,
@@ -178,10 +179,6 @@ function NextStepZone({
     ? guidance.what_to_do_now
     : fallbackTodoList(step);
 
-  const assistantHref = guidance?.current_step_id
-    ? `/espace-etudiant/assistant?context=${guidance.current_step_id}&from=parcours-guide&step=open-assistant`
-    : "/espace-etudiant/assistant?from=parcours-guide&step=open-assistant";
-
   return (
     <section className="pp-next-step">
       <div className="pp-next-step-header">
@@ -239,9 +236,13 @@ function NextStepZone({
             <RotateCcw size={14} /> Rouvrir cette étape
           </button>
         ) : null}
-        <Link className="btn btn-ghost pp-next-btn" href={assistantHref}>
-          <MessageCircle size={14} /> Poser une question à l&apos;assistant
-        </Link>
+        <AssistantGenieTrigger
+          className="btn btn-ghost pp-next-btn"
+          message={`Aide-moi sur l'étape « ${title} ». Explique ce que je dois faire maintenant, ce qui peut me bloquer et comment savoir quand cette étape est vraiment prête.`}
+          requestedAction="copilot_step_guidance"
+        >
+          <MessageCircle size={14} /> Poser une question à Assistant.genie
+        </AssistantGenieTrigger>
       </div>
     </section>
   );
@@ -256,6 +257,7 @@ function OptionCard({
   href,
   btnLabel,
   badge,
+  assistantMessage,
 }: {
   icon: ReactNode;
   title: string;
@@ -263,6 +265,7 @@ function OptionCard({
   href: string;
   btnLabel: string;
   badge?: ReactNode;
+  assistantMessage?: string;
 }) {
   return (
     <div className="pp-option-card">
@@ -272,9 +275,19 @@ function OptionCard({
         <h3>{title}</h3>
         <p>{body}</p>
       </div>
-      <Link className="btn btn-outline pp-option-btn" href={href}>
-        {btnLabel} <ChevronRight size={14} />
-      </Link>
+      {assistantMessage ? (
+        <AssistantGenieTrigger
+          className="btn btn-outline pp-option-btn"
+          message={assistantMessage}
+          requestedAction="copilot_step_guidance"
+        >
+          {btnLabel} <ChevronRight size={14} />
+        </AssistantGenieTrigger>
+      ) : (
+        <Link className="btn btn-outline pp-option-btn" href={href}>
+          {btnLabel} <ChevronRight size={14} />
+        </Link>
+      )}
     </div>
   );
 }
@@ -299,10 +312,6 @@ function OptionsSection({
 
   const hasPaidSrc = guidance?.paid_option ?? recommendations.recommended_product;
 
-  const assistantStepId = guidance?.current_step_id;
-  const assistantHref   = assistantStepId
-    ? `/espace-etudiant/assistant?context=${assistantStepId}&from=parcours-guide&step=open-assistant`
-    : appendCopilotParams(guidance?.assistant_suggestion?.target_path ?? recommendations.assistant_action?.target_path ?? "/espace-etudiant/assistant", "open-assistant");
   const assistantBody   = guidance?.assistant_suggestion?.message
     ?? "Posez vos questions sur cette étape à l'assistant dossier.";
 
@@ -338,8 +347,9 @@ function OptionsSection({
             icon={<MessageCircle size={20} />}
             title="Demander de l'aide"
             body={assistantBody}
-            href={assistantHref}
-            btnLabel="Ouvrir l'assistant dossier"
+            href="#"
+            btnLabel="Ouvrir Assistant.genie"
+            assistantMessage={assistantBody}
           />
         ) : null}
       </div>
@@ -421,16 +431,6 @@ function RelatedModules({
       desc: recommendations.document_action.description || "Préparez ou vérifiez les pièces liées à cette étape.",
       href: recommendations.document_action.target_path,
       label: "Ouvrir Mes documents",
-    });
-  }
-
-  if (recommendations.assistant_action) {
-    modules.push({
-      icon: <MessageCircle size={18} />,
-      title: "Agent PieAgency",
-      desc: "Posez vos questions sur cette étape.",
-      href: recommendations.assistant_action.target_path,
-      label: "Ouvrir l'assistant",
     });
   }
 

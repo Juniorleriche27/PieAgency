@@ -145,7 +145,20 @@ def generate_candidate_assistant_response(
         used_context={
             "candidate_profile": True,
             "progressive_path": context.current_step is not None,
-            "recommendations": False,
+            "recommendations": bool(
+                context.diagnostic is not None
+                or (
+                    context.current_step is not None
+                    and (
+                        context.current_step.next_action
+                        or context.current_step.blocking_reasons
+                    )
+                )
+            ),
+            "documents": bool(
+                context.dossier is not None and context.dossier.document_summaries
+            ),
+            "diagnostic": context.diagnostic is not None,
             "resources": bool(resources),
         },
         rag={"used": bool(citations), "resources": resources},

@@ -1,12 +1,10 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 
-from ..dependencies.auth import get_optional_authenticated_access_token, get_optional_current_user
 from ..schemas import (
     AIChatRequest,
     AIChatResponse,
     AIPageInsightResponse,
-    AuthUserProfile,
     CommunityAIReplyRequest,
     CommunityAIReplyResponse,
 )
@@ -31,22 +29,14 @@ def community_reply(payload: CommunityAIReplyRequest) -> CommunityAIReplyRespons
 
 
 @router.post("/ai/chat", response_model=AIChatResponse)
-def chat_with_assistant(
-    payload: AIChatRequest,
-    current_user: AuthUserProfile | None = Depends(get_optional_current_user),
-    access_token: str | None = Depends(get_optional_authenticated_access_token),
-) -> AIChatResponse:
-    return generate_chat_response(payload, current_user, access_token)
+def chat_with_assistant(payload: AIChatRequest) -> AIChatResponse:
+    return generate_chat_response(payload, None, None)
 
 
 @router.post("/ai/chat/stream")
-def stream_chat_with_assistant(
-    payload: AIChatRequest,
-    current_user: AuthUserProfile | None = Depends(get_optional_current_user),
-    access_token: str | None = Depends(get_optional_authenticated_access_token),
-) -> StreamingResponse:
+def stream_chat_with_assistant(payload: AIChatRequest) -> StreamingResponse:
     return StreamingResponse(
-        stream_chat_response(payload, current_user, access_token),
+        stream_chat_response(payload, None, None),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

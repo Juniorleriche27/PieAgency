@@ -765,6 +765,7 @@ class CandidateAssistantChatRequest(BaseModel):
     conversation_id: str | None = Field(default=None, max_length=64)
     requested_action: str = Field(default="general_chat", max_length=80)
     document_id: str | None = Field(default=None, max_length=120)
+    page_path: str | None = Field(default=None, max_length=240)
 
     @field_validator("message", mode="before")
     @classmethod
@@ -787,6 +788,14 @@ class AssistantContextStudentV1(BaseModel):
     status_label: str | None = None
 
 
+class AssistantContextRequirementV1(BaseModel):
+    key: str
+    label: str
+    source: Literal["automatic", "declared"]
+    required: bool = True
+    satisfied: bool = False
+
+
 class AssistantContextStepV1(BaseModel):
     id: str
     title: str
@@ -794,6 +803,37 @@ class AssistantContextStepV1(BaseModel):
     status: str
     short_description: str | None = None
     progress_percent: int | None = None
+    objective: str | None = None
+    next_action: str | None = None
+    completion_rule: str | None = None
+    can_complete: bool = False
+    requirements: list[AssistantContextRequirementV1] = Field(default_factory=list)
+    evidence: list[AssistantContextRequirementV1] = Field(default_factory=list)
+    blocking_reasons: list[str] = Field(default_factory=list)
+
+
+class AssistantContextDocumentSummaryV1(BaseModel):
+    document_id: str | None = None
+    name: str
+    status: str
+    note: str | None = None
+
+
+class AssistantContextDiagnosticV1(BaseModel):
+    current_priority: str | None = None
+    main_risk: str | None = None
+    next_action: str | None = None
+    adapted_checklist: list[str] = Field(default_factory=list)
+
+
+class AssistantContextProductPromotionV1(BaseModel):
+    title: str
+    description: str | None = None
+    target_path: str
+    reason_now: str | None = None
+    expected_outcome: str | None = None
+    addresses_blockers: list[str] = Field(default_factory=list)
+    optional: bool = True
 
 
 class AssistantContextDossierV1(BaseModel):
@@ -802,6 +842,7 @@ class AssistantContextDossierV1(BaseModel):
     status_label: str | None = None
     next_action: str | None = None
     document_status_counts: dict[str, int] = Field(default_factory=dict)
+    document_summaries: list[AssistantContextDocumentSummaryV1] = Field(default_factory=list)
     official_deposit_declared: bool = False
     official_deposit_status: str | None = None
 
@@ -810,10 +851,14 @@ class AssistantContextSnapshotV1(BaseModel):
     contract_version: Literal["pieagency.context.v1"] = "pieagency.context.v1"
     source: Literal["pieagency_private"] = "pieagency_private"
     requested_action: str = "general_chat"
+    page_path: str | None = None
     generated_at: str
     student: AssistantContextStudentV1
     current_step: AssistantContextStepV1 | None = None
+    next_step: AssistantContextStepV1 | None = None
     dossier: AssistantContextDossierV1 | None = None
+    diagnostic: AssistantContextDiagnosticV1 | None = None
+    product_promotion: AssistantContextProductPromotionV1 | None = None
     retrieval_hints: list[str] = Field(default_factory=list)
 
 
@@ -928,6 +973,37 @@ class StudentDashboardResponse(BaseModel):
     notes: list[StudentNoteItem]
 
 
+class ProgressivePathPrerequisiteItem(BaseModel):
+    step_id: str
+    satisfied: bool = False
+
+
+class ProgressivePathRequirementItem(BaseModel):
+    key: str
+    label: str
+    source: Literal["automatic", "declared"]
+    required: bool = True
+    satisfied: bool = False
+
+
+class ProgressivePathEvidenceUpdateRequest(BaseModel):
+    evidence_keys: list[str] = Field(default_factory=list, max_length=20)
+
+    @field_validator("evidence_keys")
+    @classmethod
+    def normalize_evidence_keys(cls, value: list[str]) -> list[str]:
+        cleaned: list[str] = []
+        seen: set[str] = set()
+        for item in value:
+            key = str(item or "").strip()
+            if not key or len(key) > 120:
+                raise ValueError("Clé de preuve invalide.")
+            if key not in seen:
+                seen.add(key)
+                cleaned.append(key)
+        return cleaned
+
+
 class ProgressivePathStepItem(BaseModel):
     id: str
     title: str
@@ -938,6 +1014,14 @@ class ProgressivePathStepItem(BaseModel):
     is_locked: bool
     target_module: str | None = None
     target_path: str | None = None
+    objective: str = ""
+    prerequisites: list[ProgressivePathPrerequisiteItem] = Field(default_factory=list)
+    requirements: list[ProgressivePathRequirementItem] = Field(default_factory=list)
+    evidence: list[ProgressivePathRequirementItem] = Field(default_factory=list)
+    blocking_reasons: list[str] = Field(default_factory=list)
+    completion_rule: str = ""
+    next_action: str = ""
+    can_complete: bool = False
 
 
 class OfficialDepositItem(BaseModel):
@@ -978,6 +1062,9 @@ class ProgressivePathRecommendationAction(BaseModel):
     description: str
     target_module: str
     target_path: str
+    reason_now: str | None = None
+    expected_outcome: str | None = None
+    addresses_blockers: list[str] = Field(default_factory=list)
 
 
 class ProgressivePathProductRecommendation(ProgressivePathRecommendationAction):

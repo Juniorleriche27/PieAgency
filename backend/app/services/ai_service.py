@@ -439,28 +439,77 @@ def _build_chat_context(request: AIChatRequest) -> tuple[dict[str, str | list[st
     return page, history
 
 
+PUBLIC_CHAT_PRIVATE_PATTERNS = (
+    "mon dossier", "ma candidature", "mes documents", "mon document", "ma lettre",
+    "mon cv", "mon projet d'études", "mon projet professionnel", "mon entretien",
+    "mon visa", "mon compte campus france", "je suis bloqué", "je suis bloque",
+    "que dois-je faire maintenant", "que dois je faire maintenant", "analyse ma",
+    "analyse mon", "corrige ma", "corrige mon", "prépare mon", "prepare mon",
+    "est-ce que mon", "est ce que mon", "dans mon cas", "pour mon cas",
+)
+
+PUBLIC_CHAT_ALLOWED_PATTERNS = (
+    "pieagency", "service", "services", "offre", "offres", "prix", "tarif", "tarifs",
+    "accompagnement", "comment ça marche", "comment ca marche", "contact", "rendez-vous",
+    "rendez vous", "rdv", "paiement", "abonnement", "produit", "produits", "ressource",
+    "ressources", "communauté", "communaute", "qui êtes-vous", "qui etes-vous",
+    "que faites-vous", "que faites vous", "où êtes-vous", "ou etes-vous",
+)
+
+
+def _public_chat_requires_private_space(request: AIChatRequest) -> bool:
+    message = _get_last_user_message(request).casefold().strip()
+    return bool(message) and any(pattern in message for pattern in PUBLIC_CHAT_PRIVATE_PATTERNS)
+
+
+def _public_chat_redirect_response(request: AIChatRequest, conversation_id: str | None = None) -> AIChatResponse:
+    return AIChatResponse(
+        answer=(
+            "Pour une analyse personnalisée de votre dossier, de vos documents ou de votre procédure, "
+            "utilisez votre espace étudiant PieAgency et Assistant.genie. Le chatbot du site public est limité "
+            "aux informations sur PieAgency, ses services, ses offres et son fonctionnement."
+        ),
+        conversation_id=conversation_id,
+        suggested_actions=["Ouvrir mon espace étudiant", "Voir les services", "Parler a un conseiller"],
+        escalation_recommended=False,
+        source="fallback",
+    )
+
+
+def _public_chat_marketing_scope_hint(request: AIChatRequest) -> str:
+    message = _get_last_user_message(request).casefold().strip()
+    if any(pattern in message for pattern in PUBLIC_CHAT_ALLOWED_PATTERNS):
+        return "Question compatible avec le périmètre marketing et renseignements PieAgency."
+    return (
+        "Si la question sort des renseignements généraux sur PieAgency ou demande une réponse personnalisée "
+        "sur une procédure étudiante, redirige immédiatement vers l'espace privé sans répondre au fond."
+    )
+
+
 def _build_json_chat_system_prompt(request: AIChatRequest) -> str:
     page, _ = _build_chat_context(request)
-    last_user_message = _get_last_user_message(request)
-    rag_context = retrieve_rag_context(last_user_message) if last_user_message else ""
-    rag_section = f"\nContexte RAG (extraits reels de la communaute Campus France):\n{rag_context}\n" if rag_context else ""
+    scope_hint = _public_chat_marketing_scope_hint(request)
     return f"""
-Tu es l'assistant IA public de PieAgency sur le site web.
+Tu es le chatbot PUBLIC de PieAgency sur le site web.
 
-Contexte global:
+Contexte global marketing PieAgency:
 {SITE_KNOWLEDGE}
 
 Contexte page:
 - Path: {request.page_path}
 - Page: {page["title"]}
 - Resume: {page["summary"]}
-{rag_section}
-Ta mission:
-- repondre uniquement sur PieAgency, ses services, son fonctionnement, le parcours etudiant,
-  et l'orientation vers le bon accompagnement;
-- si un contexte RAG est fourni, l'utiliser pour donner une reponse plus precise et concrete;
-- si la question demande une verification humaine, recommander un conseiller;
-- ne jamais inventer de prix, delais officiels ou garanties.
+
+Périmètre strict:
+- renseigner sur PieAgency, ses services, ses offres, ses produits, ses ressources, ses modalités de contact, de rendez-vous et de paiement;
+- expliquer à haut niveau comment fonctionne l'accompagnement PieAgency;
+- NE PAS analyser un dossier, une lettre, un CV ou un document personnel;
+- NE PAS donner de stratégie personnalisée Campus France, visa, admission, entretien ou procédure;
+- NE PAS exploiter de mémoire étudiant, profil privé, documents privés ou RAG communautaire;
+- pour toute demande personnalisée, rediriger vers l'espace étudiant PieAgency et Assistant.genie.
+
+Signal de périmètre:
+{scope_hint}
 
 Retourne uniquement un JSON valide:
 {{
@@ -470,49 +519,46 @@ Retourne uniquement un JSON valide:
 }}
 
 Contraintes:
-- reponse en francais;
-- concise mais utile;
-- maximum 220 mots;
-- texte propre uniquement, sans markdown, sans **, sans listes markdown;
-- ne pas afficher d'URL brute dans la reponse;
-- suggested_actions: 2 ou 3 actions concretes;
-- si l'utilisateur veut demarrer, mentionner le formulaire de contact (pieagency.fr/contact) ou la prise de rendez-vous.
+- réponse en français;
+- concise, commerciale et informative;
+- maximum 180 mots;
+- ne jamais inventer de prix, garantie, délai officiel ou résultat;
+- suggested_actions: 2 ou 3 actions concrètes liées à PieAgency;
+- si l'utilisateur demande un conseil personnalisé, ne réponds pas au fond et oriente vers l'espace privé.
 """.strip()
-
 
 def _build_stream_chat_system_prompt(request: AIChatRequest) -> str:
     page, _ = _build_chat_context(request)
-    last_user_message = _get_last_user_message(request)
-    rag_context = retrieve_rag_context(last_user_message) if last_user_message else ""
-    rag_section = f"\nContexte RAG (extraits reels de la communaute Campus France):\n{rag_context}\n" if rag_context else ""
+    scope_hint = _public_chat_marketing_scope_hint(request)
     return f"""
-Tu es l'assistant IA public de PieAgency sur le site web.
+Tu es le chatbot PUBLIC de PieAgency sur le site web.
 
-Contexte global:
+Contexte global marketing PieAgency:
 {SITE_KNOWLEDGE}
 
 Contexte page:
 - Path: {request.page_path}
 - Page: {page["title"]}
 - Resume: {page["summary"]}
-{rag_section}
-Ta mission:
-- repondre uniquement sur PieAgency, ses services, son fonctionnement, le parcours etudiant,
-  et l'orientation vers le bon accompagnement;
-- si un contexte RAG est fourni, l'utiliser pour donner une reponse plus precise et concrete;
-- si la question demande une verification humaine, recommander un conseiller;
-- ne jamais inventer de prix, delais officiels ou garanties;
-- ne pas utiliser de JSON, de balises ou de listes artificielles;
-- renvoyer uniquement le texte final de la reponse en francais.
+
+Périmètre strict:
+- renseigner uniquement sur PieAgency, ses services, offres, produits, ressources, contact, rendez-vous et paiement;
+- expliquer le fonctionnement de l'accompagnement à haut niveau;
+- ne jamais analyser un dossier ou document personnel;
+- ne jamais donner une stratégie personnalisée de procédure, visa, admission ou entretien;
+- ne jamais utiliser de contexte privé ou RAG communautaire;
+- toute demande personnalisée doit être redirigée vers l'espace étudiant et Assistant.genie.
+
+Signal de périmètre:
+{scope_hint}
 
 Contraintes:
-- concise mais utile;
-- maximum 220 mots;
-- texte propre uniquement, sans markdown, sans **, sans listes markdown;
-- ne pas afficher d'URL brute dans la reponse;
-- si l'utilisateur veut demarrer, mentionner le formulaire de contact (pieagency.fr/contact) ou la prise de rendez-vous.
+- réponse en français;
+- concise, marketing et informative;
+- maximum 180 mots;
+- pas de markdown ni URL brute;
+- ne jamais inventer prix, garantie, délai officiel ou résultat.
 """.strip()
-
 
 def _extract_stream_delta_text(event: Any) -> str:
     if getattr(event, "type", None) != "content-delta":
@@ -651,7 +697,12 @@ def generate_chat_response(
     access_token: str | None = None,
 ) -> AIChatResponse:
     fallback = _chat_fallback(request)
-    conversation_id = _prepare_conversation(request, current_user, access_token)
+    # The public site chatbot must never consume private student context.
+    current_user = None
+    access_token = None
+    conversation_id = _prepare_conversation(request, None, None)
+    if _public_chat_requires_private_space(request):
+        return _public_chat_redirect_response(request, conversation_id)
     if not settings.ai_gateway_enabled:
         fallback.conversation_id = conversation_id
         return fallback
@@ -697,7 +748,22 @@ def stream_chat_response(
     access_token: str | None = None,
 ) -> Iterator[str]:
     fallback = _chat_fallback(request)
-    conversation_id = _prepare_conversation(request, current_user, access_token)
+    # The public site chatbot must never consume private student context.
+    current_user = None
+    access_token = None
+    conversation_id = _prepare_conversation(request, None, None)
+    if _public_chat_requires_private_space(request):
+        redirect = _public_chat_redirect_response(request, conversation_id)
+        yield _format_sse("start", {"source": "fallback", "conversation_id": conversation_id})
+        for chunk in _iter_text_chunks(redirect.answer, size=10):
+            yield _format_sse("chunk", {"text": chunk})
+        yield _format_sse("done", {
+            "conversation_id": conversation_id,
+            "suggested_actions": redirect.suggested_actions,
+            "escalation_recommended": False,
+            "source": "fallback",
+        })
+        return
     fallback_done_payload = {
         "conversation_id": conversation_id,
         "suggested_actions": fallback.suggested_actions,

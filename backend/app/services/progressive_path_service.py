@@ -11,6 +11,12 @@ from ..schemas import (
     ProgressivePathStepStatus,
 )
 from .dashboard_service import _client_or_none
+from .document_path_evidence import document_guidance_for_step
+from .progressive_path_rules import (
+    automatic_evidence_from_context,
+    evaluate_step_rule,
+    get_step_rule,
+)
 
 
 DEFAULT_PROGRESSIVE_PATH_STEPS = [
@@ -362,6 +368,37 @@ RECOMMENDATION_BY_STEP: dict[str, dict[str, ProgressivePathRecommendationAction 
 }
 
 
+def _contextualize_recommendation(
+    action: ProgressivePathRecommendationAction | None,
+    current_step: ProgressivePathStepItem,
+    *,
+    is_product: bool = False,
+) -> ProgressivePathRecommendationAction | None:
+    if action is None:
+        return None
+    if is_product and current_step.can_complete:
+        return None
+
+    blockers = [str(item) for item in current_step.blocking_reasons[:3]]
+    if is_product:
+        reason = (
+            f"Option facultative utile pendant l'étape « {current_step.title} »"
+            + (f" pour travailler : {blockers[0]}" if blockers else ".")
+        )
+    else:
+        reason = (
+            f"Pertinent maintenant car votre étape active est « {current_step.title} »."
+        )
+    expected = current_step.completion_rule or current_step.next_action or current_step.objective
+    return action.model_copy(
+        update={
+            "reason_now": reason,
+            "expected_outcome": expected or None,
+            "addresses_blockers": blockers,
+        }
+    )
+
+
 def _build_recommendations(
     current_step: ProgressivePathStepItem | None,
 ) -> ProgressivePathRecommendations:
@@ -371,10 +408,90 @@ def _build_recommendations(
     config = RECOMMENDATION_BY_STEP.get(current_step.id, {})
     return ProgressivePathRecommendations(
         current_step_id=current_step.id,
-        free_action=config.get("free_action"),
-        recommended_product=config.get("recommended_product"),
-        assistant_action=_assistant_action(current_step.id),
-        document_action=config.get("document_action"),
+        free_action=_contextualize_recommendation(
+            config.get("free_action"), current_step
+        ),
+        recommended_product=_contextualize_recommendation(
+            config.get("recommended_product"), current_step, is_product=True
+        ),
+        assistant_action=_contextualize_recommendation(
+            _assistant_action(current_step.id), current_step
+        ),
+        document_action=_contextualize_recommendation(
+            config.get("document_action"), current_step
+        ),
+    )
+
+
+def _load_onboarding_status(client, candidate_id: str) -> str | None:
+    try:
+        response = (
+            client.table("profiles")
+            .select("onboarding_status")
+            .eq("user_id", candidate_id)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+        return str(rows[0].get("onboarding_status") or "") if rows else None
+    except Exception:
+        return None
+
+
+def _diagnostic_available(client, candidate_id: str) -> bool:
+    try:
+        response = (
+            client.table("student_onboarding")
+            .select("data")
+            .eq("user_id", candidate_id)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+        return bool(rows and isinstance(rows[0].get("data"), dict) and rows[0].get("data"))
+    except Exception:
+        return False
+
+
+def _load_candidate_documents(client, candidate_id: str) -> list[dict]:
+    try:
+        case_response = (
+            client.table("student_cases")
+            .select("id")
+            .eq("student_user_id", candidate_id)
+            .order("updated_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        case_rows = case_response.data or []
+        if not case_rows:
+            return []
+        case_id = str(case_rows[0].get("id") or "")
+        if not case_id:
+            return []
+        response = (
+            client.table("case_documents")
+            .select("id,name,status,note")
+            .eq("case_id", case_id)
+            .execute()
+        )
+        return [dict(item) for item in (response.data or [])]
+    except Exception:
+        return []
+
+
+def _step_evaluation_context(
+    client,
+    candidate_id: str,
+    *,
+    official_deposit: OfficialDepositItem,
+    documents: list[dict],
+) -> dict[str, bool]:
+    return automatic_evidence_from_context(
+        onboarding_status=_load_onboarding_status(client, candidate_id),
+        documents=documents,
+        official_deposit_declared=official_deposit.has_declared,
+        diagnostic_available=_diagnostic_available(client, candidate_id),
     )
 
 
@@ -394,6 +511,12 @@ def _fallback_path(candidate_id: str) -> ProgressivePathResponse:
             is_locked=int(step["step_order"]) > 1,
             target_module=str(step.get("target_module") or ""),
             target_path=str(step.get("target_path") or ""),
+            **evaluate_step_rule(
+                str(step["id"]),
+                automatic_evidence={},
+                declared_evidence=set(),
+                completed_step_ids=set(),
+            ),
         )
         for step in DEFAULT_PROGRESSIVE_PATH_STEPS
     ]
@@ -478,13 +601,20 @@ def _load_path_response(
 
     progress_response = (
         client.table("candidate_progressive_path_steps")
-        .select("step_id,status")
+        .select("step_id,status,declared_evidence")
         .eq("candidate_user_id", candidate_id)
         .execute()
     )
+    progress_rows = progress_response.data or []
     status_by_step = {
         str(item.get("step_id")): _normalize_path_status(item.get("status"))
-        for item in (progress_response.data or [])
+        for item in progress_rows
+    }
+    declared_evidence_by_step = {
+        str(item.get("step_id")): {
+            str(key) for key in (item.get("declared_evidence") or []) if str(key).strip()
+        }
+        for item in progress_rows
     }
 
     state_response = (
@@ -533,6 +663,20 @@ def _load_path_response(
     )
     progress_percent = round((completed_count / len(step_rows)) * 100) if step_rows else 0
 
+    official_deposit = _load_official_deposit(client, candidate_id)
+    candidate_documents = _load_candidate_documents(client, candidate_id)
+    automatic_evidence = _step_evaluation_context(
+        client,
+        candidate_id,
+        official_deposit=official_deposit,
+        documents=candidate_documents,
+    )
+    completed_step_ids = {
+        str(step.get("id"))
+        for step in step_rows
+        if status_by_step.get(str(step.get("id"))) == ProgressivePathStepStatus.COMPLETED
+    }
+
     items: list[ProgressivePathStepItem] = []
     for step in step_rows:
         step_id = str(step.get("id"))
@@ -540,6 +684,23 @@ def _load_path_response(
         status = status_by_step.get(step_id, ProgressivePathStepStatus.NOT_STARTED)
         if step_id == current_step_id and status == ProgressivePathStepStatus.NOT_STARTED:
             status = ProgressivePathStepStatus.IN_PROGRESS
+
+        evaluation = evaluate_step_rule(
+            step_id,
+            automatic_evidence=automatic_evidence,
+            declared_evidence=declared_evidence_by_step.get(step_id, set()),
+            completed_step_ids=completed_step_ids,
+        )
+        document_guidance = document_guidance_for_step(step_id, candidate_documents)
+        dynamic_blockers = list(document_guidance.get("blocking_reasons") or [])
+        if dynamic_blockers:
+            evaluation["blocking_reasons"] = [
+                *evaluation["blocking_reasons"],
+                *[item for item in dynamic_blockers if item not in evaluation["blocking_reasons"]],
+            ]
+            evaluation["can_complete"] = False
+        if document_guidance.get("next_action"):
+            evaluation["next_action"] = str(document_guidance["next_action"])
 
         items.append(
             ProgressivePathStepItem(
@@ -552,6 +713,7 @@ def _load_path_response(
                 is_locked=step_order > current_order,
                 target_module=str(step.get("target_module") or ""),
                 target_path=str(step.get("target_path") or ""),
+                **evaluation,
             )
         )
 
@@ -561,7 +723,7 @@ def _load_path_response(
         current_step=current_step,
         progress_percent=progress_percent,
         steps=items,
-        official_deposit=_load_official_deposit(client, candidate_id),
+        official_deposit=official_deposit,
         recommendations=_build_recommendations(current_step),
     )
 
@@ -625,6 +787,59 @@ def _set_step_status(
     ).execute()
 
 
+def _set_declared_evidence(
+    client,
+    candidate_id: str,
+    step_id: str,
+    evidence_keys: list[str],
+) -> None:
+    client.table("candidate_progressive_path_steps").upsert(
+        {
+            "candidate_user_id": candidate_id,
+            "step_id": step_id,
+            "declared_evidence": evidence_keys,
+            "evidence_updated_at": datetime.now(timezone.utc).isoformat(),
+        },
+        on_conflict="candidate_user_id,step_id",
+    ).execute()
+
+
+def update_candidate_progressive_path_step_evidence(
+    candidate_id: str,
+    step_id: str,
+    evidence_keys: list[str],
+    access_token: str | None = None,
+) -> ProgressivePathResponse:
+    client = _client_or_none(access_token)
+    if client is None:
+        raise RuntimeError("Le stockage du parcours étudiant est temporairement indisponible.")
+
+    path = _load_path_response(client, candidate_id)
+    step = next((item for item in path.steps if item.id == step_id), None)
+    if step is None:
+        raise LookupError("Etape introuvable.")
+    if path.current_step is None or not step.is_current:
+        raise PermissionError("Les preuves ne peuvent être modifiées que sur l'étape courante.")
+
+    rule = get_step_rule(step_id)
+    if rule is None:
+        raise LookupError("Règle métier introuvable pour cette étape.")
+    allowed = {
+        requirement.key
+        for requirement in rule.requirements
+        if requirement.source == "declared"
+    }
+    unknown = sorted(set(evidence_keys) - allowed)
+    if unknown:
+        raise ValueError(
+            "Preuve déclarative inconnue pour cette étape : " + ", ".join(unknown)
+        )
+
+    normalized = sorted(set(evidence_keys))
+    _set_declared_evidence(client, candidate_id, step_id, normalized)
+    return _load_path_response(client, candidate_id)
+
+
 def _current_order_from_response(path: ProgressivePathResponse) -> int:
     if path.current_step is not None:
         return path.current_step.order
@@ -638,7 +853,7 @@ def start_candidate_progressive_path_step(
 ) -> ProgressivePathResponse:
     client = _client_or_none(access_token)
     if client is None:
-        return _fallback_path(candidate_id)
+        raise RuntimeError("Le stockage du parcours étudiant est temporairement indisponible.")
 
     path = _load_path_response(client, candidate_id)
     step = next((item for item in path.steps if item.id == step_id), None)
@@ -659,7 +874,7 @@ def complete_candidate_progressive_path_step(
 ) -> ProgressivePathResponse:
     client = _client_or_none(access_token)
     if client is None:
-        return _fallback_path(candidate_id)
+        raise RuntimeError("Le stockage du parcours étudiant est temporairement indisponible.")
 
     path = _load_path_response(client, candidate_id)
     step = next((item for item in path.steps if item.id == step_id), None)
@@ -669,6 +884,9 @@ def complete_candidate_progressive_path_step(
         return path
     if path.current_step is None or not step.is_current:
         raise PermissionError("Seule l'etape courante peut etre terminee.")
+    if not step.can_complete:
+        details = "; ".join(step.blocking_reasons) or "Critères de complétion non satisfaits."
+        raise PermissionError("Cette étape ne peut pas être terminée : " + details)
 
     step_rows = _get_active_step_rows(client)
     next_step = next(
@@ -698,7 +916,7 @@ def reopen_candidate_progressive_path_step(
 ) -> ProgressivePathResponse:
     client = _client_or_none(access_token)
     if client is None:
-        return _fallback_path(candidate_id)
+        raise RuntimeError("Le stockage du parcours étudiant est temporairement indisponible.")
 
     path = _load_path_response(client, candidate_id)
     step = next((item for item in path.steps if item.id == step_id), None)
@@ -719,7 +937,7 @@ def declare_candidate_official_deposit(
 ) -> ProgressivePathResponse:
     client = _client_or_none(access_token)
     if client is None:
-        return _fallback_path(candidate_id)
+        raise RuntimeError("Le stockage du parcours étudiant est temporairement indisponible.")
 
     client.table("candidate_official_deposits").upsert(
         {

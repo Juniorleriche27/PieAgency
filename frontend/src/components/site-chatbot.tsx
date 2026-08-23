@@ -24,7 +24,7 @@ const initialMessages: ChatMessage[] = [
   {
     role: "assistant",
     content:
-      "Bonjour, je suis la messagerie PieAgency. Je peux vous aider sur Campus France, visa, Belgique, Parcoursup, Paris-Saclay, ecoles privees, ou vous orienter vers le bon contact.",
+      "Bonjour, je suis le conseiller public PieAgency. Je peux vous renseigner sur nos services, offres, produits, fonctionnement, rendez-vous et moyens de contact. Pour un conseil personnalisé sur votre dossier ou votre procédure, utilisez votre espace étudiant et Assistant.genie.",
   },
 ];
 
@@ -35,8 +35,8 @@ export function SiteChatbot() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [suggestedActions, setSuggestedActions] = useState<string[]>([
-    "Quel service choisir ?",
-    "Comment demarrer ?",
+    "Quels services propose PieAgency ?",
+    "Voir les offres PieAgency",
     "Parler a un conseiller",
   ]);
   const [isSending, setIsSending] = useState(false);
@@ -263,6 +263,21 @@ export function SiteChatbot() {
     const normalized = action.trim().toLowerCase();
 
     if (
+      normalized.includes("espace étudiant") ||
+      normalized.includes("espace etudiant") ||
+      normalized.includes("assistant.genie") ||
+      normalized.includes("assistant genie")
+    ) {
+      return {
+        kind: "link" as const,
+        label: "Ouvrir mon espace étudiant",
+        href: "/connexion?next=/espace-etudiant",
+        external: false,
+        tone: "primary",
+      };
+    }
+
+    if (
       normalized.includes("formulaire") ||
       normalized.includes("dossier") ||
       normalized.includes("envoyer ma demande")
@@ -427,7 +442,7 @@ export function SiteChatbot() {
       stopFlushLoop();
       chunkQueueRef.current = [];
       setAssistantMessage(
-        "L’assistant IA est indisponible pour le moment. Ce message signale un problème technique côté serveur, pas une réponse automatique à votre dossier. Merci de réessayer après correction.",
+        "Le conseiller public PieAgency est indisponible pour le moment. Merci de réessayer plus tard ou d'utiliser la page Contact.",
       );
     } finally {
       setIsSending(false);
@@ -447,8 +462,8 @@ export function SiteChatbot() {
           <div className="chatbot-panel">
             <div className="chatbot-header">
               <div>
-                <div className="chatbot-kicker">Messagerie</div>
-                <div className="chatbot-title">Conseiller PieAgency</div>
+                <div className="chatbot-kicker">Informations PieAgency</div>
+                <div className="chatbot-title">Services & renseignements</div>
               </div>
               <button
                 aria-label="Fermer le chatbot"
@@ -546,7 +561,7 @@ export function SiteChatbot() {
                     });
                   });
                 }}
-                placeholder="Posez votre question sur PieAgency..."
+                placeholder="Question sur PieAgency, ses services ou ses offres..."
                 ref={inputRef}
                 rows={3}
                 value={input}

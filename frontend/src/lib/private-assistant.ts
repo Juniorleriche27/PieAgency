@@ -48,6 +48,7 @@ export async function sendCandidateAssistantMessage(payload: {
   conversation_id?: string | null;
   requested_action?: string;
   document_id?: string | null;
+  page_path?: string | null;
 }): Promise<CandidateAssistantResponse> {
   const body: Record<string, unknown> = {
     message: payload.message,
@@ -62,6 +63,9 @@ export async function sendCandidateAssistantMessage(payload: {
   }
   if (payload.document_id) {
     body.document_id = payload.document_id;
+  }
+  if (payload.page_path) {
+    body.page_path = payload.page_path;
   }
 
   const response = await authenticatedFetch(

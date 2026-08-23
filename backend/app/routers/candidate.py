@@ -1,7 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..dependencies.auth import get_current_access_token, get_current_user
-from ..schemas import AuthUserProfile, CandidateAssistantChatRequest, CandidateAssistantChatResponse, OfficialDepositRequest, ProgressivePathResponse
+from ..schemas import (
+    AuthUserProfile,
+    CandidateAssistantChatRequest,
+    CandidateAssistantChatResponse,
+    OfficialDepositRequest,
+    ProgressivePathEvidenceUpdateRequest,
+    ProgressivePathResponse,
+)
 from ..services.assistant_bridge_service import AssistantBridgeError, generate_candidate_assistant_response
 from ..services.progressive_path_service import (
     complete_candidate_progressive_path_step,
@@ -9,6 +16,7 @@ from ..services.progressive_path_service import (
     get_candidate_progressive_path,
     reopen_candidate_progressive_path_step,
     start_candidate_progressive_path_step,
+    update_candidate_progressive_path_step_evidence,
 )
 
 router = APIRouter()
@@ -41,6 +49,33 @@ def start_candidate_progressive_step(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.put(
+    "/candidate/progressive-path/steps/{step_id}/evidence",
+    response_model=ProgressivePathResponse,
+)
+def update_progressive_path_step_evidence(
+    step_id: str,
+    payload: ProgressivePathEvidenceUpdateRequest,
+    current_user: AuthUserProfile = Depends(get_current_user),
+    access_token: str = Depends(get_current_access_token),
+) -> ProgressivePathResponse:
+    try:
+        return update_candidate_progressive_path_step_evidence(
+            current_user.user_id,
+            step_id,
+            payload.evidence_keys,
+            access_token,
+        )
+    except (LookupError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post(
@@ -62,6 +97,8 @@ def complete_candidate_progressive_step(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post(
@@ -83,6 +120,8 @@ def reopen_candidate_progressive_step(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post(

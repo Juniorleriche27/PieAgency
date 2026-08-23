@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   BookOpen,
+  ChevronLeft,
+  ChevronRight,
   CreditCard,
   FileText,
   Globe2,
@@ -13,7 +15,6 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  MessageCircle,
   Milestone,
   Moon,
   Package,
@@ -48,17 +49,24 @@ type NavItem = {
   icon: ComponentType<{ size?: number }>;
 };
 
-const studentNav: NavItem[] = [
-  { href: "/espace-etudiant/onboarding", label: "Embarquement", icon: Zap },
-  { href: "/espace-etudiant", label: "Tableau de bord", icon: LayoutDashboard },
-  { href: "/espace-etudiant/parcours-guide", label: "Mon parcours guidé", icon: Milestone },
+const studentPrimaryNav: NavItem[] = [
+  { href: "/espace-etudiant", label: "Mon cockpit", icon: LayoutDashboard },
+  { href: "/espace-etudiant/parcours-guide", label: "Mon parcours", icon: Milestone },
+  { href: "/espace-etudiant/documents", label: "Documents", icon: FileText },
   { href: "/espace-etudiant/diagnostic", label: "Diagnostic", icon: ShieldCheck },
-  { href: "/espace-etudiant/documents", label: "Mes documents", icon: FileText },
-  { href: "/espace-etudiant/ressources", label: "Mes ressources", icon: BookOpen },
+];
+
+const studentGatedNav: NavItem[] = [
+  { href: "/espace-etudiant/onboarding", label: "Mon embarquement", icon: Zap },
+  { href: "/espace-etudiant/documents", label: "Documents", icon: FileText },
+];
+
+const studentSecondaryNav: NavItem[] = [
+  { href: "/espace-etudiant/onboarding", label: "Mon profil", icon: Zap },
+  { href: "/espace-etudiant/ressources", label: "Ressources", icon: BookOpen },
   { href: "/espace-etudiant/produits", label: "Produits digitaux", icon: Package },
-  { href: "/espace-etudiant/assistant", label: "Agent PieAgency", icon: MessageCircle },
-  { href: "/espace-etudiant/abonnement", label: "Abonnement", icon: CreditCard },
   { href: "/communaute", label: "Communauté", icon: Users },
+  { href: "/espace-etudiant/abonnement", label: "Abonnement", icon: CreditCard },
   { href: "/espace-etudiant/aide", label: "Aide", icon: HelpCircle },
 ];
 
@@ -92,6 +100,9 @@ export function PrivatePortalShell({
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus>(null);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem("pie-sidebar-collapsed") === "true",
+  );
   const [isDark, setIsDark] = useState(
     () => typeof window !== "undefined" && localStorage.getItem("pie-theme") === "dark",
   );
@@ -99,6 +110,14 @@ export function PrivatePortalShell({
   const [notifications, setNotifications] = useState<CommunityNotificationItem[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const mainRef = useRef<HTMLDivElement>(null);
+
+  function toggleSidebarCollapsed() {
+    setIsSidebarCollapsed((previous) => {
+      const next = !previous;
+      localStorage.setItem("pie-sidebar-collapsed", String(next));
+      return next;
+    });
+  }
 
   function toggleDark() {
     setIsDark((prev) => {
@@ -176,7 +195,11 @@ export function PrivatePortalShell({
     onboardingStatus !== null &&
     onboardingStatus !== "validated";
 
-  const navItems = requiredRole === "admin" ? adminNav : studentNav;
+  const navItems = requiredRole === "admin"
+    ? adminNav
+    : isGated
+      ? studentGatedNav
+      : studentPrimaryNav;
   const title = requiredRole === "admin" ? "Admin PieAgency" : "Espace candidat";
   const oppositeHref = requiredRole === "admin" ? "/espace-etudiant" : "/admin";
   const canAccess =
@@ -249,8 +272,14 @@ export function PrivatePortalShell({
   }
 
   return (
-    <div className="private-app-shell" data-theme={isDark ? "dark" : "light"}>
-      <aside className={`private-sidebar ${isSidebarOpen ? "open" : ""}`}>
+    <div
+      className={`private-app-shell${isSidebarCollapsed ? " sidebar-collapsed" : ""}`}
+      data-theme={isDark ? "dark" : "light"}
+    >
+      <aside
+        className={`private-sidebar ${isSidebarOpen ? "open" : ""}`}
+        aria-label="Navigation principale PieAgency"
+      >
         <div className="private-sidebar-head">
           <Link className="private-brand" href="/">
             <div className="private-brand-avatar">
@@ -267,6 +296,16 @@ export function PrivatePortalShell({
               <small>{title}</small>
             </div>
           </Link>
+          <button
+            aria-label={isSidebarCollapsed ? "Déployer la barre latérale" : "Réduire la barre latérale"}
+            aria-pressed={isSidebarCollapsed}
+            className="private-icon-button private-sidebar-collapse desktop-only"
+            onClick={toggleSidebarCollapsed}
+            title={isSidebarCollapsed ? "Déployer la navigation" : "Réduire la navigation"}
+            type="button"
+          >
+            {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
           <button
             aria-label="Fermer le menu"
             className="private-icon-button mobile-only"
@@ -298,8 +337,10 @@ export function PrivatePortalShell({
 
             return (
               <Link
+                aria-label={item.label}
                 className={`private-nav-item ${active ? "active" : ""}`}
                 href={item.href}
+                title={isSidebarCollapsed ? item.label : undefined}
                 key={item.href}
                 onClick={() => setIsSidebarOpen(false)}
               >
@@ -316,6 +357,29 @@ export function PrivatePortalShell({
           </div>
         ) : null}
 
+        {requiredRole === "student" && !isGated ? (
+          <div className="private-nav-section" aria-label="Accès secondaires">
+            <span>Plus</span>
+            {studentSecondaryNav.map((item) => {
+              const Icon = item.icon;
+              const active = isActivePath(pathname, item.href);
+              return (
+                <Link
+                  aria-label={item.label}
+                  className={`private-nav-item private-nav-item-secondary ${active ? "active" : ""}`}
+                  href={item.href}
+                  title={isSidebarCollapsed ? item.label : undefined}
+                  key={item.href}
+                  onClick={() => setIsSidebarOpen(false)}
+                >
+                  <Icon size={18} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
+
         {session?.user.role === "admin" ? (
           <div className="private-nav-section" aria-label="Acces rapides">
             <span>Acces rapides</span>
@@ -325,8 +389,10 @@ export function PrivatePortalShell({
 
               return (
                 <Link
+                  aria-label={item.label}
                   className={`private-nav-item private-nav-item-secondary ${active ? "active" : ""}`}
                   href={item.href}
+                  title={isSidebarCollapsed ? item.label : undefined}
                   key={item.href}
                   onClick={() => setIsSidebarOpen(false)}
                 >
@@ -342,6 +408,7 @@ export function PrivatePortalShell({
           <button
             aria-label="Se deconnecter"
             className="private-nav-item private-nav-logout"
+            title={isSidebarCollapsed ? "Déconnexion" : undefined}
             onClick={handleLogout}
             type="button"
           >

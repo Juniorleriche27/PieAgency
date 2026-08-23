@@ -1,7 +1,11 @@
 from unittest.mock import patch
 
 from backend.app.schemas import (
+    AssistantContextDiagnosticV1,
+    AssistantContextDocumentSummaryV1,
+    AssistantContextDossierV1,
     AssistantContextSnapshotV1,
+    AssistantContextStepV1,
     AssistantContextStudentV1,
     AuthUserProfile,
     CandidateAssistantChatRequest,
@@ -49,7 +53,33 @@ def test_private_candidate_assistant_uses_unified_engine_with_versioned_context(
     context = AssistantContextSnapshotV1(
         generated_at="2026-08-19T13:20:00+00:00",
         requested_action="assist_current_step",
+        page_path="/espace-etudiant",
         student=AssistantContextStudentV1(country="Togo", project_name="Campus France"),
+        current_step=AssistantContextStepV1(
+            id="prepare-cv",
+            title="Préparer mon CV",
+            order=7,
+            status="in_progress",
+            objective="Préparer un CV exploitable.",
+            next_action="Déposer le CV.",
+            blocking_reasons=["CV déposé et approuvé"],
+        ),
+        dossier=AssistantContextDossierV1(
+            project_name="Campus France",
+            document_summaries=[
+                AssistantContextDocumentSummaryV1(
+                    document_id="doc-cv",
+                    name="CV",
+                    status="review",
+                    note="En contrôle",
+                )
+            ],
+        ),
+        diagnostic=AssistantContextDiagnosticV1(
+            current_priority="Finaliser le CV",
+            main_risk="CV non encore validé",
+            next_action="Attendre ou corriger le CV.",
+        ),
         retrieval_hints=["Créer un compte Campus France"],
     )
 
@@ -69,6 +99,13 @@ def test_private_candidate_assistant_uses_unified_engine_with_versioned_context(
     assert result.conversation_id == "conv-42"
     assert result.used_prompt == "assistant_pieagency"
     assert result.rag["used"] is True
+    assert result.used_context["progressive_path"] is True
+    assert result.used_context["recommendations"] is True
+    assert result.used_context["documents"] is True
+    assert result.used_context["diagnostic"] is True
     assert _Client.last_payload["context"]["contract_version"] == "pieagency.context.v1"
     assert _Client.last_payload["context"]["requested_action"] == "assist_current_step"
+    assert _Client.last_payload["context"]["page_path"] == "/espace-etudiant"
+    assert _Client.last_payload["context"]["current_step"]["blocking_reasons"] == ["CV déposé et approuvé"]
+    assert _Client.last_payload["context"]["dossier"]["document_summaries"][0]["status"] == "review"
     assert _Client.last_payload["context"]["retrieval_hints"] == ["Créer un compte Campus France"]

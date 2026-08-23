@@ -4,6 +4,19 @@ export type StepStatus = "not_started" | "in_progress" | "needs_review" | "compl
 export type PlatformType = "campus_france" | "private_school" | "parcoursup" | "belgium" | "visa" | "other";
 export type OfficialDepositStatus = "declared" | "under_review" | "accepted" | "refused" | "waiting" | "other";
 
+export type ProgressiveRequirement = {
+  key: string;
+  label: string;
+  source: "automatic" | "declared";
+  required: boolean;
+  satisfied: boolean;
+};
+
+export type ProgressivePrerequisite = {
+  step_id: string;
+  satisfied: boolean;
+};
+
 export type ProgressiveStep = {
   id: string;
   title: string;
@@ -14,6 +27,14 @@ export type ProgressiveStep = {
   is_locked: boolean;
   target_module: string;
   target_path: string;
+  objective: string;
+  prerequisites: ProgressivePrerequisite[];
+  requirements: ProgressiveRequirement[];
+  evidence: ProgressiveRequirement[];
+  blocking_reasons: string[];
+  completion_rule: string;
+  next_action: string;
+  can_complete: boolean;
 };
 
 export type RecommendationAction = {
@@ -21,6 +42,9 @@ export type RecommendationAction = {
   description: string;
   target_module: string;
   target_path: string;
+  reason_now?: string | null;
+  expected_outcome?: string | null;
+  addresses_blockers?: string[];
 };
 
 export type RecommendedProduct = RecommendationAction & {
@@ -80,6 +104,26 @@ export async function fetchProgressivePath(): Promise<ProgressivePath> {
     { requireAuth: true },
   );
   if (!res.ok) throw new Error("Impossible de charger le parcours.");
+  return (await res.json()) as ProgressivePath;
+}
+
+export async function updateStepEvidence(
+  stepId: string,
+  evidenceKeys: string[],
+): Promise<ProgressivePath> {
+  const res = await authenticatedFetch(
+    `/api/candidate/progressive-path/steps/${stepId}/evidence`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ evidence_keys: evidenceKeys }),
+    },
+    { requireAuth: true },
+  );
+  if (!res.ok) {
+    const payload = (await res.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(payload?.detail || "Impossible d'enregistrer cette validation.");
+  }
   return (await res.json()) as ProgressivePath;
 }
 

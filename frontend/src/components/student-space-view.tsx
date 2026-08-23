@@ -2,9 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ActionLink } from "@/components/action-link";
+import { AssistantGenieTrigger } from "@/components/private/assistant-genie-trigger";
 import { PortalAccessPanel } from "@/components/portal-access-panel";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { authenticatedFetch, getApiBaseUrl } from "@/lib/auth";
+import {
+  fetchProgressivePath,
+  type ProgressivePath,
+  type ProgressiveStep,
+} from "@/lib/progressive-path";
 
 type MetricTone = "neutral" | "good" | "attention" | "info";
 type StudentStepStatus = "done" | "current" | "todo";
@@ -54,121 +60,130 @@ type StudentDashboardResponse = {
 };
 
 const emptyStudentDashboard: StudentDashboardResponse = {
-  student_name: "Espace etudiant",
+  student_name: "Espace étudiant",
   case_reference: "En attente",
   project_name: "Aucun dossier",
   status_label: "Connexion requise",
   progress_percent: 0,
   completed_steps: 0,
   total_steps: 0,
-  assigned_counselor: "A definir",
+  assigned_counselor: "À définir",
   next_action: "Connectez-vous pour voir votre progression.",
-  last_update_label: "Non charge",
+  last_update_label: "Non chargé",
   metrics: [],
   steps: [],
   documents: [],
   notes: [],
 };
 
+function completedCount(path: ProgressivePath | null) {
+  return path?.steps.filter((step) => step.status === "completed").length ?? 0;
+}
+
+function nextStepAfter(path: ProgressivePath | null, current: ProgressiveStep | null) {
+  if (!path || !current) return null;
+  return (
+    path.steps.find(
+      (step) => step.order > current.order && step.status !== "completed",
+    ) ?? null
+  );
+}
+
 export function StudentSpaceView() {
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
   const { session, isReady } = useAuthSession(apiBaseUrl);
   const canViewStudentSpace =
     session?.user.role === "student" || session?.user.role === "admin";
+
   const [dashboard, setDashboard] = useState<StudentDashboardResponse>(
     emptyStudentDashboard,
   );
+  const [path, setPath] = useState<ProgressivePath | null>(null);
   const [loadError, setLoadError] = useState("");
-
-  const currentStep = dashboard.steps.find((step) => step.status === "current") ?? dashboard.steps.find((step) => step.status === "todo") ?? null;
-  const missingDocuments = dashboard.documents.filter((document) => document.status === "missing");
-  const reviewDocuments = dashboard.documents.filter((document) => document.status === "review");
-  const hasStartedCase = dashboard.total_steps > 0 || dashboard.documents.length > 0 || dashboard.notes.length > 0;
-  const caseHealthLabel = dashboard.progress_percent >= 70
-    ? "Dossier bien avancé"
-    : dashboard.progress_percent >= 35
-      ? "Dossier en construction"
-      : hasStartedCase
-        ? "Démarrage à sécuriser"
-        : "Diagnostic à lancer";
-  const caseHealthTone = dashboard.progress_percent >= 70 ? "good" : dashboard.progress_percent >= 35 ? "info" : "attention";
-  const premiumRecommendations = [
-    {
-      title: "Clarifier le diagnostic",
-      text: hasStartedCase ? "Vérifiez que votre objectif, pays, niveau et délais sont à jour." : "Remplissez le diagnostic pour recevoir une orientation plus précise.",
-      href: "/espace-etudiant/diagnostic",
-      cta: "Ouvrir le diagnostic",
-    },
-    {
-      title: "Sécuriser les documents",
-      text: missingDocuments.length ? `${missingDocuments.length} document(s) manquant(s) à traiter en priorité.` : "Gardez vos pièces prêtes pour accélérer la validation du dossier.",
-      href: "/espace-etudiant/documents",
-      cta: "Voir documents",
-    },
-    {
-      title: "Passer à l’accompagnement",
-      text: "Une fois le diagnostic validé, démarrez l’offre adaptée et suivez les étapes dans l’espace privé.",
-      href: "/espace-etudiant/abonnement",
-      cta: "Voir accompagnement",
-    },
-  ];
+  const [dismissedPromotionKey, setDismissedPromotionKey] = useState("");
 
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
+    if (!isReady) return;
     if (!session || !canViewStudentSpace) {
       setDashboard(emptyStudentDashboard);
+      setPath(null);
       return;
     }
 
     let active = true;
 
-    async function loadDashboard() {
+    async function loadCockpit() {
       setLoadError("");
-
       try {
-        const response = await authenticatedFetch(
+        const dashboardRequest = authenticatedFetch(
           "/api/student-space",
           { cache: "no-store" },
           { apiBaseUrl, requireAuth: true },
         );
-        if (!response.ok) {
-          throw new Error("Impossible de charger le suivi du dossier.");
+        const pathRequest = fetchProgressivePath();
+        const [dashboardResponse, pathPayload] = await Promise.all([
+          dashboardRequest,
+          pathRequest,
+        ]);
+
+        if (!dashboardResponse.ok) {
+          throw new Error("Impossible de charger le cockpit étudiant.");
         }
 
-        const payload = (await response.json()) as StudentDashboardResponse;
+        const dashboardPayload =
+          (await dashboardResponse.json()) as StudentDashboardResponse;
         if (active) {
-          setDashboard(payload);
+          setDashboard(dashboardPayload);
+          setPath(pathPayload);
         }
       } catch (error) {
-        if (!active) {
-          return;
-        }
-
+        if (!active) return;
         setDashboard(emptyStudentDashboard);
+        setPath(null);
         setLoadError(
           error instanceof Error
             ? error.message
-            : "Impossible de charger le suivi du dossier.",
+            : "Impossible de charger le cockpit étudiant.",
         );
       }
     }
 
-    void loadDashboard();
+    void loadCockpit();
     return () => {
       active = false;
     };
   }, [apiBaseUrl, canViewStudentSpace, isReady, session]);
+
+  const activeProductPromotion = path?.recommendations.recommended_product ?? null;
+  const activePromotionKey = activeProductPromotion && path?.current_step
+    ? `${path.current_step.id}:${activeProductPromotion.target_path}`
+    : "";
+
+  useEffect(() => {
+    if (!session?.user.user_id || !activePromotionKey) {
+      setDismissedPromotionKey("");
+      return;
+    }
+    const storageKey = `pie.product-promo.dismissed.${session.user.user_id}.${activePromotionKey}`;
+    setDismissedPromotionKey(
+      window.localStorage.getItem(storageKey) === "1" ? activePromotionKey : "",
+    );
+  }, [activePromotionKey, session?.user.user_id]);
+
+  function dismissProductPromotion() {
+    if (!session?.user.user_id || !activePromotionKey) return;
+    const storageKey = `pie.product-promo.dismissed.${session.user.user_id}.${activePromotionKey}`;
+    window.localStorage.setItem(storageKey, "1");
+    setDismissedPromotionKey(activePromotionKey);
+  }
 
   if (!isReady) {
     return (
       <div className="portal-shell">
         <div className="portal-access-card">
           <div className="portal-card-kicker">Authentification</div>
-          <h2>Verification de la session</h2>
-          <p>Chargement de votre acces a l&apos;espace etudiant...</p>
+          <h2>Vérification de la session</h2>
+          <p>Chargement de votre espace étudiant…</p>
         </div>
       </div>
     );
@@ -177,13 +192,13 @@ export function StudentSpaceView() {
   if (!session) {
     return (
       <PortalAccessPanel
-        description="Cet espace est reserve aux etudiants connectes. Connectez-vous pour suivre vos etapes, vos documents et les retours du conseiller."
+        description="Connectez-vous pour retrouver votre parcours, vos documents et vos prochaines actions."
         kicker="Connexion requise"
         primaryHref="/connexion?next=/espace-etudiant"
         primaryLabel="Se connecter"
         secondaryHref="/connexion?mode=signup&next=/espace-etudiant"
-        secondaryLabel="Creer un compte"
-        title="Acces protege"
+        secondaryLabel="Créer un compte"
+        title="Votre parcours PieAgency"
       />
     );
   }
@@ -192,200 +207,257 @@ export function StudentSpaceView() {
     return (
       <PortalAccessPanel
         description="Votre session actuelle ne permet pas d'ouvrir cet espace."
-        kicker="Role incompatible"
+        kicker="Rôle incompatible"
         primaryHref="/admin"
         primaryLabel="Ouvrir l'admin"
         secondaryHref="/connexion?next=/espace-etudiant"
         secondaryLabel="Changer de compte"
-        title="Cet espace n&apos;est pas pour ce profil"
+        title="Cet espace n'est pas pour ce profil"
       />
     );
   }
+
+  const currentStep = path?.current_step ?? null;
+  const followingStep = nextStepAfter(path, currentStep);
+  const progress = path?.progress_percent ?? dashboard.progress_percent;
+  const doneSteps = path ? completedCount(path) : dashboard.completed_steps;
+  const totalSteps = path?.steps.length ?? dashboard.total_steps;
+  const missingDocuments = dashboard.documents.filter(
+    (document) => document.status === "missing",
+  );
+  const reviewDocuments = dashboard.documents.filter(
+    (document) => document.status === "review",
+  );
+  const requiredItems = currentStep?.requirements.filter((item) => item.required) ?? [];
+  const satisfiedRequired = requiredItems.filter((item) => item.satisfied).length;
+  const primaryTarget = currentStep?.target_path || "/espace-etudiant/parcours-guide";
+  const productPromotion = activeProductPromotion;
+  const promotionKey = activePromotionKey;
+  const showProductPromotion = Boolean(
+    productPromotion && promotionKey && dismissedPromotionKey !== promotionKey,
+  );
+
 
   return (
     <div className="portal-shell portal-shell-premium">
       {loadError ? <div className="portal-warning">{loadError}</div> : null}
 
-      <div className="student-premium-hero">
+      <section className="student-premium-hero" aria-labelledby="cockpit-title">
         <div>
-          <div className="portal-card-kicker">Espace étudiant premium</div>
-          <h1>{dashboard.student_name}</h1>
-          <p>{dashboard.project_name} · Référence {dashboard.case_reference}</p>
+          <div className="portal-card-kicker">Votre cockpit étudiant</div>
+          <h1 id="cockpit-title">Bonjour {dashboard.student_name}</h1>
+          <p>
+            {dashboard.project_name} · Référence {dashboard.case_reference}
+          </p>
           <div className="student-premium-tags">
             <span>{dashboard.status_label}</span>
-            <span className={`is-${caseHealthTone}`}>{caseHealthLabel}</span>
-            <span>MAJ {dashboard.last_update_label}</span>
+            <span>Mis à jour {dashboard.last_update_label}</span>
           </div>
         </div>
-        <div className="student-premium-progress-card">
-          <span>Progression</span>
-          <strong>{dashboard.progress_percent}%</strong>
+
+        <div className="student-premium-progress-card" aria-label={`Progression ${progress}%`}>
+          <span>Progression réelle</span>
+          <strong>{progress}%</strong>
           <div className="portal-progress compact">
-            <div className="portal-progress-bar" style={{ width: `${dashboard.progress_percent}%` }} />
+            <div className="portal-progress-bar" style={{ width: `${progress}%` }} />
           </div>
-          <small>{dashboard.completed_steps}/{dashboard.total_steps || 0} étapes validées</small>
+          <small>
+            {doneSteps}/{totalSteps || 15} étapes validées
+          </small>
         </div>
-      </div>
+      </section>
 
-      <div className="student-next-action-panel">
-        <div>
-          <span>Prochaine meilleure action</span>
-          <strong>{currentStep?.title || dashboard.next_action}</strong>
-          <p>{currentStep?.description || dashboard.next_action}</p>
+      <section className="student-next-action-panel" aria-labelledby="current-step-title">
+        <div className="student-cockpit-main">
+          <span>
+            {currentStep ? `Étape ${currentStep.order} sur ${totalSteps || 15}` : "Votre prochaine étape"}
+          </span>
+          <strong id="current-step-title">
+            {currentStep?.title || dashboard.next_action}
+          </strong>
+          <p>
+            {currentStep?.objective ||
+              "Votre parcours sera personnalisé dès que les premières informations du dossier seront disponibles."}
+          </p>
+
+          {currentStep?.next_action ? (
+            <div className="student-cockpit-next">
+              <small>À faire maintenant</small>
+              <p>{currentStep.next_action}</p>
+            </div>
+          ) : null}
         </div>
+
         <div className="student-next-action-ctas">
-          <ActionLink href="/espace-etudiant/diagnostic" variant="gold">Diagnostic</ActionLink>
-          <ActionLink href="/espace-etudiant/documents" variant="outline">Documents</ActionLink>
-          <ActionLink href="/espace-etudiant/assistant" variant="outline">Assistant</ActionLink>
+          <ActionLink href={primaryTarget} variant="gold">
+            Continuer cette étape
+          </ActionLink>
+          <AssistantGenieTrigger
+            className="btn btn-outline"
+            message={currentStep ? `Explique-moi clairement pourquoi je suis à l'étape « ${currentStep.title} », ce qui me bloque et ce que je dois faire maintenant.` : "Explique-moi où j'en suis dans mon parcours PieAgency et ce que je dois faire maintenant."}
+            requestedAction="copilot_explain_current_step"
+          >
+            Demander à Assistant.genie
+          </AssistantGenieTrigger>
+          <ActionLink href="/espace-etudiant/parcours-guide" variant="outline">
+            Voir le parcours complet
+          </ActionLink>
         </div>
-      </div>
+      </section>
 
-      <div className="portal-metrics">
-        {(dashboard.metrics.length ? dashboard.metrics : [
-          { label: "Progression", value: `${dashboard.progress_percent}%`, detail: caseHealthLabel, tone: caseHealthTone as MetricTone },
-          { label: "Documents", value: String(dashboard.documents.length), detail: missingDocuments.length ? `${missingDocuments.length} manquant(s)` : "Centre prêt", tone: missingDocuments.length ? "attention" as MetricTone : "good" as MetricTone },
-          { label: "Étapes", value: `${dashboard.completed_steps}/${dashboard.total_steps || 0}`, detail: currentStep?.title || "À lancer", tone: "info" as MetricTone },
-          { label: "Conseiller", value: dashboard.assigned_counselor || "À définir", detail: "Suivi PieAgency", tone: "neutral" as MetricTone },
-        ]).map((metric) => (
-          <div className="portal-metric" key={metric.label}>
-            <div className="portal-metric-label">{metric.label}</div>
-            <div className="portal-metric-value">{metric.value}</div>
-            <div className={`portal-tone ${metric.tone}`}>{metric.detail}</div>
-          </div>
-        ))}
-      </div>
-
-      {(missingDocuments.length || reviewDocuments.length) ? (
-        <div className="student-alert-strip">
-          <strong>Attention dossier</strong>
-          <span>{missingDocuments.length ? `${missingDocuments.length} document(s) manquant(s).` : "Documents en revue."} {reviewDocuments.length ? `${reviewDocuments.length} document(s) en vérification.` : ""}</span>
-          <ActionLink href="/espace-etudiant/documents" variant="primary">Corriger</ActionLink>
-        </div>
-      ) : null}
-
-      <div className="portal-grid">
-        <div className="portal-card">
+      <div className="portal-grid student-cockpit-grid">
+        <section className="portal-card" aria-labelledby="requirements-title">
           <div className="portal-card-head">
             <div>
-              <div className="portal-card-kicker">Progression</div>
-              <h3>Suivi du dossier</h3>
+              <div className="portal-card-kicker">Critères de validation</div>
+              <h3 id="requirements-title">Ce qu&apos;il faut valider maintenant</h3>
             </div>
             <div className="portal-progress-meta">
-              {dashboard.completed_steps}/{dashboard.total_steps} etapes
+              {satisfiedRequired}/{requiredItems.length} prêt{requiredItems.length > 1 ? "s" : ""}
             </div>
           </div>
-          <div className="portal-progress">
-            <div
-              className="portal-progress-bar"
-              style={{ width: `${dashboard.progress_percent}%` }}
-            />
-          </div>
-          <div className="portal-step-list">
-            {dashboard.steps.length ? (
-              dashboard.steps.map((step) => (
-                <div className={`portal-step ${step.status}`} key={step.title}>
-                  <div className="portal-step-indicator">
-                    {step.status === "done"
-                      ? "OK"
-                      : step.status === "current"
-                        ? "EN"
-                        : "..."}
-                  </div>
-                  <div className="portal-step-body">
-                    <div className="portal-step-title">{step.title}</div>
-                    <p>{step.description}</p>
-                    {step.due_label ? (
-                      <div className="portal-step-due">{step.due_label}</div>
-                    ) : null}
+
+          {requiredItems.length ? (
+            <div className="student-cockpit-requirements">
+              {requiredItems.map((requirement) => (
+                <div
+                  className={`student-cockpit-requirement ${requirement.satisfied ? "is-ready" : "is-blocked"}`}
+                  key={requirement.key}
+                >
+                  <span aria-hidden="true">{requirement.satisfied ? "✓" : "•"}</span>
+                  <div>
+                    <strong>{requirement.label}</strong>
+                    <small>
+                      {requirement.satisfied
+                        ? "Validé"
+                        : requirement.source === "automatic"
+                          ? "PieAgency attend une preuve dans votre dossier"
+                          : "À confirmer lorsque c'est réellement prêt"}
+                    </small>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="portal-empty">
-                Aucune etape n&apos;est encore visible dans votre dossier.
-              </div>
-            )}
-          </div>
-        </div>
+              ))}
+            </div>
+          ) : (
+            <div className="portal-empty">
+              Les critères détaillés apparaîtront dès que votre parcours sera initialisé.
+            </div>
+          )}
+
+          {currentStep?.blocking_reasons.length ? (
+            <div className="student-cockpit-blockers">
+              <strong>Ce qui bloque la suite</strong>
+              <ul>
+                {currentStep.blocking_reasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            </div>
+          ) : currentStep ? (
+            <div className="student-cockpit-ready">
+              Les critères nécessaires sont satisfaits. Cette étape peut être validée.
+            </div>
+          ) : null}
+        </section>
 
         <div className="portal-stack">
-          <div className="portal-card">
-            <div className="portal-card-kicker">Action immediate</div>
-            <h3>Prochain point a traiter</h3>
-            <p>{dashboard.next_action}</p>
-            <div className="portal-actions">
-              <ActionLink href="/espace-etudiant/diagnostic" variant="primary">
-                Continuer mon diagnostic
-              </ActionLink>
-              <ActionLink href="/paiement" variant="gold">
-                Démarrer l’accompagnement
-              </ActionLink>
-              <button
-                className="btn btn-outline"
-                onClick={() =>
-                  window.dispatchEvent(new CustomEvent("pieagency-chat-open"))
-                }
-                type="button"
-              >
-                Ouvrir le chat
-              </button>
-            </div>
-          </div>
+          <section className="portal-card" aria-labelledby="next-step-title">
+            <div className="portal-card-kicker">Après cette étape</div>
+            <h3 id="next-step-title">Ce qui vient ensuite</h3>
+            {followingStep ? (
+              <>
+                <strong className="student-cockpit-next-title">
+                  {followingStep.title}
+                </strong>
+                <p>{followingStep.objective || followingStep.short_description}</p>
+                <small className="student-cockpit-muted">
+                  Cette étape se débloquera lorsque l&apos;étape actuelle sera réellement validée.
+                </small>
+              </>
+            ) : (
+              <p>Vous êtes sur la dernière étape de votre parcours actuel.</p>
+            )}
+          </section>
 
-          <div className="portal-card">
-            <div className="portal-card-kicker">Documents</div>
-            <h3>Centre de dossier</h3>
-            <div className="portal-doc-list">
-              {dashboard.documents.length ? (
-                dashboard.documents.map((document) => (
-                  <div className="portal-doc" key={document.name}>
-                    <div>
-                      <div className="portal-doc-name">{document.name}</div>
-                      <p>{document.note}</p>
-                    </div>
-                    <span className={`portal-pill ${document.status}`}>
-                      {document.status === "approved"
-                        ? "Valide"
-                        : document.status === "review"
-                          ? "En revue"
-                          : "Manquant"}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <div className="portal-empty">
-                  Aucun document n&apos;est encore rattache a votre espace.
-                </div>
-              )}
+          <section className="portal-card" aria-labelledby="documents-title">
+            <div className="portal-card-head">
+              <div>
+                <div className="portal-card-kicker">Documents</div>
+                <h3 id="documents-title">État du dossier</h3>
+              </div>
+              <ActionLink href="/espace-etudiant/documents" variant="outline">
+                Ouvrir
+              </ActionLink>
             </div>
-          </div>
+            <div className="student-cockpit-document-summary">
+              <div>
+                <strong>{dashboard.documents.length}</strong>
+                <span>pièce{dashboard.documents.length > 1 ? "s" : ""}</span>
+              </div>
+              <div>
+                <strong>{missingDocuments.length}</strong>
+                <span>manquante{missingDocuments.length > 1 ? "s" : ""}</span>
+              </div>
+              <div>
+                <strong>{reviewDocuments.length}</strong>
+                <span>en revue</span>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
 
-      <div className="student-recommendation-grid">
-        {premiumRecommendations.map((item) => (
-          <div className="student-recommendation-card" key={item.title}>
-            <span>Recommandé</span>
-            <strong>{item.title}</strong>
-            <p>{item.text}</p>
-            <ActionLink href={item.href} variant="outline">{item.cta}</ActionLink>
+      {showProductPromotion && productPromotion ? (
+        <section className="cockpit-product-promo" aria-labelledby="cockpit-product-promo-title">
+          <div className="cockpit-product-promo-main">
+            <div className="cockpit-product-promo-kicker">Suggestion utile maintenant · facultative</div>
+            <h3 id="cockpit-product-promo-title">{productPromotion.title}</h3>
+            <p>{productPromotion.description}</p>
+            {productPromotion.reason_now ? (
+              <div className="cockpit-product-promo-reason">
+                <small>Pourquoi maintenant</small>
+                <span>{productPromotion.reason_now}</span>
+              </div>
+            ) : null}
+            {productPromotion.expected_outcome ? (
+              <div className="cockpit-product-promo-reason">
+                <small>Ce que cela peut vous aider à obtenir</small>
+                <span>{productPromotion.expected_outcome}</span>
+              </div>
+            ) : null}
           </div>
-        ))}
-      </div>
+          <div className="cockpit-product-promo-actions">
+            <ActionLink href={productPromotion.target_path} variant="gold">
+              Voir le produit
+            </ActionLink>
+            <AssistantGenieTrigger
+              className="btn btn-outline"
+              message={`Le produit « ${productPromotion.title} » m'est recommandé pour mon étape actuelle. Dis-moi objectivement s'il peut vraiment m'aider maintenant. Si je peux avancer sans l'acheter, dis-le clairement.`}
+              requestedAction="evaluate_contextual_product"
+            >
+              Demander à Assistant.genie
+            </AssistantGenieTrigger>
+            <button className="cockpit-product-promo-dismiss" onClick={dismissProductPromotion} type="button">
+              Plus tard
+            </button>
+          </div>
+        </section>
+      ) : null}
 
-      <div className="portal-card">
+      <section className="portal-card" aria-labelledby="advisor-title">
         <div className="portal-card-head">
           <div>
-            <div className="portal-card-kicker">Notes du conseiller</div>
-            <h3>Historique recent</h3>
+            <div className="portal-card-kicker">Suivi PieAgency</div>
+            <h3 id="advisor-title">Votre accompagnement</h3>
           </div>
           <div className="portal-progress-meta">
-            Responsable: {dashboard.assigned_counselor}
+            Conseiller : {dashboard.assigned_counselor}
           </div>
         </div>
-        <div className="portal-note-list">
-          {dashboard.notes.length ? (
-            dashboard.notes.map((note) => (
+
+        {dashboard.notes.length ? (
+          <div className="portal-note-list">
+            {dashboard.notes.slice(0, 2).map((note) => (
               <div className="portal-note" key={`${note.title}-${note.created_at_label}`}>
                 <div className="portal-note-head">
                   <strong>{note.title}</strong>
@@ -393,14 +465,14 @@ export function StudentSpaceView() {
                 </div>
                 <p>{note.content}</p>
               </div>
-            ))
-          ) : (
-            <div className="portal-empty">
-              Aucun commentaire conseiller n&apos;est disponible pour le moment.
-            </div>
-          )}
-        </div>
-      </div>
+            ))}
+          </div>
+        ) : (
+          <div className="portal-empty">
+            Aucun commentaire conseiller n&apos;est disponible pour le moment.
+          </div>
+        )}
+      </section>
     </div>
   );
 }
