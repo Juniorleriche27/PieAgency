@@ -90,7 +90,7 @@ def fetch_payment_status(payment_id: str) -> PaymentStatusResponse:
     if response.status_code>=400: raise KoryxaPayRequestError(_error(data,"Impossible de verifier le paiement KORYXA Pay."))
     metadata=data.get("metadata") if isinstance(data.get("metadata"),dict) else {}
     resolved=str(data.get("payment_id") or payment_id)
-    return PaymentStatusResponse(provider="koryxa_pay",cart_id=resolved,status=_normalize(data.get("payment_status") or data.get("status")),message="Statut KORYXA Pay verifie.",payment_id=resolved,reference=str(data.get("order_id") or "") or None,service_slug=str(metadata.get("service_slug") or "") or None,user_id=str(data.get("customer_id") or "") or None)
+    return PaymentStatusResponse(provider="koryxa_pay",cart_id=resolved,status=_normalize(data.get("payment_status") or data.get("status")),message="Statut KORYXA Pay verifie.",payment_id=resolved,reference=str(data.get("order_id") or "") or None,service_slug=str(metadata.get("service_slug") or "") or None,user_id=str(data.get("customer_id") or "") or None,customer_email=str(metadata.get("email") or "") or None)
 
 def verify_webhook(raw_body: bytes, timestamp: str, signature: str) -> dict:
     if not settings.koryxa_pay_webhook_secret: raise KoryxaPayNotConfiguredError("Secret webhook KORYXA Pay absent.")

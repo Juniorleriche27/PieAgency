@@ -733,6 +733,32 @@ def set_current_subscription(
     return get_current_subscription(user_id, access_token)
 
 
+def grant_subscription_after_payment(
+    *, user_id: str, service_slug: str, payment_provider: str, cart_id: str, payment_id: str | None = None,
+) -> CurrentSubscriptionResponse:
+    client = _client_or_none()
+    if client is None:
+        raise RuntimeError("Supabase indisponible.")
+    plans = list_private_subscriptions().plans
+    plan = next((item for item in plans if service_slug in {item.service_slug, item.id}), None)
+    if plan is None or not plan.is_active or plan.price <= 0:
+        raise LookupError("Abonnement payant introuvable pour ce paiement.")
+    try:
+        claim = client.table("payment_access_claims").select("user_id,service_slug").eq("cart_id", cart_id).limit(1).execute()
+        if claim.data:
+            existing = claim.data[0]
+            if str(existing.get("user_id")) != str(user_id) or str(existing.get("service_slug")) != plan.service_slug:
+                raise PermissionError("Ce paiement est déjà associé à un autre compte ou abonnement.")
+        else:
+            client.table("payment_access_claims").insert({"cart_id": cart_id, "user_id": user_id, "service_slug": plan.service_slug, "payment_id": payment_id, "provider": payment_provider}).execute()
+        client.table("profiles").update({"current_plan_id": plan.id}).eq("user_id", user_id).execute()
+    except (PermissionError, LookupError):
+        raise
+    except Exception as exc:
+        raise RuntimeError("Impossible d'activer l'abonnement après paiement.") from exc
+    return get_current_subscription(user_id)
+
+
 def create_admin_subscription_plan(
     payload: SubscriptionPlanCreateRequest,
     access_token: str | None = None,

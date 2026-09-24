@@ -12,6 +12,7 @@ from ..schemas import (
     PaymentStatusResponse,
 )
 from ..services.email_service import send_payment_receipt
+from ..services.payment_fulfillment_service import fulfill_successful_payment
 from ..services.payment_service import (
     KoryxaPayNotConfiguredError,
     KoryxaPayRequestError,
@@ -95,8 +96,12 @@ async def koryxa_pay_callback(request: Request) -> dict:
     try:
         event = verify_webhook(raw_body, request.headers.get("x-koryxa-timestamp", ""), request.headers.get("x-koryxa-signature", ""))
         payment = fetch_payment_status(str(event["payment_id"]))
+        fulfillment = fulfill_successful_payment(payment)
     except KoryxaPayNotConfiguredError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except KoryxaPayRequestError as exc:
         raise HTTPException(status_code=401 if "Signature" in str(exc) or "Timestamp" in str(exc) or "expire" in str(exc) else 503, detail=str(exc)) from exc
-    return {"accepted": True, "event_id": request.headers.get("x-koryxa-event-id"), "payment_id": payment.payment_id, "status": payment.status}
+    except (LookupError, PermissionError, RuntimeError) as exc:
+        logger.exception("Unable to fulfill confirmed KORYXA Pay payment")
+        raise HTTPException(status_code=503, detail="Paiement confirmé mais attribution en attente de reprise.") from exc
+    return {"accepted": True, "event_id": request.headers.get("x-koryxa-event-id"), "payment_id": payment.payment_id, "status": payment.status, "fulfillment": fulfillment}
