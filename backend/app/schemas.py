@@ -430,7 +430,7 @@ class AIChatResponse(BaseModel):
     conversation_id: str | None = None
     suggested_actions: list[str] = []
     escalation_recommended: bool = False
-    source: Literal["cohere", "ai_gateway", "fallback"]
+    source: Literal["cohere", "knowlia", "fallback"]
 
 
 class AIPageInsightResponse(BaseModel):
@@ -439,7 +439,7 @@ class AIPageInsightResponse(BaseModel):
     bullets: list[str]
     cta_label: str
     cta_href: str
-    source: Literal["cohere", "ai_gateway", "fallback"]
+    source: Literal["cohere", "knowlia", "fallback"]
 
 
 class CommunityAIReplyRequest(BaseModel):
@@ -461,7 +461,7 @@ class CommunityAIReplyRequest(BaseModel):
 
 class CommunityAIReplyResponse(BaseModel):
     reply: str
-    source: Literal["cohere", "ai_gateway", "fallback"]
+    source: Literal["cohere", "knowlia", "fallback"]
 
 
 class CommunityProfileItem(BaseModel):
@@ -677,7 +677,7 @@ class CommunityAssistantThreadMessageItem(BaseModel):
 class CommunityAssistantThreadResponse(BaseModel):
     conversation_id: str | None = None
     messages: list[CommunityAssistantThreadMessageItem] = Field(default_factory=list)
-    source: Literal["cohere", "ai_gateway", "fallback"] | None = None
+    source: Literal["cohere", "knowlia", "fallback"] | None = None
 
 
 
@@ -1629,4 +1629,4 @@ class CommunityAIRewriteRequest(BaseModel):
 
 class CommunityAIRewriteResponse(BaseModel):
     rewritten: str
-    source: Literal["cohere", "ai_gateway", "fallback"]
+    source: Literal["cohere", "knowlia", "fallback"]

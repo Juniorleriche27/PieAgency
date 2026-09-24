@@ -57,68 +57,30 @@ def _chat_json(client: cohere.ClientV2, messages: list[dict[str, str]]) -> dict[
 
 
 
-def _gateway_url() -> str:
-    base = settings.ai_gateway_base_url.strip().rstrip("/")
-    path = settings.ai_gateway_chat_path.strip() or "/v1/chat"
-    if base.endswith("/chat/completions") or base.endswith("/responses"):
-        return base
-    return f"{base}/{path.lstrip('/')}"
+def _knowlia_url() -> str:
+    return f"{settings.knowlia_base_url.rstrip('/')}/{settings.knowlia_generate_path.lstrip('/')}"
 
 
-def _gateway_headers() -> dict[str, str]:
-    headers = {
+def _knowlia_headers() -> dict[str, str]:
+    return {
         "Accept": "application/json",
         "Content-Type": "application/json",
+        "X-Knowlia-API-Key": settings.knowlia_api_key.strip(),
     }
-    if settings.ai_gateway_api_key.strip():
-        headers["Authorization"] = f"Bearer {settings.ai_gateway_api_key.strip()}"
-    return headers
 
 
-def _gateway_payload(messages: list[dict[str, str]], *, stream: bool = False, json_mode: bool = False) -> dict[str, Any]:
+def _knowlia_payload(messages: list[dict[str, str]], *, json_mode: bool = False) -> dict[str, Any]:
     payload: dict[str, Any] = {
+        "tenant_id": settings.knowlia_tenant_id,
         "messages": messages,
         "temperature": 0.25,
-        "stream": stream,
+        "max_tokens": 1200,
+        "timeout_seconds": min(settings.knowlia_request_timeout_seconds, 120),
+        "metadata": {"consumer": "pieagency", "response_format": "json" if json_mode else "text"},
     }
-    model = settings.ai_gateway_model.strip()
-    if model:
-        payload["model"] = model
-    if json_mode:
-        payload["response_format"] = {"type": "json_object"}
+    if settings.knowlia_model.strip():
+        payload["model"] = settings.knowlia_model.strip()
     return payload
-
-
-def _extract_gateway_text(payload: dict[str, Any]) -> str:
-    if isinstance(payload.get("answer"), str):
-        return payload["answer"].strip()
-    if isinstance(payload.get("text"), str):
-        return payload["text"].strip()
-    if isinstance(payload.get("response"), str):
-        return payload["response"].strip()
-    choices = payload.get("choices")
-    if isinstance(choices, list) and choices:
-        first = choices[0]
-        if isinstance(first, dict):
-            message = first.get("message")
-            if isinstance(message, dict) and isinstance(message.get("content"), str):
-                return message["content"].strip()
-            if isinstance(first.get("text"), str):
-                return first["text"].strip()
-    output = payload.get("output")
-    if isinstance(output, list):
-        parts: list[str] = []
-        for item in output:
-            if not isinstance(item, dict):
-                continue
-            content = item.get("content")
-            if isinstance(content, list):
-                for chunk in content:
-                    if isinstance(chunk, dict) and isinstance(chunk.get("text"), str):
-                        parts.append(chunk["text"])
-        if parts:
-            return "".join(parts).strip()
-    return ""
 
 
 def _parse_json_text(text: str) -> dict[str, Any]:
@@ -137,23 +99,30 @@ def _parse_json_text(text: str) -> dict[str, Any]:
         raise
 
 
-def _gateway_chat_text(messages: list[dict[str, str]], *, json_mode: bool = False) -> str:
-    if not settings.ai_gateway_enabled:
-        raise RuntimeError("AI Gateway is not configured")
-    with httpx.Client(timeout=settings.ai_gateway_request_timeout_seconds) as client:
-        response = client.post(
-            _gateway_url(),
-            headers=_gateway_headers(),
-            json=_gateway_payload(messages, stream=False, json_mode=json_mode),
-        )
+def _knowlia_generate_text(messages: list[dict[str, str]], *, json_mode: bool = False) -> str:
+    if not settings.knowlia_enabled:
+        raise RuntimeError("Knowlia is not configured")
+    with httpx.Client(timeout=settings.knowlia_request_timeout_seconds) as client:
+        response = client.post(_knowlia_url(), headers=_knowlia_headers(), json=_knowlia_payload(messages, json_mode=json_mode))
         response.raise_for_status()
         payload = response.json()
         if not isinstance(payload, dict):
-            raise RuntimeError("Invalid AI Gateway response")
-        text = _extract_gateway_text(payload)
-        if not text:
-            raise RuntimeError("Empty AI Gateway response")
-        return text
+            raise RuntimeError("Invalid Knowlia response")
+        data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+        content = data.get("content") if isinstance(data, dict) else None
+        if not isinstance(content, str) or not content.strip():
+            raise RuntimeError("Invalid or empty Knowlia response")
+        return content.strip()
+
+
+def _knowlia_generate_json(messages: list[dict[str, str]]) -> dict[str, Any]:
+    return _parse_json_text(_knowlia_generate_text(messages, json_mode=True))
+
+
+def _knowlia_generate_chunks(messages: list[dict[str, str]]) -> Iterator[str]:
+    # Knowlia public generate is intentionally stateless/non-streaming. Preserve PieAgency SSE contract by chunking locally.
+    text = _knowlia_generate_text(messages)
+    yield from _iter_text_chunks(text, size=12)
 
 
 def rewrite_community_draft(text: str, context: str = "") -> tuple[str, str]:
@@ -185,7 +154,7 @@ def rewrite_community_draft(text: str, context: str = "") -> tuple[str, str]:
         },
     ]
     try:
-        rewritten = _gateway_chat_text(messages).strip()
+        rewritten = _knowlia_generate_text(messages).strip()
         if not rewritten:
             raise ValueError("Empty rewrite")
         # Guardrail: the rewrite button must not answer like the assistant.
@@ -201,25 +170,25 @@ def rewrite_community_draft(text: str, context: str = "") -> tuple[str, str]:
         )
         if cleaned.endswith("?") and rewritten.lower().startswith(forbidden_starts):
             return fallback, "fallback"
-        return rewritten, "ai_gateway"
+        return rewritten, "knowlia"
     except Exception:
         return fallback, "fallback"
 
 
-def _gateway_chat_json(messages: list[dict[str, str]]) -> dict[str, Any]:
-    return _parse_json_text(_gateway_chat_text(messages, json_mode=True))
+def _knowlia_generate_json(messages: list[dict[str, str]]) -> dict[str, Any]:
+    return _parse_json_text(_knowlia_generate_text(messages, json_mode=True))
 
 
-def _gateway_chat_stream(messages: list[dict[str, str]]) -> Iterator[str]:
-    if not settings.ai_gateway_enabled:
-        raise RuntimeError("AI Gateway is not configured")
+def _knowlia_generate_chunks(messages: list[dict[str, str]]) -> Iterator[str]:
+    if not settings.knowlia_enabled:
+        raise RuntimeError("Knowlia is not configured")
 
     with httpx.stream(
         "POST",
         _gateway_url(),
         headers=_gateway_headers(),
         json=_gateway_payload(messages, stream=True),
-        timeout=settings.ai_gateway_request_timeout_seconds,
+        timeout=settings.knowlia_request_timeout_seconds,
     ) as response:
         response.raise_for_status()
         content_type = response.headers.get("content-type", "")
@@ -615,7 +584,7 @@ def _iter_text_chunks(text: str, size: int = 8) -> Iterator[str]:
 
 def generate_page_insight(path: str) -> AIPageInsightResponse:
     fallback = _page_fallback(path)
-    if not settings.ai_gateway_enabled:
+    if not settings.knowlia_enabled:
         return fallback
 
     page = get_page_context(path)
@@ -653,7 +622,7 @@ Structure JSON attendue:
 """.strip()
 
     try:
-        payload = _gateway_chat_json(
+        payload = _knowlia_generate_json(
             [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -665,16 +634,16 @@ Structure JSON attendue:
             bullets=[str(item) for item in payload["bullets"]][:3],
             cta_label=str(payload["cta_label"]),
             cta_href=str(payload["cta_href"]),
-            source="ai_gateway",
+            source="knowlia",
         )
     except Exception:
-        logger.exception("Unable to generate AI Gateway page insight")
+        logger.exception("Unable to generate Knowlia page insight")
         return fallback
 
 
 def generate_community_reply(request: CommunityAIReplyRequest) -> CommunityAIReplyResponse:
     fallback = _community_reply_fallback(request)
-    if not settings.ai_gateway_enabled:
+    if not settings.knowlia_enabled:
         return fallback
 
     context_lines = request.thread_context[:4]
@@ -708,15 +677,15 @@ Contexte de discussion:
 """.strip()
 
     try:
-        payload = _gateway_chat_json(
+        payload = _knowlia_generate_json(
             [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ]
         )
-        return CommunityAIReplyResponse(reply=str(payload["reply"]).strip(), source="ai_gateway")
+        return CommunityAIReplyResponse(reply=str(payload["reply"]).strip(), source="knowlia")
     except Exception:
-        logger.exception("Unable to generate AI Gateway community reply")
+        logger.exception("Unable to generate Knowlia community reply")
         return fallback
 
 
@@ -732,14 +701,14 @@ def generate_chat_response(
     conversation_id = _prepare_conversation(request, None, None)
     if _public_chat_requires_private_space(request):
         return _public_chat_redirect_response(request, conversation_id)
-    if not settings.ai_gateway_enabled:
+    if not settings.knowlia_enabled:
         fallback.conversation_id = conversation_id
         return fallback
 
     _, history = _build_chat_context(request)
 
     try:
-        payload = _gateway_chat_json(
+        payload = _knowlia_generate_json(
             [
                 {"role": "system", "content": _build_json_chat_system_prompt(request)},
                 *history,
@@ -750,7 +719,7 @@ def generate_chat_response(
             conversation_id=conversation_id,
             suggested_actions=[str(item) for item in payload.get("suggested_actions", [])][:3],
             escalation_recommended=bool(payload.get("escalation_recommended", False)),
-            source="ai_gateway",
+            source="knowlia",
         )
         try:
             store_chat_message(
@@ -766,7 +735,7 @@ def generate_chat_response(
             logger.warning("Chat persistence unavailable: %s", exc)
         return response
     except Exception:
-        logger.exception("Unable to generate AI Gateway chat response")
+        logger.exception("Unable to generate Knowlia chat response")
         fallback.conversation_id = conversation_id
         return fallback
 
@@ -800,7 +769,7 @@ def stream_chat_response(
         "source": fallback.source,
     }
 
-    if not settings.ai_gateway_enabled:
+    if not settings.knowlia_enabled:
         yield _format_sse("start", {"source": "fallback", "conversation_id": conversation_id})
         for chunk in _iter_text_chunks(fallback.answer, size=8):
             yield _format_sse("chunk", {"text": chunk})
@@ -810,8 +779,8 @@ def stream_chat_response(
     _, history = _build_chat_context(request)
     try:
         chunks: list[str] = []
-        yield _format_sse("start", {"source": "ai_gateway", "conversation_id": conversation_id})
-        for text in _gateway_chat_stream(
+        yield _format_sse("start", {"source": "knowlia", "conversation_id": conversation_id})
+        for text in _knowlia_generate_chunks(
             [
                 {"role": "system", "content": _build_stream_chat_system_prompt(request)},
                 *history,
@@ -824,14 +793,14 @@ def stream_chat_response(
 
         assistant_answer = "".join(chunks).strip()
         if not assistant_answer:
-            raise RuntimeError("Empty AI Gateway stream")
+            raise RuntimeError("Empty Knowlia stream")
         try:
             store_chat_message(
                 conversation_id=conversation_id,
                 sender_role="assistant",
                 body=assistant_answer,
                 current_user=current_user,
-                model_source="ai_gateway",
+                model_source="knowlia",
                 metadata={"page_path": request.page_path},
                 access_token=access_token,
             )
@@ -843,11 +812,11 @@ def stream_chat_response(
                 "conversation_id": conversation_id,
                 "suggested_actions": ["Commencer mon dossier", "Voir les services", "Parler a un conseiller"],
                 "escalation_recommended": False,
-                "source": "ai_gateway",
+                "source": "knowlia",
             },
         )
     except Exception:
-        logger.exception("Unable to stream AI Gateway chat response")
+        logger.exception("Unable to stream Knowlia chat response")
         yield _format_sse("start", {"source": "fallback", "conversation_id": conversation_id})
         for chunk in _iter_text_chunks(fallback.answer, size=8):
             yield _format_sse("chunk", {"text": chunk})

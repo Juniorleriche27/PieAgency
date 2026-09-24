@@ -15,11 +15,12 @@ class Settings(BaseSettings):
     cohere_api_key: str = ""
     cohere_model: str = "command-a-03-2025"
 
-    ai_gateway_base_url: str = "http://ai-gateway:8000"
-    ai_gateway_api_key: str = ""
-    ai_gateway_model: str = ""
-    ai_gateway_chat_path: str = "/v1/chat"
-    ai_gateway_request_timeout_seconds: float = 45.0
+    knowlia_base_url: str = "http://knowlia:8080"
+    knowlia_api_key: str = ""
+    knowlia_model: str = ""
+    knowlia_generate_path: str = "/public/v1/generate"
+    knowlia_tenant_id: str = "pieagency"
+    knowlia_request_timeout_seconds: float = 45.0
     supabase_url: str = ""
     supabase_secret_key: str = ""
     supabase_service_role_key: str = ""
@@ -97,8 +98,8 @@ class Settings(BaseSettings):
         return bool(self.cohere_api_key)
 
     @property
-    def ai_gateway_enabled(self) -> bool:
-        return bool(self.ai_gateway_base_url.strip())
+    def knowlia_enabled(self) -> bool:
+        return bool(self.knowlia_base_url.strip() and self.knowlia_api_key.strip() and self.knowlia_tenant_id.strip())
 
     @property
     def admin_email_list(self) -> set[str]:

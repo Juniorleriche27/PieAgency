@@ -10,14 +10,14 @@ def request(message: str) -> AIChatRequest:
 
 
 def test_personalized_student_request_is_redirected_before_model(monkeypatch):
-    calls = {"gateway": 0}
+    calls = {"knowlia": 0}
     monkeypatch.setattr(ai_service, "_prepare_conversation", lambda *_args, **_kwargs: "conv-public")
 
-    def forbidden_gateway(*_args, **_kwargs):
-        calls["gateway"] += 1
+    def forbidden_knowlia(*_args, **_kwargs):
+        calls["knowlia"] += 1
         raise AssertionError("The public chatbot must not call the model for a private dossier request")
 
-    monkeypatch.setattr(ai_service, "_gateway_chat_json", forbidden_gateway)
+    monkeypatch.setattr(ai_service, "_knowlia_generate_json", forbidden_knowlia)
 
     response = ai_service.generate_chat_response(
         request("Mon visa est bloqué et voici mon dossier, que dois-je faire maintenant ?"),
@@ -25,7 +25,7 @@ def test_personalized_student_request_is_redirected_before_model(monkeypatch):
         access_token=None,
     )
 
-    assert calls["gateway"] == 0
+    assert calls["knowlia"] == 0
     assert response.source == "fallback"
     assert "espace étudiant" in response.answer
     assert "Assistant.genie" in response.answer
@@ -36,7 +36,7 @@ def test_stream_personalized_request_is_redirected_without_model(monkeypatch):
     monkeypatch.setattr(ai_service, "_prepare_conversation", lambda *_args, **_kwargs: "conv-stream")
     monkeypatch.setattr(
         ai_service,
-        "_gateway_chat_stream",
+        "_knowlia_generate_chunks",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             AssertionError("The public stream must not call the model for a private dossier request")
         ),
