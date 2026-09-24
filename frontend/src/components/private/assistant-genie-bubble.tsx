@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { MessageCircle, Send, Sparkles, X } from 'lucide-react';
+import { MessageCircle, Send, X } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
 import { useAuthSession } from '@/hooks/use-auth-session';
@@ -178,7 +178,7 @@ export function AssistantGenieBubble() {
   const stepTitle = path?.current_step?.title ?? 'Votre parcours PieAgency';
 
   return (
-    <div className="assistant-genie-root">
+    <div className={`assistant-genie-root${open ? ' is-open' : ''}`}>
       {open ? (
         <section
           className="assistant-genie-panel"
@@ -188,9 +188,6 @@ export function AssistantGenieBubble() {
         >
           <header className="assistant-genie-header">
             <div className="assistant-genie-brand">
-              <span className="assistant-genie-avatar" aria-hidden="true">
-                <Sparkles size={18} />
-              </span>
               <div>
                 <strong>Assistant PieAgency</strong>
                 <span>{stepTitle}</span>
@@ -270,16 +267,18 @@ export function AssistantGenieBubble() {
         </section>
       ) : null}
 
-      <button
-        type="button"
-        className={`assistant-genie-launcher ${open ? 'is-open' : ''}`}
-        onClick={() => setOpen((value) => !value)}
-        aria-label={open ? 'Fermer Assistant PieAgency' : 'Ouvrir Assistant PieAgency'}
-        aria-expanded={open}
-      >
-        {open ? <X size={22} /> : <MessageCircle size={22} />}
-        {!open ? <span>Assistant PieAgency</span> : null}
-      </button>
+      {!open ? (
+        <button
+          type="button"
+          className="assistant-genie-launcher"
+          onClick={() => setOpen(true)}
+          aria-label="Ouvrir Assistant PieAgency"
+          aria-expanded={false}
+        >
+          <MessageCircle size={22} />
+          <span>Assistant PieAgency</span>
+        </button>
+      ) : null}
     </div>
   );
 }

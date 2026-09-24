@@ -1,5 +1,7 @@
 "use client";
 
+import { AssistantGenieBubble } from "@/components/private/assistant-genie-bubble";
+
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -478,6 +480,8 @@ export function PrivatePortalShell({
 
         <div className="private-content">{children}</div>
       </div>
+
+      {requiredRole === "student" ? <AssistantGenieBubble /> : null}
     </div>
   );
 }

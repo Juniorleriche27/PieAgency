@@ -20304,3 +20304,80 @@ html[data-theme="dark"]:not(:has(.private-app-shell)) .btn-outline:hover {
 [data-theme="dark"] .cockpit-product-promo {
   background: linear-gradient(135deg, rgba(66, 52, 30, 0.9), rgba(31, 33, 37, 0.96));
 }
+
+
+/* Assistant PieAgency — inline responsive side panel */
+@media (min-width: 921px) {
+  .private-app-shell:has(.assistant-genie-root.is-open) {
+    grid-template-columns: 260px minmax(0, 1fr) clamp(340px, 30vw, 440px);
+  }
+  .private-app-shell.sidebar-collapsed:has(.assistant-genie-root.is-open) {
+    grid-template-columns: 84px minmax(0, 1fr) clamp(340px, 30vw, 440px);
+  }
+  .assistant-genie-root {
+    position: fixed;
+    right: 18px;
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    z-index: 90;
+    pointer-events: none;
+  }
+  .assistant-genie-root.is-open {
+    position: relative;
+    inset: auto;
+    z-index: 30;
+    min-width: 0;
+    height: 100dvh;
+    border-left: 1px solid var(--ps-sidebar-border, rgba(15,23,42,.09));
+    background: var(--ps-bg, #f5f6f9);
+    pointer-events: auto;
+  }
+  .assistant-genie-root.is-open .assistant-genie-panel {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (max-width: 920px) {
+  .assistant-genie-root.is-open {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    pointer-events: auto;
+    background: var(--ps-bg, #f5f6f9);
+  }
+  .assistant-genie-root.is-open .assistant-genie-panel {
+    width: 100%;
+    height: 100dvh;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .assistant-genie-root.is-open .assistant-genie-header {
+    padding-top: max(11px, env(safe-area-inset-top));
+  }
+  .assistant-genie-root.is-open .assistant-genie-composer {
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 640px) {
+  .assistant-genie-root:not(.is-open) {
+    left: auto;
+    right: 10px;
+  }
+  .assistant-genie-root.is-open {
+    right: 0;
+    bottom: 0;
+    left: 0;
+  }
+  .assistant-genie-brand span { max-width: min(58vw, 240px); }
+  .assistant-genie-header { min-height: 60px; }
+  .assistant-genie-message { max-width: 92%; font-size: .86rem; }
+  .assistant-genie-composer textarea { font-size: 16px; }
+}
