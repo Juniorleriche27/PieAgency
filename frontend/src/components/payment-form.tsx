@@ -165,7 +165,7 @@ export function PaymentForm() {
       return {
         ...current,
         serviceSlug: matchedService.slug,
-        amount: amountFromQuery || matchedAmount || current.amount,
+        amount: matchedAmount || amountFromQuery || current.amount,
         reason: shouldUpdateReason ? getServiceReason(matchedService.slug) : current.reason,
       };
     });
@@ -177,9 +177,11 @@ export function PaymentForm() {
       ...current,
       serviceSlug: serviceFromQuery || current.serviceSlug,
       amount:
-        Number.isFinite(amountValue) && amountValue > 0
-          ? amountFromQuery
-          : current.amount,
+        isPricedServiceOption(serviceOptions.find((item) => item.slug === (serviceFromQuery || current.serviceSlug)))
+          ? String((serviceOptions.find((item) => item.slug === (serviceFromQuery || current.serviceSlug)) as { priceCfa: number }).priceCfa)
+          : Number.isFinite(amountValue) && amountValue > 0
+            ? amountFromQuery
+            : current.amount,
       reason: reasonFromQuery || current.reason,
     }));
   }, [amountFromQuery, reasonFromQuery, serviceFromQuery]);
@@ -639,7 +641,9 @@ export function PaymentForm() {
                       serviceSlug: nextServiceSlug,
                       amount: isPricedServiceOption(nextService)
                         ? String(nextService.priceCfa)
-                        : current.amount,
+                        : isPricedServiceOption(currentService)
+                          ? ""
+                          : current.amount,
                       reason: shouldUpdateReason ? getServiceReason(nextServiceSlug) : current.reason,
                     }));
                     setErrors((current) => ({
@@ -695,13 +699,20 @@ Montant à payer ({displayCurrency})
                   className="form-input"
                   id="payment-amount"
                   min="1"
+                  readOnly={Boolean(productPayment)}
+                  aria-readonly={Boolean(productPayment)}
                   onChange={(event) => updateField("amount", event.target.value)}
-                  placeholder="Ex: 75000"
+                  placeholder={productPayment ? "Tarif fixe" : "Ex: 75000"}
                   step="1"
                   type="number"
                   value={form.amount}
                 />
                 {amountHelper ? <div className="payment-amount-helper">{amountHelper}</div> : null}
+                <div className="payment-amount-helper">
+                  {productPayment
+                    ? "Tarif fixe PieAgency : montant appliqué automatiquement et non modifiable."
+                    : "Montant convenu : saisissez le montant validé avec votre conseiller PieAgency."}
+                </div>
                 {errors.amount ? <div className="form-error">{errors.amount}</div> : null}
               </div>
 

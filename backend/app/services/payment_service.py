@@ -12,6 +12,7 @@ import httpx
 
 from ..config import settings
 from ..schemas import PaymentConfigResponse, PaymentIntentCreateRequest, PaymentIntentCreateResponse, PaymentStatusResponse
+from .private_catalog_service import PRODUCTS, list_private_subscriptions
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +43,38 @@ def _normalize(status: str|None) -> str:
 def get_payment_config() -> PaymentConfigResponse:
     return PaymentConfigResponse(enabled=settings.koryxa_pay_enabled, provider="koryxa_pay", merchant_label=settings.koryxa_pay_merchant_label, display_currency=settings.koryxa_pay_display_currency, instructions="Paiement securise par KORYXA Pay.", status_check_enabled=settings.koryxa_pay_enabled)
 
+def _eur_to_xof(value: float) -> int:
+    return int((Decimal(str(value)) * Decimal("655.957")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+def _fixed_offer(service_slug: str | None):
+    if not service_slug:
+        return None
+    for product in PRODUCTS:
+        if service_slug in {product.service_slug, product.id}:
+            amount = _eur_to_xof(product.price) if product.currency.upper() == "EUR" else int(Decimal(str(product.price)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+            return amount, product.title, f"Achat de {product.title} — PieAgency"
+    try:
+        plans = list_private_subscriptions().plans
+    except Exception:
+        plans = []
+    for plan in plans:
+        if service_slug in {plan.service_slug, plan.id} and plan.price > 0:
+            amount = _eur_to_xof(plan.price) if plan.currency.upper() == "EUR" else int(Decimal(str(plan.price)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+            return amount, plan.title, f"Abonnement {plan.title} — PieAgency"
+    return None
+
 def initiate_payment(payload: PaymentIntentCreateRequest, user_id: str|None=None) -> PaymentIntentCreateResponse:
-    amount_minor=int((Decimal(str(payload.amount))*Decimal("1")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    fixed = _fixed_offer(payload.service_slug)
+    if fixed:
+        amount_minor, offer_title, description = fixed
+    else:
+        amount_minor=int((Decimal(str(payload.amount))*Decimal("1")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+        offer_title = payload.reason.strip()
+        description = (f"{offer_title} — PieAgency" if "PieAgency" not in offer_title else offer_title)[:255]
     product_code=(payload.service_slug or payload.dossier_reference or "pieagency-payment")[:120]
     customer_id=(user_id or payload.email)[:160]
     idem=f"pieagency-{product_code}-{customer_id}-{uuid4().hex}"
-    body={"product_code":product_code,"customer_id":customer_id,"amount_minor":amount_minor,"currency":settings.koryxa_pay_display_currency,"idempotency_key":idem,"success_url":f"{settings.frontend_origin.rstrip('/')}/paiement?checkout=return","failure_url":f"{settings.frontend_origin.rstrip('/')}/paiement?checkout=failed","metadata":{"service_slug":payload.service_slug or "","dossier_reference":payload.dossier_reference or "","email":str(payload.email),"full_name":payload.full_name}}
+    body={"product_code":product_code,"description":description[:255],"customer_id":customer_id,"amount_minor":amount_minor,"currency":settings.koryxa_pay_display_currency,"idempotency_key":idem,"success_url":f"{settings.frontend_origin.rstrip('/')}/paiement?checkout=return","failure_url":f"{settings.frontend_origin.rstrip('/')}/paiement?checkout=failed","metadata":{"service_slug":payload.service_slug or "","dossier_reference":payload.dossier_reference or "","email":str(payload.email),"full_name":payload.full_name,"offer_title":offer_title,"pricing_mode":"fixed" if fixed else "custom"}}
     try: response=httpx.post(_url("/v1/client/checkouts"),headers=_headers(),json=body,timeout=settings.koryxa_pay_request_timeout_seconds)
     except Exception as exc: raise KoryxaPayRequestError("Impossible de joindre KORYXA Pay.") from exc
     data=_safe_json(response)
