@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { X } from "lucide-react";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { SiteAssistantSpotlight } from "@/components/site-assistant-spotlight";
 import { SiteChatbot } from "@/components/site-chatbot";
@@ -13,6 +15,7 @@ export function SiteChrome({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
+  const [conversionBarVisible, setConversionBarVisible] = useState(true);
   const isCommunityRoute = pathname === "/communaute";
   const isAuthRoute = pathname === "/connexion" || pathname.startsWith("/sso/");
   const isPrivateRoute =
@@ -21,7 +24,7 @@ export function SiteChrome({
     pathname === "/espace-etudiant" ||
     pathname.startsWith("/espace-etudiant/");
   const useMinimalChrome = isCommunityRoute || isPrivateRoute || isAuthRoute;
-  const showConversionBar = !useMinimalChrome && pathname !== "/contact" && pathname !== "/paiement";
+  const showConversionBar = conversionBarVisible && !useMinimalChrome && pathname !== "/contact" && pathname !== "/paiement";
 
   return (
     <>
@@ -34,6 +37,14 @@ export function SiteChrome({
             <span>Diagnostic, inscription, contact, accompagnement.</span>
           </div>
           <Link href="/contact?source=sticky&intent=diagnostic">Diagnostic gratuit</Link>
+          <button
+            type="button"
+            className="conversion-sticky-close"
+            aria-label="Masquer le diagnostic gratuit"
+            onClick={() => setConversionBarVisible(false)}
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
         </div>
       ) : null}
       {useMinimalChrome ? null : <SiteAssistantSpotlight />}

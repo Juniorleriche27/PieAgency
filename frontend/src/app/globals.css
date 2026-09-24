@@ -20403,3 +20403,30 @@ html[data-theme="dark"]:not(:has(.private-app-shell)) .btn-outline:hover {
 .marketplace-divider span{font-size:.8rem;font-weight:850;color:var(--navy);text-transform:uppercase;letter-spacing:.08em}
 .offers-marketplace .offer-card{min-height:390px}
 @media(max-width:640px){.offers-marketplace .offers-catalog{padding-top:22px}.marketplace-head{align-items:flex-start;flex-direction:column;gap:14px;padding-bottom:18px}.marketplace-head h1{font-size:2.35rem}.marketplace-head p{font-size:.9rem}.marketplace-count{padding:8px 11px}.offers-marketplace .offers-chips{margin-right:-16px;padding-right:16px}.marketplace-divider{margin-top:17px}.offers-marketplace .offer-card{min-height:0}}
+
+
+/* Public chrome: fixed header clearance + dismissible conversion bar */
+.offers-marketplace { padding-top: 68px; }
+.conversion-sticky-bar { padding-right: 48px; }
+.conversion-sticky-close {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  color: var(--white);
+  cursor: pointer;
+  transition: background .2s ease, border-color .2s ease;
+}
+.conversion-sticky-close:hover,.conversion-sticky-close:focus-visible { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.32); }
+@media(max-width:640px){
+  .offers-marketplace { padding-top: 68px; }
+  .conversion-sticky-bar { padding: 14px 48px 14px 16px; }
+  .conversion-sticky-close { top: 12px; right: 10px; transform: none; width: 36px; height: 36px; }
+}
