@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from .config import settings
 from .security.session_cookies import ACCESS_COOKIE, REFRESH_COOKIE
+from .security.rate_limit import check_rate_limit
 from .routers.ai import router as ai_router
 from .routers.auth import router as auth_router
 from .routers.candidate import router as candidate_router
@@ -33,6 +34,14 @@ app.add_middleware(
 )
 
 logger = logging.getLogger("pieagency.requests")
+
+
+@app.middleware("http")
+async def abuse_rate_limit(request: Request, call_next):
+    limited = check_rate_limit(request)
+    if limited is not None:
+        return limited
+    return await call_next(request)
 
 
 @app.middleware("http")

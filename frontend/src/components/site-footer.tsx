@@ -42,9 +42,6 @@ export function SiteFooter() {
               <Link className="footer-link" href="/partenariat">
                 Partenariat
               </Link>
-              <Link className="footer-link" href="/admin">
-                Interface admin
-              </Link>
             </div>
           </div>
 
@@ -90,7 +87,11 @@ export function SiteFooter() {
         </div>
       </div>
       <div className="footer-bottom">
-        <div className="container">PieAgency - Tous droits reserves</div>
+        <div className="container">
+          <span>PieAgency - Tous droits reserves</span>{" · "}
+          <Link href="/confidentialite">Confidentialité</Link>{" · "}
+          <Link href="/conditions-utilisation">Conditions d’utilisation</Link>
+        </div>
       </div>
     </footer>
   );

@@ -264,7 +264,7 @@ function NextStepZone({
           message={`Aide-moi sur l'étape « ${title} ». Explique ce que je dois faire maintenant, ce qui peut me bloquer et comment savoir quand cette étape est vraiment prête.`}
           requestedAction="copilot_step_guidance"
         >
-          <MessageCircle size={14} /> Poser une question à Assistant.genie
+          <MessageCircle size={14} /> Poser une question à Assistant PieAgency
         </AssistantGenieTrigger>
       </div>
 
@@ -382,7 +382,7 @@ function OptionsSection({
             title="Demander de l'aide"
             body={assistantBody}
             href="#"
-            btnLabel="Ouvrir Assistant.genie"
+            btnLabel="Ouvrir Assistant PieAgency"
             assistantMessage={assistantBody}
           />
         ) : null}

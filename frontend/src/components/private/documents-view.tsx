@@ -582,14 +582,14 @@ export function DocumentsView({ documents: initial }: Props) {
                       )}
                       {!isGeneratedDocument(doc) ? <>
                         <AssistantGenieTrigger
-                          ariaLabel={`Analyser ${doc.title} avec Assistant.genie`}
+                          ariaLabel={`Analyser ${doc.title} avec Assistant PieAgency`}
                           className="doc-attach-btn"
                           documentId={doc.id}
                           message={`Analyse ce document : ${doc.title}. Dis-moi ce qui est correct, ce qui bloque mon dossier et ce que je dois améliorer maintenant.`}
                           requestedAction="document_review"
                           autoSend
                         >
-                          <CheckCircle2 size={14} /> Analyser avec Assistant.genie
+                          <CheckCircle2 size={14} /> Analyser avec Assistant PieAgency
                         </AssistantGenieTrigger>
                         <button aria-label={`Télécharger ${doc.title}`} className="doc-attach-btn" onClick={async () => { try { window.open(await getDocumentDownloadUrl(doc.id), "_blank", "noopener,noreferrer"); } catch { setLoadError("Aucun fichier téléchargeable pour ce document."); } }} type="button"><Download size={14} /> Télécharger</button>
                         <button aria-label={`Supprimer ${doc.title}`} className="doc-attach-btn" onClick={async () => { if (!window.confirm(`Supprimer « ${doc.title} » ?`)) return; try { await deleteDocument(doc.id); setDocs((items) => items.filter((item) => item.id !== doc.id)); } catch { setLoadError("Impossible de supprimer ce document."); } }} type="button"><Trash2 size={14} /> Supprimer</button>

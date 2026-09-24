@@ -50,21 +50,21 @@ type NavItem = {
 };
 
 const studentPrimaryNav: NavItem[] = [
-  { href: "/espace-etudiant", label: "Mon cockpit", icon: LayoutDashboard },
+  { href: "/espace-etudiant", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/espace-etudiant/parcours-guide", label: "Mon parcours", icon: Milestone },
   { href: "/espace-etudiant/documents", label: "Documents", icon: FileText },
   { href: "/espace-etudiant/diagnostic", label: "Diagnostic", icon: ShieldCheck },
 ];
 
 const studentGatedNav: NavItem[] = [
-  { href: "/espace-etudiant/onboarding", label: "Mon embarquement", icon: Zap },
+  { href: "/espace-etudiant/onboarding", label: "Commencer mon profil", icon: Zap },
   { href: "/espace-etudiant/documents", label: "Documents", icon: FileText },
 ];
 
 const studentSecondaryNav: NavItem[] = [
   { href: "/espace-etudiant/onboarding", label: "Mon profil", icon: Zap },
   { href: "/espace-etudiant/ressources", label: "Ressources", icon: BookOpen },
-  { href: "/espace-etudiant/produits", label: "Produits digitaux", icon: Package },
+  { href: "/espace-etudiant/produits", label: "Guides et services", icon: Package },
   { href: "/communaute", label: "Communauté", icon: Users },
   { href: "/espace-etudiant/abonnement", label: "Abonnement", icon: CreditCard },
   { href: "/espace-etudiant/aide", label: "Aide", icon: HelpCircle },

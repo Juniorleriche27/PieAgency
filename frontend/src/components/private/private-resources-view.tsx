@@ -113,7 +113,7 @@ function ContextualResourceCard({ item }: { item: ContextualResource }) {
           message={`Explique-moi comment utiliser la ressource « ${resource.title} » pour avancer sur mon étape actuelle, en tenant compte de mes blocages.`}
           requestedAction="explain_contextual_resource"
         >
-          Demander à Assistant.genie
+          Demander à Assistant PieAgency
         </AssistantGenieTrigger>
       </div>
     </article>

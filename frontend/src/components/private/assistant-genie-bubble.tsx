@@ -25,7 +25,7 @@ type BubbleMessage = {
 const WELCOME_MESSAGE: BubbleMessage = {
   role: 'assistant',
   content:
-    "Bonjour, je suis Assistant.genie. Je connais votre parcours PieAgency, vos étapes, vos blocages et l'état de vos documents. Dites-moi ce que vous voulez comprendre ou accomplir maintenant.",
+    "Bonjour, je suis Assistant PieAgency. Je connais votre parcours PieAgency, vos étapes, vos blocages et l'état de vos documents. Dites-moi ce que vous voulez comprendre ou accomplir maintenant.",
 };
 
 export function AssistantGenieBubble() {
@@ -128,7 +128,7 @@ export function AssistantGenieBubble() {
       setError(
         cause instanceof Error
           ? cause.message
-          : "Impossible de contacter Assistant.genie pour le moment.",
+          : "Impossible de contacter Assistant PieAgency pour le moment.",
       );
     } finally {
       setIsSending(false);
@@ -182,7 +182,7 @@ export function AssistantGenieBubble() {
       {open ? (
         <section
           className="assistant-genie-panel"
-          aria-label="Assistant.genie"
+          aria-label="Assistant PieAgency"
           role="dialog"
           aria-modal="false"
         >
@@ -192,7 +192,7 @@ export function AssistantGenieBubble() {
                 <Sparkles size={18} />
               </span>
               <div>
-                <strong>Assistant.genie</strong>
+                <strong>Assistant PieAgency</strong>
                 <span>{stepTitle}</span>
               </div>
             </div>
@@ -204,7 +204,7 @@ export function AssistantGenieBubble() {
                 type="button"
                 onClick={() => setOpen(false)}
                 className="assistant-genie-icon-btn"
-                aria-label="Fermer Assistant.genie"
+                aria-label="Fermer Assistant PieAgency"
               >
                 <X size={18} />
               </button>
@@ -238,7 +238,7 @@ export function AssistantGenieBubble() {
             ))}
             {isSending ? (
               <div className="assistant-genie-message assistant is-loading">
-                <div>Assistant.genie analyse votre contexte…</div>
+                <div>Assistant PieAgency analyse votre contexte…</div>
               </div>
             ) : null}
           </div>
@@ -255,7 +255,7 @@ export function AssistantGenieBubble() {
               onChange={(event) => setInput(event.target.value)}
               placeholder="Demandez quoi faire, pourquoi vous êtes bloqué, faites analyser une pièce…"
               rows={2}
-              aria-label="Votre message à Assistant.genie"
+              aria-label="Votre message à Assistant PieAgency"
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault();
@@ -274,11 +274,11 @@ export function AssistantGenieBubble() {
         type="button"
         className={`assistant-genie-launcher ${open ? 'is-open' : ''}`}
         onClick={() => setOpen((value) => !value)}
-        aria-label={open ? 'Fermer Assistant.genie' : 'Ouvrir Assistant.genie'}
+        aria-label={open ? 'Fermer Assistant PieAgency' : 'Ouvrir Assistant PieAgency'}
         aria-expanded={open}
       >
         {open ? <X size={22} /> : <MessageCircle size={22} />}
-        {!open ? <span>Assistant.genie</span> : null}
+        {!open ? <span>Assistant PieAgency</span> : null}
       </button>
     </div>
   );

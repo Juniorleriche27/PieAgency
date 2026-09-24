@@ -24,7 +24,7 @@ const initialMessages: ChatMessage[] = [
   {
     role: "assistant",
     content:
-      "Bonjour, je suis le conseiller public PieAgency. Je peux vous renseigner sur nos services, offres, produits, fonctionnement, rendez-vous et moyens de contact. Pour un conseil personnalisé sur votre dossier ou votre procédure, utilisez votre espace étudiant et Assistant.genie.",
+      "Bonjour, je suis le conseiller public PieAgency. Je peux vous renseigner sur nos services, offres, produits, fonctionnement, rendez-vous et moyens de contact. Pour un conseil personnalisé sur votre dossier ou votre procédure, utilisez votre espace étudiant et Assistant PieAgency.",
   },
 ];
 

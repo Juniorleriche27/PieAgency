@@ -12,7 +12,7 @@ export default function StudentHelpPage() {
         className="private-help-genie-trigger"
         message="Aide-moi à identifier le bon type d'aide pour ma situation actuelle dans PieAgency."
         requestedAction="help_router"
-      ><MessageCircle size={24} /><strong>Assistant.genie</strong><span>Analyse, rédaction et préparation à partir de votre contexte PieAgency.</span></AssistantGenieTrigger>
+      ><MessageCircle size={24} /><strong>Assistant PieAgency</strong><span>Analyse, rédaction et préparation à partir de votre contexte PieAgency.</span></AssistantGenieTrigger>
       <Link href="/communaute"><ShieldCheck size={24} /><strong>Communauté PieHUB</strong><span>Échanger avec les étudiants et consulter les réponses utiles.</span></Link>
       <Link href="/contact"><Mail size={24} /><strong>Contacter PieAgency</strong><span>Demande personnelle, document sensible ou accompagnement.</span></Link>
     </div>

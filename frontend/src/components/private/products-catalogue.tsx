@@ -169,7 +169,7 @@ export function ProductsCatalogue({ products = [] }: Props) {
                   message={`Dis-moi objectivement si le produit « ${contextualProduct.product.title} » est vraiment utile pour mon étape actuelle, compte tenu de mes blocages. Si je peux avancer sans l'acheter, dis-le clairement.`}
                   requestedAction="evaluate_contextual_product"
                 >
-                  Demander à Assistant.genie
+                  Demander à Assistant PieAgency
                 </AssistantGenieTrigger>
               </div>
             </div>

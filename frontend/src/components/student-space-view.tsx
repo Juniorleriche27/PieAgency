@@ -297,7 +297,7 @@ export function StudentSpaceView() {
             message={currentStep ? `Explique-moi clairement pourquoi je suis à l'étape « ${currentStep.title} », ce qui me bloque et ce que je dois faire maintenant.` : "Explique-moi où j'en suis dans mon parcours PieAgency et ce que je dois faire maintenant."}
             requestedAction="copilot_explain_current_step"
           >
-            Demander à Assistant.genie
+            Demander à Assistant PieAgency
           </AssistantGenieTrigger>
           <ActionLink href="/espace-etudiant/parcours-guide" variant="outline">
             Voir le parcours complet
@@ -435,7 +435,7 @@ export function StudentSpaceView() {
               message={`Le produit « ${productPromotion.title} » m'est recommandé pour mon étape actuelle. Dis-moi objectivement s'il peut vraiment m'aider maintenant. Si je peux avancer sans l'acheter, dis-le clairement.`}
               requestedAction="evaluate_contextual_product"
             >
-              Demander à Assistant.genie
+              Demander à Assistant PieAgency
             </AssistantGenieTrigger>
             <button className="cockpit-product-promo-dismiss" onClick={dismissProductPromotion} type="button">
               Plus tard

@@ -111,7 +111,7 @@ export function PrivateDiagnosticView() {
               message="Explique-moi mon diagnostic PieAgency avec des mots simples : ma priorité, mon principal risque et les trois actions les plus utiles maintenant."
               requestedAction="explain_diagnostic"
             >
-              Comprendre avec Assistant.genie
+              Comprendre avec Assistant PieAgency
             </AssistantGenieTrigger>
             <Link href="/espace-etudiant/parcours-guide">Ouvrir mon parcours <ArrowRight size={16} /></Link>
           </div>
