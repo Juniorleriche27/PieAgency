@@ -20073,6 +20073,42 @@ html[data-theme="dark"]:not(:has(.private-app-shell)) .btn-outline:hover {
     grid-template-columns: 1fr;
   }
 
+  /* Mobile drawer: keep every navigation group in one natural scroll flow.
+     The desktop primary nav uses flex:1, which was pushing the “Plus” group
+     to the bottom of tall phones and creating a large empty gap. */
+  .private-sidebar {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .private-sidebar-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    flex: 0 0 auto;
+    min-height: 68px;
+    background: var(--ps-sidebar-bg);
+  }
+
+  .private-nav {
+    flex: 0 0 auto;
+    overflow: visible;
+    padding: 12px 12px 6px;
+  }
+
+  .private-nav-section {
+    flex: 0 0 auto;
+    margin: 6px 12px 8px;
+    padding-top: 10px;
+  }
+
+  .private-sidebar-foot {
+    flex: 0 0 auto;
+    margin-top: 4px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
   .desktop-only {
     display: none !important;
   }
