@@ -28,3 +28,17 @@ def test_custom_payment_keeps_agreed_amount_and_reason_description():
     assert body["amount_minor"] == 70000
     assert body["description"] == "Acompte accompagnement Campus France — PieAgency"
     assert body["metadata"]["pricing_mode"] == "custom"
+
+
+def test_consultation_has_exact_fixed_price_and_scope_description():
+    response=Mock(status_code=201)
+    response.json.return_value={"payment_id":"pay-consult","order_id":"ord-consult","payment_status":"pending","checkout_url":"https://pay.example"}
+    with patch.object(payment_service.settings,"koryxa_pay_project_key","test-key"), patch.object(payment_service.settings,"koryxa_pay_webhook_secret","test-secret"), patch("backend.app.services.payment_service.httpx.post",return_value=response) as post:
+        payment_service.initiate_payment(payload(service_slug="consultation-orientation-1h",amount=1,reason="ignored browser amount"))
+    body=post.call_args.kwargs["json"]
+    assert body["amount_minor"] == 20000
+    assert body["product_code"] == "consultation-orientation-1h"
+    assert body["metadata"]["pricing_mode"] == "fixed"
+    assert body["metadata"]["offer_title"] == "Consultation d’orientation — 1 h"
+    assert "sans constitution de dossier" in body["description"]
+    assert "lettre de motivation" in body["description"]

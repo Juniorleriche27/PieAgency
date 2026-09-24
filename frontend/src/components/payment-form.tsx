@@ -52,7 +52,15 @@ type PaymentFormErrors = Partial<Record<keyof PaymentFormState, string>>;
 
 const LAST_CHECKOUT_STORAGE_KEY = "pieagency.payment.lastCheckout";
 
+const consultationPaymentOption = {
+  slug: "consultation-orientation-1h",
+  label: "Consultation d’orientation — 1 h",
+  priceCfa: 20000,
+  priceEuro: xofToEuro(20000),
+};
+
 const serviceOptions = [
+  consultationPaymentOption,
   ...servicePages.map((service) => ({
     slug: service.slug,
     label: service.shortTitle,
