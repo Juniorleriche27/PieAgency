@@ -1665,6 +1665,10 @@ export function CommunityNetwork() {
         mutation.post,
         ...current.filter((post) => post.id !== mutation.post.id),
       ]);
+      // A successful publication must be visible immediately in the main feed.
+      // Reset any previous feed filter that could hide the newly-created post.
+      setFeedFilter("all");
+      postIdRef.current = Math.max(postIdRef.current, mutation.post.id + 1);
       syncPostViewState(mutation.post);
       closeCompose();
       if (selectedApiGroupId) {
