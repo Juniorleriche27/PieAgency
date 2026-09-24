@@ -55,3 +55,11 @@ def test_story_exposes_delete_permission_only_to_its_author():
     }
     assert _build_story_item(row, "user-1").viewer_can_delete is True
     assert _build_story_item(row, "user-2").viewer_can_delete is False
+
+
+def test_bootstrap_source_no_longer_injects_demo_seed_data():
+    import inspect
+    from backend.app.services.community_service import get_community_bootstrap
+    source = inspect.getsource(get_community_bootstrap)
+    assert "_ensure_seed_data" not in source
+    assert "_build_fallback_seed" not in source

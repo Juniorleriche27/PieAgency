@@ -19,6 +19,19 @@ _RULES: dict[tuple[str, str], tuple[int, int]] = {
     ("POST", "/api/contact-requests"): (12, 1800),
     ("POST", "/api/partnership-requests"): (8, 1800),
 }
+
+# Prefix rules protect high-write community surfaces. Exact rules above keep
+# precedence. Limits are per client IP and intentionally generous for normal use.
+_PREFIX_RULES: tuple[tuple[str, str, tuple[int, int]], ...] = (
+    ("POST", "/api/community/assets/upload", (20, 600)),
+    ("POST", "/api/community/assistant/messages", (30, 300)),
+    ("POST", "/api/community/direct-messages", (60, 300)),
+    ("POST", "/api/community/reports", (10, 600)),
+    ("POST", "/api/community/posts", (20, 300)),
+    ("POST", "/api/community/comments", (40, 300)),
+    ("POST", "/api/community/groups", (10, 600)),
+    ("POST", "/api/community/events-calendar", (10, 600)),
+)
 _hits: dict[tuple[str, str, str], deque[float]] = defaultdict(deque)
 _lock = Lock()
 
@@ -31,8 +44,20 @@ def _client_ip(request: Request) -> str:
             pass
     return request.client.host if request.client else "unknown"
 
+def _rule_for(method: str, path: str) -> tuple[int, int] | None:
+    exact = _RULES.get((method, path))
+    if exact:
+        return exact
+    for rule_method, prefix, rule in _PREFIX_RULES:
+        if method == rule_method and (path == prefix or path.startswith(prefix + "/")):
+            return rule
+    # Dynamic post/comment actions (comments, reactions, votes, shares) are also writes.
+    if method in {"POST", "PATCH", "DELETE"} and path.startswith("/api/community/"):
+        return (90, 300)
+    return None
+
 def check_rate_limit(request: Request) -> JSONResponse | None:
-    rule = _RULES.get((request.method, request.url.path))
+    rule = _rule_for(request.method, request.url.path)
     if not rule:
         return None
     limit, window = rule

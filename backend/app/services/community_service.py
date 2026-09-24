@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -68,6 +69,8 @@ COMMUNITY_ASSET_MIME_TYPES = {
     "image/webp",
 }
 
+
+logger = logging.getLogger("pieagency.community")
 
 class CommunityDataUnavailableError(RuntimeError):
     pass
@@ -1289,7 +1292,9 @@ def get_community_bootstrap(
     access_token: str | None = None,
 ) -> CommunityBootstrapResponse:
     client = _get_client(access_token)
-    seeded = _ensure_seed_data(client)
+    # Production runtime must expose only persisted community data. Seed helpers are
+    # intentionally kept out of bootstrap so demo content can never be injected
+    # merely because a visitor opens PieHUB.
 
     current_profile: CommunityProfileItem | None = None
     current_profile_id: str | None = None
@@ -1304,10 +1309,7 @@ def get_community_bootstrap(
         viewer_user_id=current_user.user_id if current_user is not None else None,
     )
 
-    if not profiles and not posts and not seeded:
-        profiles = _build_fallback_seed_profiles(current_profile)
-        posts = _build_fallback_seed_posts()
-    elif current_profile is not None and all(item.id != current_profile.id for item in profiles):
+    if current_profile is not None and all(item.id != current_profile.id for item in profiles):
         profiles = [current_profile, *profiles]
 
     groups = _load_groups(client, viewer_user_id=current_user.user_id if current_user else None)
@@ -1910,6 +1912,7 @@ def _load_groups(client, viewer_user_id: str | None = None) -> list[CommunityGro
             viewer_roles = {int(m["group_id"]): str(m.get("role") or "member") for m in (mem_resp.data or []) if m.get("group_id") is not None}
         return [_build_group_item(r, member_group_ids=member_group_ids, viewer_roles=viewer_roles) for r in rows]
     except Exception:
+        logger.exception("community_groups_load_failed")
         return []
 
 
@@ -1936,6 +1939,7 @@ def _load_events_calendar(client, viewer_user_id: str | None = None) -> list[Com
             attending_event_ids = {int(a["event_id"]) for a in (att_resp.data or []) if a.get("event_id") is not None}
         return [_build_event_calendar_item(r, attending_event_ids=attending_event_ids) for r in rows]
     except Exception:
+        logger.exception("community_events_load_failed")
         return []
 
 
@@ -1964,6 +1968,7 @@ def _load_notifications(client, viewer_user_id: str) -> tuple[list[CommunityNoti
         unread = sum(1 for item in items if not item.is_read)
         return items, unread
     except Exception:
+        logger.exception("community_notifications_load_failed user_id=%s", viewer_user_id)
         return [], 0
 
 
@@ -2107,8 +2112,9 @@ def _validate_report_target(client, target_type: str, target_id: str) -> None:
         raise LookupError("Type de signalement invalide.")
     try:
         response = client.table(table).select(id_column).eq(id_column, target_id).limit(1).execute()
-    except Exception:
-        return
+    except Exception as exc:
+        logger.exception("community_report_target_validation_failed target_type=%s target_id=%s", target_type, target_id)
+        raise CommunityDataUnavailableError("Impossible de vérifier le contenu à signaler.") from exc
     if not (response.data or []):
         raise LookupError("Contenu introuvable pour signalement.")
 
@@ -2436,7 +2442,7 @@ def mark_community_notification_read(
     try:
         client.table("community_notifications").update({"is_read": True}).eq("id", notification_id).eq("user_id", current_user.user_id).execute()
     except Exception:
-        pass
+        logger.exception("community_notification_mark_read_failed notification_id=%s user_id=%s", notification_id, current_user.user_id)
     items, unread = _load_notifications(client, current_user.user_id)
     return CommunityNotificationsResponse(notifications=items, unread_count=unread)
 
@@ -2674,7 +2680,7 @@ def _load_direct_messages(client, thread_id: str, current_user_id: str, *, limit
         try:
             client.table("community_direct_messages").update({"read_at": datetime.now(timezone.utc).isoformat()}).eq("id", message_id).execute()
         except Exception:
-            pass
+            logger.exception("community_direct_message_mark_read_failed message_id=%s user_id=%s", message_id, current_user_id)
     return [_build_direct_message_item(row, current_user_id=current_user_id) for row in rows]
 
 
@@ -2844,6 +2850,7 @@ def get_community_ads(
         pending_count = sum(1 for ad in ads if ad.moderation_status == "pending" and ad.is_own)
         return CommunityAdsResponse(ads=ads, pending_count=pending_count)
     except Exception:
+        logger.exception("community_ads_load_failed")
         return CommunityAdsResponse(ads=[], pending_count=0)
 
 
@@ -2906,4 +2913,5 @@ def get_group_posts(
         post_ids = [int(r.get("id") or 0) for r in post_rows]
         return _load_post_items(client, post_ids=post_ids, viewer_user_id=current_user.user_id)
     except Exception:
+        logger.exception("community_group_posts_load_failed group_id=%s", group_id)
         return []

@@ -23,3 +23,10 @@ def test_rate_limit_rejects_after_threshold():
 def test_unlimited_path_is_ignored():
     req=Request(); req.url=type("URL",(),{"path":"/api/health"})()
     assert rate_limit.check_rate_limit(req) is None
+
+
+def test_community_write_paths_are_rate_limited():
+    assert rate_limit._rule_for("POST", "/api/community/posts") == (20, 300)
+    assert rate_limit._rule_for("POST", "/api/community/assistant/messages") == (30, 300)
+    assert rate_limit._rule_for("POST", "/api/community/posts/42/comments") == (20, 300)
+    assert rate_limit._rule_for("GET", "/api/community/bootstrap") is None
