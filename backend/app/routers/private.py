@@ -22,7 +22,7 @@ from ..schemas import (
     StudentDocumentItem,
     StudentDocumentListResponse,
 )
-from ..services.payment_service import MaketouNotConfiguredError, MaketouRequestError, fetch_payment_status
+from ..services.payment_service import KoryxaPayNotConfiguredError, KoryxaPayRequestError, fetch_payment_status
 from ..services.private_catalog_service import (
     add_student_document,
     get_private_diagnostic,
@@ -86,15 +86,15 @@ def activate_private_product_access(
 ) -> PrivateProductAccessResponse:
     try:
         payment_status = fetch_payment_status(payload.cart_id)
-    except MaketouNotConfiguredError as exc:
+    except KoryxaPayNotConfiguredError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except MaketouRequestError as exc:
+    except KoryxaPayRequestError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     if payment_status.status != "completed":
         raise HTTPException(
             status_code=409,
-            detail="Le paiement n'est pas encore confirmé par MakeTou.",
+            detail="Le paiement n'est pas encore confirmé par KORYXA Pay.",
         )
 
     service_slug = payment_status.service_slug

@@ -5,7 +5,7 @@ import { PaymentForm } from "@/components/payment-form";
 export const metadata: Metadata = {
   title: "Paiement",
   description:
-    "Reglez un acompte ou un montant valide avec PieAgency via la passerelle MakeTou.",
+    "Reglez un acompte ou un montant valide avec PieAgency via la passerelle KORYXA Pay.",
 };
 
 export default function PaymentPage() {

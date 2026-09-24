@@ -39,16 +39,13 @@ class Settings(BaseSettings):
     sso_authorization_code_ttl_seconds: int = 60
     resend_api_key: str = ""
     receipt_from_email: str = "PieAgency <contact@pieagency.fr>"
-    maketou_base_url: str = "https://api.maketou.net"
-    maketou_api_key: str = ""
-    maketou_checkout_url: str = ""
-    maketou_cart_status_url_template: str = ""
-    maketou_default_product_document_id: str = ""
-    maketou_service_products: str = ""
-    maketou_redirect_url: str = ""
-    maketou_display_currency: str = "XOF"
-    maketou_request_timeout_seconds: float = 20.0
-    maketou_merchant_label: str = "PieAgency"
+    koryxa_pay_base_url: str = "https://api-pay.koryxa.fr"
+    koryxa_pay_project_code: str = "pieagency"
+    koryxa_pay_project_key: str = ""
+    koryxa_pay_webhook_secret: str = ""
+    koryxa_pay_display_currency: str = "XOF"
+    koryxa_pay_request_timeout_seconds: float = 20.0
+    koryxa_pay_merchant_label: str = "PieAgency"
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
@@ -112,62 +109,8 @@ class Settings(BaseSettings):
         }
 
     @property
-    def maketou_enabled(self) -> bool:
-        return bool(
-            self.maketou_api_key
-            and self.maketou_checkout_endpoint
-            and (
-                self.maketou_default_product_document_id
-                or self.maketou_service_product_map
-            )
-        )
-
-    @property
-    def maketou_checkout_endpoint(self) -> str:
-        if self.maketou_checkout_url.strip():
-            return self.maketou_checkout_url.strip()
-
-        base_url = self.maketou_base_url.rstrip("/")
-        if not base_url:
-            return ""
-
-        return f"{base_url}/api/v1/stores/cart/checkout"
-
-    @property
-    def maketou_cart_status_endpoint_template(self) -> str:
-        if self.maketou_cart_status_url_template.strip():
-            return self.maketou_cart_status_url_template.strip()
-
-        base_url = self.maketou_base_url.rstrip("/")
-        if not base_url:
-            return ""
-
-        return f"{base_url}/api/v1/stores/cart/{{cart_id}}"
-
-    @property
-    def maketou_service_product_map(self) -> dict[str, str]:
-        product_map: dict[str, str] = {}
-        for item in self.maketou_service_products.split(","):
-            raw_item = item.strip()
-            if not raw_item:
-                continue
-
-            if ":" not in raw_item:
-                continue
-
-            service_slug, product_document_id = raw_item.split(":", 1)
-            normalized_service_slug = service_slug.strip()
-            normalized_product_document_id = product_document_id.strip()
-            if normalized_service_slug and normalized_product_document_id:
-                product_map[normalized_service_slug] = normalized_product_document_id
-
-        return product_map
-
-    @property
-    def maketou_return_url(self) -> str:
-        if self.maketou_redirect_url.strip():
-            return self.maketou_redirect_url.strip()
-        return f"{self.frontend_origin.rstrip('/')}/paiement?checkout=return"
+    def koryxa_pay_enabled(self) -> bool:
+        return bool(self.koryxa_pay_project_code.strip() and self.koryxa_pay_project_key.strip() and self.koryxa_pay_webhook_secret.strip())
 
 
 settings = Settings()

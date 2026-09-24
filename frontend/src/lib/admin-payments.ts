@@ -2,7 +2,7 @@ import { authenticatedFetch } from "@/lib/auth";
 import { fetchPrivatePaymentConfig, type PrivatePaymentConfig } from "@/lib/private-subscriptions";
 
 export type AdminPaymentStatus = {
-  provider: "maketou";
+  provider: "koryxa_pay";
   cart_id: string;
   status: "waiting_payment" | "completed" | "abandoned" | "payment_failed" | "unknown";
   message: string;
@@ -16,7 +16,7 @@ export async function fetchAdminPaymentConfig(): Promise<PrivatePaymentConfig> {
 
 export async function fetchAdminPaymentStatus(cartId: string): Promise<AdminPaymentStatus> {
   const response = await authenticatedFetch(
-    `/api/payments/maketou/carts/${encodeURIComponent(cartId)}`,
+    `/api/payments/koryxa/${encodeURIComponent(cartId)}`,
     { cache: "no-store" },
     { requireAuth: true },
   );
@@ -29,7 +29,7 @@ export async function fetchAdminPaymentStatus(cartId: string): Promise<AdminPaym
     throw new Error(payload?.detail ?? "Impossible de verifier ce paiement.");
   }
   if (!payload) {
-    throw new Error("MakeTou n'a pas retourne de statut exploitable.");
+    throw new Error("KORYXA Pay n'a pas retourne de statut exploitable.");
   }
 
   return payload;

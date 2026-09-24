@@ -1,4 +1,4 @@
-﻿export type ActionVariant =
+export type ActionVariant =
   | "primary"
   | "gold"
   | "outline"

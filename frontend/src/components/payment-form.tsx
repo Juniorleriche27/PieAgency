@@ -10,7 +10,7 @@ import { formatEuro, formatXof, xofToEuro } from "@/lib/currency";
 
 type PaymentConfig = {
   enabled: boolean;
-  provider: "maketou";
+  provider: "koryxa_pay";
   merchant_label: string;
   display_currency: string;
   instructions: string;
@@ -18,7 +18,7 @@ type PaymentConfig = {
 };
 
 type PaymentResponse = {
-  provider: "maketou";
+  provider: "koryxa_pay";
   status: "waiting_payment" | "completed" | "abandoned" | "payment_failed" | "unknown";
   message: string;
   cart_id?: string | null;
@@ -29,7 +29,7 @@ type PaymentResponse = {
 };
 
 type PaymentStatusResponse = {
-  provider: "maketou";
+  provider: "koryxa_pay";
   cart_id: string;
   status: "waiting_payment" | "completed" | "abandoned" | "payment_failed" | "unknown";
   message: string;
@@ -269,7 +269,7 @@ export function PaymentForm() {
     setIsCheckingStatus(true);
     try {
       const response = await fetch(
-        `${apiBaseUrl}/api/payments/maketou/carts/${encodeURIComponent(cartId)}`,
+        `${apiBaseUrl}/api/payments/koryxa/${encodeURIComponent(cartId)}`,
         {
           cache: "no-store",
         },
@@ -284,7 +284,7 @@ export function PaymentForm() {
         );
       }
       if (!payload) {
-        throw new Error("MakeTou n'a pas retourne de statut exploitable.");
+        throw new Error("KORYXA Pay n'a pas retourne de statut exploitable.");
       }
 
       setStatusResult(payload);
@@ -389,7 +389,7 @@ export function PaymentForm() {
       setFeedback({
         type: "info",
         message:
-          "Le paiement en ligne n'est pas encore active sur ce backend. Ajoutez la configuration MakeTou dans Render.",
+          "Le paiement en ligne n'est pas encore active sur ce backend. Ajoutez la configuration KORYXA Pay dans Render.",
       });
       return;
     }
@@ -402,7 +402,7 @@ export function PaymentForm() {
     const normalizedPhone = normalizePhone(form.phone);
 
     try {
-      const response = await authenticatedFetch("/api/payments/maketou/checkout", {
+      const response = await authenticatedFetch("/api/payments/koryxa/checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -428,7 +428,7 @@ export function PaymentForm() {
         );
       }
       if (!payload) {
-        throw new Error("MakeTou n'a pas retourne de reponse exploitable.");
+        throw new Error("KORYXA Pay n'a pas retourne de reponse exploitable.");
       }
 
       setPaymentResult(payload);
@@ -495,7 +495,7 @@ export function PaymentForm() {
     },
   ];
   const trustItems = [
-    "Paiement traite sur la page securisee MakeTou.",
+    "Paiement traite sur la page securisee KORYXA Pay.",
     `Devise affichee : ${displayCurrency}.`,
     productPayment ? `Montant produit : ${formatXof(productPayment.priceCfa)} (${formatEuro(productPayment.priceEuro)}).` : "Montant libre, mais deja valide avec PieAgency avant paiement.",
     currentService ? `Service concerne : ${currentService.label}.` : "Reference dossier facultative mais recommandee.",
@@ -509,7 +509,7 @@ export function PaymentForm() {
           <h2 className="section-title payment-page-title">Regler un montant convenu</h2>
           <p className="section-lead compact payment-page-copy">
             Remplissez le formulaire ci-dessous uniquement pour un montant deja valide
-            avec un conseiller PieAgency. Vous serez ensuite redirige vers MakeTou pour
+            avec un conseiller PieAgency. Vous serez ensuite redirige vers KORYXA Pay pour
             finaliser le paiement.
           </p>
         </div>
@@ -544,7 +544,7 @@ export function PaymentForm() {
 
       {checkoutReturn ? (
         <div className="payment-return-banner">
-          Vous revenez de MakeTou. Vous pouvez verifier le statut de votre paiement ci-dessous.
+          Vous revenez de KORYXA Pay. Vous pouvez verifier le statut de votre paiement ci-dessous.
         </div>
       ) : null}
 
@@ -728,7 +728,7 @@ Montant à payer ({displayCurrency})
               {isSubmitting ? "Creation du panier..." : "Continuer vers le paiement"}
             </button>
             <div className="payment-footnote">
-              Le paiement est finalisé sur la page sécurisée MakeTou. Pour les produits digitaux,
+              Le paiement est finalisé sur la page sécurisée KORYXA Pay. Pour les produits digitaux,
               le montant est envoyé en FCFA et le service produit est transmis pour débloquer les ressources.
             </div>
           </div>
@@ -749,7 +749,7 @@ Montant à payer ({displayCurrency})
                 <span className="payment-side-item-index">2</span>
                 <div>
                   <strong>Redirection securisee</strong>
-                  <p>Vous etes redirige vers MakeTou pour choisir votre moyen de paiement.</p>
+                  <p>Vous etes redirige vers KORYXA Pay pour choisir votre moyen de paiement.</p>
                 </div>
               </div>
               <div className="payment-side-item">
@@ -783,7 +783,7 @@ Montant à payer ({displayCurrency})
               <div className="payment-status-head">
                 <div>
                   <div className="payment-note-kicker">Panier cree</div>
-                  <h4>Suivi MakeTou</h4>
+                  <h4>Suivi KORYXA Pay</h4>
                 </div>
                 <div className={`payment-status-pill is-${paymentResult.status}`}>
                   {paymentResult.status}
@@ -811,7 +811,7 @@ Montant à payer ({displayCurrency})
                     rel="noreferrer"
                     target="_self"
                   >
-                    Ouvrir MakeTou
+                    Ouvrir KORYXA Pay
                   </a>
                 ) : null}
                 {paymentResult.status_check_enabled && paymentResult.cart_id ? (

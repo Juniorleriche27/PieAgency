@@ -1,312 +1,78 @@
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
 import logging
-from typing import Any
-from urllib.parse import quote
+import time
+from decimal import Decimal, ROUND_HALF_UP
+from uuid import uuid4
 
 import httpx
 
 from ..config import settings
-from ..schemas import (
-    PaymentConfigResponse,
-    PaymentIntentCreateRequest,
-    PaymentIntentCreateResponse,
-    PaymentStatusResponse,
-)
+from ..schemas import PaymentConfigResponse, PaymentIntentCreateRequest, PaymentIntentCreateResponse, PaymentStatusResponse
 
 logger = logging.getLogger(__name__)
 
+class KoryxaPayNotConfiguredError(RuntimeError): pass
+class KoryxaPayRequestError(RuntimeError): pass
 
-class MaketouNotConfiguredError(RuntimeError):
-    pass
+def _headers() -> dict[str,str]:
+    if not settings.koryxa_pay_enabled:
+        raise KoryxaPayNotConfiguredError("KORYXA Pay n'est pas configure.")
+    return {"X-Project-Code": settings.koryxa_pay_project_code, "X-Project-Key": settings.koryxa_pay_project_key, "Content-Type":"application/json"}
 
+def _url(path: str) -> str:
+    return settings.koryxa_pay_base_url.rstrip("/") + path
 
-class MaketouRequestError(RuntimeError):
-    pass
+def _safe_json(response: httpx.Response) -> dict:
+    try: data=response.json()
+    except Exception: data={}
+    return data if isinstance(data,dict) else {}
 
-
-def _resolve_url(url_or_path: str) -> str:
-    value = url_or_path.strip()
-    if not value:
-        return ""
-    if value.startswith("http://") or value.startswith("https://"):
-        return value
-    return f"{settings.maketou_base_url.rstrip('/')}/{value.lstrip('/')}"
-
-
-def _request_timeout() -> float:
-    return max(settings.maketou_request_timeout_seconds, 5.0)
-
-
-def _safe_json(response: httpx.Response) -> dict[str, Any]:
-    try:
-        payload = response.json()
-    except ValueError:
-        return {}
-    return payload if isinstance(payload, dict) else {}
-
-
-def _extract_string(payload: dict[str, Any], key: str) -> str | None:
-    value = payload.get(key)
-    if isinstance(value, str) and value.strip():
-        return value.strip()
-    if isinstance(value, (int, float)):
-        return str(value)
-    return None
-
-
-def _extract_text(value: Any) -> str | None:
-    if isinstance(value, str) and value.strip():
-        return value.strip()
-    if isinstance(value, (int, float)):
-        return str(value)
-    if isinstance(value, list):
-        parts = [part.strip() for part in value if isinstance(part, str) and part.strip()]
-        if parts:
-            return " ".join(parts)
-    if isinstance(value, dict):
-        parts: list[str] = []
-        for nested in value.values():
-            extracted = _extract_text(nested)
-            if extracted:
-                parts.append(extracted)
-        if parts:
-            return " ".join(parts)
-    return None
-
-
-def _extract_error_message(payload: dict[str, Any], fallback: str) -> str:
-    code = _extract_string(payload, "code")
-    message = (
-        _extract_text(payload.get("message"))
-        or _extract_text(payload.get("detail"))
-        or _extract_text(payload.get("error"))
-        or _extract_text(payload.get("errors"))
-    )
-
-    if code and message:
-        return f"{code}: {message}"
-    if code:
-        return code
-    if message:
-        return message
+def _error(data: dict, fallback: str) -> str:
+    err=data.get("error")
+    if isinstance(err,dict) and err.get("message"): return str(err["message"])
     return fallback
 
-
-def _split_full_name(full_name: str) -> tuple[str, str]:
-    parts = [item for item in full_name.strip().split() if item]
-    if not parts:
-        return "Client", "PieAgency"
-    if len(parts) == 1:
-        return parts[0], parts[0]
-    return parts[0], " ".join(parts[1:])
-
-
-def _build_headers() -> dict[str, str]:
-    return {
-        "Authorization": f"Bearer {settings.maketou_api_key}",
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-    }
-
-
-def _ensure_configured() -> None:
-    if not settings.maketou_enabled:
-        raise MaketouNotConfiguredError(
-            "MakeTou n'est pas configure. Ajoutez la cle API et le productDocumentId dans Render.",
-        )
-
-
-def _resolve_product_document_id(service_slug: str | None) -> str:
-    if service_slug:
-        service_product = settings.maketou_service_product_map.get(service_slug)
-        if service_product:
-            return service_product
-
-    if settings.maketou_default_product_document_id.strip():
-        return settings.maketou_default_product_document_id.strip()
-
-    raise MaketouNotConfiguredError(
-        "Aucun productDocumentId MakeTou n'est configure pour ce paiement.",
-    )
-
-
-def _normalize_amount(amount: float) -> int | float:
-    rounded = round(amount, 2)
-    return int(rounded) if rounded.is_integer() else rounded
-
-
-def _build_checkout_meta(payload: PaymentIntentCreateRequest, user_id: str | None = None) -> dict[str, str]:
-    meta = {
-        "source": "pieagency-website",
-        "reason": payload.reason.strip(),
-    }
-    if payload.service_slug:
-        meta["serviceSlug"] = payload.service_slug
-    if payload.dossier_reference:
-        meta["dossierReference"] = payload.dossier_reference
-    if user_id:
-        meta["userId"] = user_id
-    return meta
-
-
-def _extract_meta_value(payload: dict[str, Any], key: str) -> str | None:
-    candidates = [payload.get("meta")]
-    cart = payload.get("cart")
-    if isinstance(cart, dict):
-        candidates.append(cart.get("meta"))
-
-    for meta in candidates:
-        if isinstance(meta, dict):
-            value = meta.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-    return None
-
-
-def _extract_reference(payload: dict[str, Any]) -> str | None:
-    return _extract_meta_value(payload, "dossierReference")
-
-
-def _extract_service_slug(payload: dict[str, Any]) -> str | None:
-    return _extract_meta_value(payload, "serviceSlug")
-
-
-def _normalize_status(raw_status: str | None) -> str:
-    if raw_status in {"waiting_payment", "completed", "abandoned", "payment_failed"}:
-        return raw_status
-    return "unknown"
-
+def _normalize(status: str|None) -> str:
+    return {"created":"waiting_payment","pending":"waiting_payment","succeeded":"completed","failed":"payment_failed","cancelled":"abandoned","refunded":"abandoned"}.get((status or "").lower(),"unknown")
 
 def get_payment_config() -> PaymentConfigResponse:
-    instructions = (
-        "Paiement en ligne via MakeTou. Le client saisit uniquement un montant deja valide "
-        "avec un conseiller PieAgency. Le produit MakeTou utilise doit etre configure en Prix libre."
-    )
-    if not settings.maketou_enabled:
-        instructions = (
-            "Le paiement en ligne n'est pas encore actif. Ajoutez la cle API MakeTou et un "
-            "productDocumentId configure en Prix libre dans l'environnement backend."
-        )
+    return PaymentConfigResponse(enabled=settings.koryxa_pay_enabled, provider="koryxa_pay", merchant_label=settings.koryxa_pay_merchant_label, display_currency=settings.koryxa_pay_display_currency, instructions="Paiement securise par KORYXA Pay.", status_check_enabled=settings.koryxa_pay_enabled)
 
-    return PaymentConfigResponse(
-        enabled=settings.maketou_enabled,
-        provider="maketou",
-        merchant_label=settings.maketou_merchant_label,
-        display_currency=settings.maketou_display_currency.strip().upper() or "XOF",
-        instructions=instructions,
-        status_check_enabled=settings.maketou_enabled
-        and bool(settings.maketou_cart_status_endpoint_template),
-    )
+def initiate_payment(payload: PaymentIntentCreateRequest, user_id: str|None=None) -> PaymentIntentCreateResponse:
+    amount_minor=int((Decimal(str(payload.amount))*Decimal("1")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    product_code=(payload.service_slug or payload.dossier_reference or "pieagency-payment")[:120]
+    customer_id=(user_id or payload.email)[:160]
+    idem=f"pieagency-{product_code}-{customer_id}-{uuid4().hex}"
+    body={"product_code":product_code,"customer_id":customer_id,"amount_minor":amount_minor,"currency":settings.koryxa_pay_display_currency,"idempotency_key":idem,"success_url":f"{settings.frontend_origin.rstrip('/')}/paiement?checkout=return","failure_url":f"{settings.frontend_origin.rstrip('/')}/paiement?checkout=failed","metadata":{"service_slug":payload.service_slug or "","dossier_reference":payload.dossier_reference or "","email":str(payload.email),"full_name":payload.full_name}}
+    try: response=httpx.post(_url("/v1/client/checkouts"),headers=_headers(),json=body,timeout=settings.koryxa_pay_request_timeout_seconds)
+    except Exception as exc: raise KoryxaPayRequestError("Impossible de joindre KORYXA Pay.") from exc
+    data=_safe_json(response)
+    if response.status_code>=400: raise KoryxaPayRequestError(_error(data,"KORYXA Pay a refuse la creation du paiement."))
+    payment_id=str(data.get("payment_id") or "")
+    if not payment_id: raise KoryxaPayRequestError("KORYXA Pay n'a pas retourne d'identifiant de paiement.")
+    return PaymentIntentCreateResponse(provider="koryxa_pay",status=_normalize(data.get("payment_status")),message="Paiement KORYXA Pay cree.",cart_id=payment_id,redirect_url=data.get("checkout_url") or (_url(str(data["return_url"])) if data.get("return_url") else None),payment_id=payment_id,reference=str(data.get("order_id") or "") or None,status_check_enabled=True)
 
+def fetch_payment_status(payment_id: str) -> PaymentStatusResponse:
+    try: response=httpx.get(_url(f"/v1/client/payments/{payment_id}"),headers=_headers(),timeout=settings.koryxa_pay_request_timeout_seconds)
+    except Exception as exc: raise KoryxaPayRequestError("Impossible de joindre KORYXA Pay.") from exc
+    data=_safe_json(response)
+    if response.status_code>=400: raise KoryxaPayRequestError(_error(data,"Impossible de verifier le paiement KORYXA Pay."))
+    metadata=data.get("metadata") if isinstance(data.get("metadata"),dict) else {}
+    resolved=str(data.get("payment_id") or payment_id)
+    return PaymentStatusResponse(provider="koryxa_pay",cart_id=resolved,status=_normalize(data.get("payment_status") or data.get("status")),message="Statut KORYXA Pay verifie.",payment_id=resolved,reference=str(data.get("order_id") or "") or None,service_slug=str(metadata.get("service_slug") or "") or None,user_id=str(data.get("customer_id") or "") or None)
 
-def initiate_payment(payload: PaymentIntentCreateRequest, user_id: str | None = None) -> PaymentIntentCreateResponse:
-    _ensure_configured()
-    checkout_url = settings.maketou_checkout_endpoint
-    product_document_id = _resolve_product_document_id(payload.service_slug)
-    first_name, last_name = _split_full_name(payload.full_name)
-
-    checkout_payload = {
-        "productDocumentId": product_document_id,
-        "email": payload.email,
-        "firstName": first_name,
-        "lastName": last_name,
-        "phone": payload.phone,
-        "redirectURL": settings.maketou_return_url,
-        "customerPrice": _normalize_amount(payload.amount),
-        "meta": _build_checkout_meta(payload, user_id),
-    }
-
-    try:
-        response = httpx.post(
-            _resolve_url(checkout_url),
-            headers=_build_headers(),
-            json=checkout_payload,
-            timeout=_request_timeout(),
-        )
-    except Exception as exc:  # pragma: no cover - network error path
-        logger.exception("MakeTou checkout initiation failed")
-        raise MaketouRequestError("Impossible d'initier le paiement MakeTou.") from exc
-
-    data = _safe_json(response)
-    if response.status_code >= 400:
-        logger.warning(
-            "MakeTou checkout refused: status=%s body=%s",
-            response.status_code,
-            response.text[:500],
-        )
-        message = _extract_error_message(
-            data,
-            "MakeTou a refuse la creation du panier.",
-        )
-        raise MaketouRequestError(message)
-
-    cart = data.get("cart")
-    cart_payload = cart if isinstance(cart, dict) else {}
-    raw_status = _extract_string(cart_payload, "status")
-    cart_id = _extract_string(cart_payload, "id")
-    payment_id = _extract_string(cart_payload, "paymentId")
-    redirect_url = _extract_string(data, "redirectUrl")
-
-    return PaymentIntentCreateResponse(
-        provider="maketou",
-        status=_normalize_status(raw_status),
-        message=(
-            "Le panier MakeTou a ete cree. Vous allez maintenant etre redirige vers la page "
-            "de paiement pour finaliser l'operation."
-        ),
-        cart_id=cart_id,
-        redirect_url=redirect_url,
-        payment_id=payment_id,
-        reference=payload.dossier_reference,
-        status_check_enabled=settings.maketou_enabled
-        and bool(settings.maketou_cart_status_endpoint_template),
-    )
-
-
-def fetch_payment_status(cart_id: str) -> PaymentStatusResponse:
-    _ensure_configured()
-    template = settings.maketou_cart_status_endpoint_template
-    if "{cart_id}" not in template:
-        raise MaketouNotConfiguredError(
-            "MAKETOU_CART_STATUS_URL_TEMPLATE doit contenir {cart_id}.",
-        )
-
-    status_url = _resolve_url(template.format(cart_id=quote(cart_id, safe="")))
-    try:
-        response = httpx.get(
-            status_url,
-            headers=_build_headers(),
-            timeout=_request_timeout(),
-        )
-    except Exception as exc:  # pragma: no cover - network error path
-        logger.exception("MakeTou cart status lookup failed")
-        raise MaketouRequestError("Impossible de verifier le statut du panier MakeTou.") from exc
-
-    data = _safe_json(response)
-    if response.status_code >= 400:
-        logger.warning(
-            "MakeTou cart status refused: status=%s body=%s",
-            response.status_code,
-            response.text[:500],
-        )
-        message = _extract_error_message(
-            data,
-            "MakeTou a refuse la verification du panier.",
-        )
-        raise MaketouRequestError(message)
-
-    raw_status = _extract_string(data, "status")
-    payment_id = _extract_string(data, "paymentId")
-    reference = _extract_reference(data)
-    service_slug = _extract_service_slug(data)
-    user_id = _extract_meta_value(data, "userId")
-
-    return PaymentStatusResponse(
-        provider="maketou",
-        cart_id=cart_id,
-        status=_normalize_status(raw_status),
-        message="Statut du panier MakeTou recupere.",
-        payment_id=payment_id,
-        reference=reference,
-        service_slug=service_slug,
-        user_id=user_id,
-    )
+def verify_webhook(raw_body: bytes, timestamp: str, signature: str) -> dict:
+    if not settings.koryxa_pay_webhook_secret: raise KoryxaPayNotConfiguredError("Secret webhook KORYXA Pay absent.")
+    try: ts=int(timestamp)
+    except (TypeError,ValueError): raise KoryxaPayRequestError("Timestamp webhook invalide.")
+    if abs(int(time.time())-ts)>300: raise KoryxaPayRequestError("Webhook KORYXA Pay expire.")
+    expected="v1="+hmac.new(settings.koryxa_pay_webhook_secret.encode(),timestamp.encode()+b"."+raw_body,hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected,signature): raise KoryxaPayRequestError("Signature webhook KORYXA Pay invalide.")
+    try: data=json.loads(raw_body)
+    except Exception as exc: raise KoryxaPayRequestError("Payload webhook invalide.") from exc
+    if not isinstance(data,dict) or data.get("event")!="payment.status.changed" or not data.get("payment_id"): raise KoryxaPayRequestError("Evenement webhook KORYXA Pay invalide.")
+    return data

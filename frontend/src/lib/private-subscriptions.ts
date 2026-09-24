@@ -17,7 +17,7 @@ export type PrivateSubscriptionPlan = {
 
 export type PrivatePaymentConfig = {
   enabled: boolean;
-  provider: "maketou";
+  provider: "koryxa_pay";
   merchant_label: string;
   display_currency: string;
   instructions: string;

@@ -187,7 +187,7 @@ class ContactRequestResponse(BaseModel):
 
 class PaymentConfigResponse(BaseModel):
     enabled: bool
-    provider: Literal["maketou"]
+    provider: Literal["koryxa_pay"]
     merchant_label: str
     display_currency: str
     instructions: str
@@ -232,7 +232,7 @@ class PaymentIntentCreateRequest(BaseModel):
 
 
 class PaymentIntentCreateResponse(BaseModel):
-    provider: Literal["maketou"]
+    provider: Literal["koryxa_pay"]
     status: Literal["waiting_payment", "completed", "abandoned", "payment_failed", "unknown"]
     message: str
     cart_id: str | None = None
@@ -243,7 +243,7 @@ class PaymentIntentCreateResponse(BaseModel):
 
 
 class PaymentStatusResponse(BaseModel):
-    provider: Literal["maketou"]
+    provider: Literal["koryxa_pay"]
     cart_id: str
     status: Literal["waiting_payment", "completed", "abandoned", "payment_failed", "unknown"]
     message: str

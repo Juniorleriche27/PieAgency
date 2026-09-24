@@ -116,13 +116,13 @@ export function AdminPaymentsView() {
           <span>Pilotage paiement</span>
           <h1>Paiements</h1>
           <p>
-            Suivez la configuration MakeTou, verifiez un panier par identifiant et
+            Suivez la configuration KORYXA Pay, verifiez un panier par identifiant et
             exportez les donnees utiles au rapprochement manuel.
           </p>
         </div>
         <div className="admin-payments-status">
           <CreditCard size={20} />
-          <strong>{config?.enabled ? "MakeTou actif" : "Configuration incomplete"}</strong>
+          <strong>{config?.enabled ? "KORYXA Pay actif" : "Configuration incomplete"}</strong>
           <span>{config?.display_currency ?? "Devise inconnue"}</span>
         </div>
       </section>
@@ -132,7 +132,7 @@ export function AdminPaymentsView() {
       <section className="admin-payments-metrics">
         <div>
           <span>Provider</span>
-          <strong>{config?.provider ?? "MakeTou"}</strong>
+          <strong>{config?.provider ?? "KORYXA Pay"}</strong>
         </div>
         <div>
           <span>Marchand</span>
@@ -152,9 +152,9 @@ export function AdminPaymentsView() {
         <section className="admin-payments-card">
           <div className="admin-payments-card-head">
             <span>Verification panier</span>
-            <h2>Rechercher un cart_id MakeTou</h2>
+            <h2>Rechercher un payment_id KORYXA Pay</h2>
             <p>
-              Entrez l&apos;identifiant de panier retourne par MakeTou pour recuperer
+              Entrez l&apos;identifiant de paiement retourné par KORYXA Pay pour recuperer
               son statut courant.
             </p>
           </div>
@@ -164,7 +164,7 @@ export function AdminPaymentsView() {
               <Search size={18} />
               <input
                 onChange={(event) => setCartId(event.target.value)}
-                placeholder="cart_id MakeTou"
+                placeholder="payment_id KORYXA Pay"
                 type="text"
                 value={cartId}
               />
@@ -246,7 +246,7 @@ export function AdminPaymentsView() {
         <ShieldCheck size={20} />
         <p>
           Les montants doivent rester ceux valides avec un conseiller PieAgency.
-          Eviter de promettre un paiement confirme sans statut MakeTou complet.
+          Eviter de promettre un paiement confirme sans statut KORYXA Pay complet.
         </p>
       </section>
     </div>

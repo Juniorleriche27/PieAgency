@@ -292,7 +292,7 @@ export function ProductDetailView({ productId }: Props) {
               <div className="prod-cta-tip">
                 <strong>Après paiement</strong>
                 <br />
-                Revenez sur la page paiement pour vérifier MakeTou. Les ressources incluses
+                Revenez sur la page paiement pour vérifier KORYXA Pay. Les ressources incluses
                 sont ensuite activées côté backend sur votre compte.
               </div>
             </div>

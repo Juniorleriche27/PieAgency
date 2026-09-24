@@ -119,7 +119,7 @@ function PlanModal({
           <div className="crud-field">
             <label>Slug paiement *</label>
             <input onChange={(e) => set("service_slug", e.target.value)} placeholder="essentiel-mensuel" type="text" value={form.service_slug} />
-            <span className="crud-hint">Utilisé dans l&apos;URL de paiement Maketou</span>
+            <span className="crud-hint">Utilisé dans l&apos;URL de paiement KORYXA Pay</span>
           </div>
           <div className="crud-field">
             <label>Features (une par ligne)</label>

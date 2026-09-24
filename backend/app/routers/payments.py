@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from ..dependencies.auth import get_optional_current_user
 from ..schemas import AuthUserProfile
 
@@ -13,11 +13,12 @@ from ..schemas import (
 )
 from ..services.email_service import send_payment_receipt
 from ..services.payment_service import (
-    MaketouNotConfiguredError,
-    MaketouRequestError,
+    KoryxaPayNotConfiguredError,
+    KoryxaPayRequestError,
     fetch_payment_status,
     get_payment_config,
     initiate_payment,
+    verify_webhook,
 )
 
 router = APIRouter()
@@ -33,7 +34,7 @@ def read_payment_config() -> PaymentConfigResponse:
 
 
 @router.post(
-    "/payments/maketou/checkout",
+    "/payments/koryxa/checkout",
     response_model=PaymentIntentCreateResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -43,12 +44,12 @@ def create_payment_checkout(
 ) -> PaymentIntentCreateResponse:
     try:
         return initiate_payment(payload, current_user.user_id if current_user else None)
-    except MaketouNotConfiguredError as exc:
+    except KoryxaPayNotConfiguredError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
-    except MaketouRequestError as exc:
+    except KoryxaPayRequestError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     except Exception as exc:
-        logger.exception("Unable to initiate MakeTou payment")
+        logger.exception("Unable to initiate KORYXA Pay payment")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Impossible d'initier le paiement pour le moment.",
@@ -56,18 +57,18 @@ def create_payment_checkout(
 
 
 @router.get(
-    "/payments/maketou/carts/{cart_id}",
+    "/payments/koryxa/{cart_id}",
     response_model=PaymentStatusResponse,
 )
 def get_payment_cart_status(cart_id: str) -> PaymentStatusResponse:
     try:
         return fetch_payment_status(cart_id)
-    except MaketouNotConfiguredError as exc:
+    except KoryxaPayNotConfiguredError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
-    except MaketouRequestError as exc:
+    except KoryxaPayRequestError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     except Exception as exc:
-        logger.exception("Unable to fetch MakeTou cart status")
+        logger.exception("Unable to fetch KORYXA Pay cart status")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Impossible de verifier le statut du paiement pour le moment.",
@@ -86,3 +87,16 @@ def send_receipt(payload: PaymentReceiptRequest) -> dict:
         payment_id=payload.payment_id,
     )
     return {"sent": sent}
+
+
+@router.post("/payments/koryxa/callback")
+async def koryxa_pay_callback(request: Request) -> dict:
+    raw_body = await request.body()
+    try:
+        event = verify_webhook(raw_body, request.headers.get("x-koryxa-timestamp", ""), request.headers.get("x-koryxa-signature", ""))
+        payment = fetch_payment_status(str(event["payment_id"]))
+    except KoryxaPayNotConfiguredError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except KoryxaPayRequestError as exc:
+        raise HTTPException(status_code=401 if "Signature" in str(exc) or "Timestamp" in str(exc) or "expire" in str(exc) else 503, detail=str(exc)) from exc
+    return {"accepted": True, "event_id": request.headers.get("x-koryxa-event-id"), "payment_id": payment.payment_id, "status": payment.status}
