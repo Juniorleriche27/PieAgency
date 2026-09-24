@@ -442,6 +442,13 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="home-offers-band">
+        <div className="container home-offers-band-inner">
+          <div><span className="offers-eyebrow">Boutique PieAgency</span><h2>Des outils concrets pour avancer à chaque étape.</h2><p>Découvrez nos guides, packs et abonnements. Choisissez votre besoin, consultez le contenu et achetez en ligne en toute sécurité.</p></div>
+          <ActionLink href="/offres" variant="gold" size="lg">Découvrir nos offres</ActionLink>
+        </div>
+      </section>
+
       <section className="section bg-gray">
         <div className="container">
           <SectionHeader

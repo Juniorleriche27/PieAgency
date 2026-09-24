@@ -160,6 +160,7 @@ export function SiteHeader() {
           {!isAdminRoute && (
             <nav aria-label="Navigation principale" className="site-header-nav">
               <Link className={`nav-link ${isActive("/") ? "active" : ""}`} href="/">Accueil</Link>
+              <Link className={`nav-link ${isActive("/offres") ? "active" : ""}`} href="/offres">Nos offres</Link>
 
               {/* Campus France */}
               <div
@@ -414,6 +415,8 @@ export function SiteHeader() {
               </div>
             )}
           </div>
+
+          <Link className={`mobile-nav-link ${isActive("/offres") ? "active" : ""}`} href="/offres" onClick={() => setIsMenuOpen(false)}>Nos offres</Link>
 
           <Link className={`mobile-nav-link ${isActive("/communaute") ? "active" : ""}`} href="/communaute" onClick={() => setIsMenuOpen(false)}>Communauté</Link>
 

@@ -1109,6 +1109,27 @@ class PrivateProductListResponse(BaseModel):
     products: list[PrivateProductItem]
 
 
+class PublicOfferItem(BaseModel):
+    id: str
+    kind: Literal["product", "subscription"]
+    title: str
+    description: str
+    category: str
+    price: float
+    currency: str = "EUR"
+    service_slug: str
+    features: list[str] = Field(default_factory=list)
+    target_audience: str | None = None
+    badge: str | None = None
+    billing_period: Literal["one_time", "monthly", "yearly"] = "one_time"
+
+
+class PublicOfferListResponse(BaseModel):
+    offers: list[PublicOfferItem]
+
+
+
+
 class PrivateResourceVideoItem(BaseModel):
     id: str
     title: str

@@ -29,6 +29,7 @@ export const publicRoutes = [
   { path: "/paris-saclay", priority: 0.72, changeFrequency: "monthly" as const },
   { path: "/parcoursup", priority: 0.72, changeFrequency: "monthly" as const },
   { path: "/ecoles", priority: 0.72, changeFrequency: "monthly" as const },
+  { path: "/offres", priority: 0.9, changeFrequency: "weekly" as const },
   { path: "/communaute", priority: 0.78, changeFrequency: "weekly" as const },
   { path: "/faq", priority: 0.7, changeFrequency: "monthly" as const },
   { path: "/contact", priority: 0.82, changeFrequency: "monthly" as const },

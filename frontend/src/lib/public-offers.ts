@@ -1,0 +1,4 @@
+export type PublicOffer={id:string;kind:"product"|"subscription";title:string;description:string;category:string;price:number;currency:string;service_slug:string;features:string[];target_audience?:string|null;badge?:string|null;billing_period:"one_time"|"monthly"|"yearly"};
+const base=()=>process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.pieagency.fr";
+export async function getPublicOffers():Promise<PublicOffer[]>{const r=await fetch(`${base()}/api/offers`,{next:{revalidate:300}});if(!r.ok)throw new Error("Catalogue indisponible");return ((await r.json()) as {offers:PublicOffer[]}).offers;}
+export async function getPublicOffer(id:string):Promise<PublicOffer|null>{const r=await fetch(`${base()}/api/offers/${encodeURIComponent(id)}`,{next:{revalidate:300}});if(r.status===404)return null;if(!r.ok)throw new Error("Offre indisponible");return (await r.json()) as PublicOffer;}
