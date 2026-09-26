@@ -49,12 +49,12 @@ def _eur_to_xof(value: float) -> int:
 def _fixed_offer(service_slug: str | None):
     if not service_slug:
         return None
-    if service_slug == "consultation-orientation-1h":
-        return (
-            20_000,
-            "Consultation d’orientation — 1 h",
-            "Consultation d’1 heure : questions, difficultés et orientation — sans constitution de dossier, choix de formation, projet d’études/professionnel ni lettre de motivation — PieAgency",
-        )
+    assistant_passes = {
+        "assistant-30d": (2000, "Pass Assistant 30 jours", "Pass Assistant PieAgency 30 jours"),
+        "assistant-90d": (5000, "Pass Assistant 90 jours", "Pass Assistant PieAgency 90 jours"),
+    }
+    if service_slug in assistant_passes:
+        return assistant_passes[service_slug]
     for product in PRODUCTS:
         if service_slug in {product.service_slug, product.id}:
             amount = _eur_to_xof(product.price) if product.currency.upper() == "EUR" else int(Decimal(str(product.price)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))

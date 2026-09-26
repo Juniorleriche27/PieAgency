@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from ..schemas import PaymentStatusResponse
 from .dashboard_service import _client_or_none
 from .private_catalog_service import PRODUCTS, grant_product_resource_entitlements, grant_subscription_after_payment, list_private_subscriptions
@@ -23,6 +25,26 @@ def fulfill_successful_payment(payment: PaymentStatusResponse) -> dict:
     if not payment.payment_id or not payment.service_slug: raise LookupError("Paiement incomplet pour attribution.")
     user_id=_resolve_user_id(payment)
     service=payment.service_slug
+    if service in {"assistant-30d", "assistant-90d"}:
+        days = 30 if service == "assistant-30d" else 90
+        client = _client_or_none()
+        if client is None: raise RuntimeError("Supabase indisponible.")
+        claim = client.table("payment_access_claims").select("user_id,service_slug").eq("cart_id", payment.cart_id).limit(1).execute()
+        if claim.data:
+            existing = claim.data[0]
+            if str(existing.get("user_id")) != str(user_id) or str(existing.get("service_slug")) != service:
+                raise PermissionError("Ce paiement est déjà associé à un autre compte ou Pass Assistant.")
+            return {"fulfilled":True,"kind":"assistant_pass","user_id":user_id,"service_slug":service,"idempotent":True}
+        access = client.table("assistant_access").select("access_until").eq("user_id", user_id).limit(1).execute().data or []
+        now = datetime.now(UTC)
+        current_until = None
+        if access and access[0].get("access_until"):
+            current_until = datetime.fromisoformat(str(access[0]["access_until"]).replace("Z", "+00:00"))
+        base = current_until if current_until and current_until > now else now
+        access_until = base + timedelta(days=days)
+        client.table("assistant_access").upsert({"user_id":user_id,"access_until":access_until.isoformat(),"plan_code":service}, on_conflict="user_id").execute()
+        client.table("payment_access_claims").insert({"cart_id":payment.cart_id,"user_id":user_id,"service_slug":service,"payment_id":payment.payment_id,"provider":"koryxa_pay"}).execute()
+        return {"fulfilled":True,"kind":"assistant_pass","user_id":user_id,"service_slug":service,"access_until":access_until.isoformat()}
     if any(service in {p.id,p.service_slug} for p in PRODUCTS):
         result=grant_product_resource_entitlements(user_id=user_id,service_slug=service,payment_provider="koryxa_pay",cart_id=payment.cart_id,payment_id=payment.payment_id)
         if not result.has_access: raise RuntimeError(result.message)
