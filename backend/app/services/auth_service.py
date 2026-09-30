@@ -120,7 +120,7 @@ def _profile_payload(user: User, existing_row: dict | None = None) -> dict:
 
 def _load_profile_row(client, user_id: str) -> dict | None:
     try:
-        response = client.table("profiles").select("*").eq("user_id", user_id).limit(1).execute()
+        response = client.table("profiles").select("user_id,email,full_name,phone,country,role,is_active").eq("user_id", user_id).limit(1).execute()
     except Exception:
         logger.exception("Unable to load profile row from Supabase")
         return None

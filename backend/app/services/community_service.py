@@ -69,6 +69,35 @@ COMMUNITY_ASSET_MIME_TYPES = {
     "image/webp",
 }
 
+# Keep PostgREST payloads intentionally narrow on high-traffic Community reads.
+COMMUNITY_PROFILE_SELECT = "id,user_id,display_name,handle,country,city,bio,avatar,accent_color,follower_count,following_count,post_count,tags,is_official,is_ai,created_at,updated_at"
+COMMUNITY_POST_SELECT = "id,author_profile_id,author_user_id,post_type,tag,content,resource_name,resource_type,resource_size,resource_url,resource_mime_type,media_urls,is_question,poll_question,poll_options,likes_count,shares_count,is_archived,created_at,group_id,moderation_status"
+COMMUNITY_COMMENT_SELECT = "id,post_id,author_profile_id,author_user_id,body,likes_count,is_official,is_ai_generated,created_at"
+COMMUNITY_STORY_SELECT = "id,author_profile_id,author_user_id,content,media_url,media_mime_type,created_at,expires_at"
+COMMUNITY_GROUP_SELECT = "id,name,description,icon,category,member_count,is_official,created_by_profile_id,created_at"
+COMMUNITY_EVENT_SELECT = "id,name,description,event_date,event_time,location_type,location_detail,attendee_count,is_official,created_by_profile_id,created_at"
+COMMUNITY_NOTIFICATION_SELECT = "id,type,title,body,is_read,created_at"
+COMMUNITY_AD_SELECT = "id,title,body,image_url,cta_label,cta_url,category,moderation_status,created_by_profile_id,created_by_user_id,created_at"
+COMMUNITY_DIRECT_THREAD_SELECT = "id,participant_low_user_id,participant_high_user_id,participant_low_profile_id,participant_high_profile_id,last_message_at,created_at,updated_at"
+COMMUNITY_DIRECT_MESSAGE_SELECT = "id,thread_id,sender_user_id,recipient_user_id,body,read_at,created_at"
+COMMUNITY_REPORT_SELECT = "id,target_type,target_id,reason,details,status,created_by_user_id,created_by_profile_id,reviewed_by_user_id,reviewed_by_profile_id,reviewed_at,admin_note,created_at,updated_at"
+
+COMMUNITY_BOOTSTRAP_POST_LIMIT = 12
+COMMUNITY_BOOTSTRAP_PROFILE_LIMIT = 24
+COMMUNITY_COMMENT_ROW_LIMIT = 80
+COMMUNITY_STORY_LIMIT = 20
+COMMUNITY_GROUP_LIMIT = 16
+COMMUNITY_EVENT_LIMIT = 12
+COMMUNITY_NOTIFICATION_LIMIT = 12
+COMMUNITY_AD_LIMIT = 12
+COMMUNITY_DIRECT_THREAD_LIMIT = 20
+COMMUNITY_DIRECT_MESSAGE_LIMIT = 40
+COMMUNITY_ANONYMOUS_BOOTSTRAP_CACHE_SECONDS = 20
+
+_anonymous_bootstrap_cache: tuple[datetime, CommunityBootstrapResponse] | None = None
+
+
+logger = logging.getLogger("pieagency.community")
 
 logger = logging.getLogger("pieagency.community")
 
@@ -600,7 +629,7 @@ def _refresh_profile_counters(client, profile_id: str) -> None:
     try:
         response = (
             client.table("community_profiles")
-            .select("*")
+            .select(COMMUNITY_PROFILE_SELECT)
             .eq("id", profile_id)
             .limit(1)
             .execute()
@@ -934,7 +963,7 @@ def _ensure_user_profile(client, current_user: AuthUserProfile) -> CommunityProf
 
     existing_response = (
         client.table("community_profiles")
-        .select("*")
+        .select(COMMUNITY_PROFILE_SELECT)
         .eq("user_id", current_user.user_id)
         .limit(1)
         .execute()
@@ -965,22 +994,26 @@ def _ensure_user_profile(client, current_user: AuthUserProfile) -> CommunityProf
 def _load_profiles(client, viewer_user_id: str | None = None) -> list[CommunityProfileItem]:
     response = (
         client.table("community_profiles")
-        .select("*")
+        .select(COMMUNITY_PROFILE_SELECT)
         .order("is_official", desc=True)
         .order("display_name")
-        .limit(40)
+        .limit(COMMUNITY_BOOTSTRAP_PROFILE_LIMIT)
         .execute()
     )
     following_profile_ids = _load_following_profile_ids(client, viewer_user_id)
-    enriched_rows = [_build_profile_metrics(client, item) for item in (response.data or [])]
+    rows = list(response.data or [])
+    for row in rows:
+        stored_posts = int(row.get("post_count") or 0)
+        row["stage_label"] = _profile_stage_label(row, stored_posts)
+        row["activity_label"] = "Actif" if stored_posts > 0 else "Nouveau membre"
     return [
         _build_profile_item(item, following_profile_ids=following_profile_ids)
-        for item in enriched_rows
+        for item in rows
     ]
 
 
 def _load_post_rows(client, limit: int = 20, post_ids: list[int] | None = None) -> list[dict[str, Any]]:
-    query = client.table("community_posts").select("*")
+    query = client.table("community_posts").select(COMMUNITY_POST_SELECT)
     if post_ids:
         query = query.in_("id", post_ids)
     else:
@@ -994,12 +1027,17 @@ def _load_comment_rows(client, post_ids: list[int]) -> list[dict[str, Any]]:
         return []
     response = (
         client.table("community_comments")
-        .select("*")
+        .select(COMMUNITY_COMMENT_SELECT)
         .in_("post_id", post_ids)
-        .order("created_at")
+        .order("created_at", desc=True)
+        .limit(COMMUNITY_COMMENT_ROW_LIMIT)
         .execute()
     )
-    return list(response.data or [])
+    # Fetch the most recent bounded window, then restore chronological order for
+    # the existing UI contract.
+    rows = list(response.data or [])
+    rows.sort(key=lambda item: str(item.get("created_at") or ""))
+    return rows
 
 
 def _load_reaction_sets(
@@ -1291,6 +1329,12 @@ def get_community_bootstrap(
     current_user: AuthUserProfile | None = None,
     access_token: str | None = None,
 ) -> CommunityBootstrapResponse:
+    global _anonymous_bootstrap_cache
+    if current_user is None and _anonymous_bootstrap_cache is not None:
+        cached_at, cached_response = _anonymous_bootstrap_cache
+        if (datetime.now(timezone.utc) - cached_at).total_seconds() < COMMUNITY_ANONYMOUS_BOOTSTRAP_CACHE_SECONDS:
+            return cached_response
+
     client = _get_client(access_token)
     # Production runtime must expose only persisted community data. Seed helpers are
     # intentionally kept out of bootstrap so demo content can never be injected
@@ -1305,7 +1349,7 @@ def get_community_bootstrap(
     profiles = _load_profiles(client, current_user.user_id if current_user is not None else None)
     posts = _load_post_items(
         client,
-        limit=24,
+        limit=COMMUNITY_BOOTSTRAP_POST_LIMIT,
         viewer_user_id=current_user.user_id if current_user is not None else None,
     )
 
@@ -1319,7 +1363,7 @@ def get_community_bootstrap(
     approved_ads = [ad for ad in ads_response.ads if ad.moderation_status == "approved"]
     stories = get_community_stories(current_user, access_token)
 
-    return CommunityBootstrapResponse(
+    response = CommunityBootstrapResponse(
         current_profile_id=current_profile_id,
         profiles=profiles,
         posts=posts,
@@ -1330,6 +1374,9 @@ def get_community_bootstrap(
         ads=approved_ads,
         stories=stories,
     )
+    if current_user is None:
+        _anonymous_bootstrap_cache = (datetime.now(timezone.utc), response)
+    return response
 
 
 def create_community_post(
@@ -1531,7 +1578,7 @@ def update_community_comment(
     access_token: str | None = None,
 ) -> CommunityMutationResponse:
     client = _get_client(access_token)
-    response = client.table("community_comments").select("*").eq("id", comment_id).limit(1).execute()
+    response = client.table("community_comments").select(COMMUNITY_COMMENT_SELECT).eq("id", comment_id).limit(1).execute()
     rows = response.data or []
     if not rows:
         raise LookupError("Commentaire introuvable.")
@@ -1550,7 +1597,7 @@ def delete_community_comment(
     access_token: str | None = None,
 ) -> CommunityMutationResponse:
     client = _get_client(access_token)
-    response = client.table("community_comments").select("*").eq("id", comment_id).limit(1).execute()
+    response = client.table("community_comments").select(COMMUNITY_COMMENT_SELECT).eq("id", comment_id).limit(1).execute()
     rows = response.data or []
     if not rows:
         raise LookupError("Commentaire introuvable.")
@@ -1571,7 +1618,7 @@ def toggle_community_comment_reaction(
     access_token: str | None = None,
 ) -> CommunityMutationResponse:
     client = _get_client(access_token)
-    response = client.table("community_comments").select("*").eq("id", comment_id).limit(1).execute()
+    response = client.table("community_comments").select(COMMUNITY_COMMENT_SELECT).eq("id", comment_id).limit(1).execute()
     rows = response.data or []
     if not rows:
         raise LookupError("Commentaire introuvable.")
@@ -1668,10 +1715,10 @@ def get_community_stories(current_user: AuthUserProfile | None, access_token: st
     now = datetime.now(timezone.utc).isoformat()
     response = (
         client.table("community_stories")
-        .select("*")
+        .select(COMMUNITY_STORY_SELECT)
         .gt("expires_at", now)
         .order("created_at", desc=True)
-        .limit(50)
+        .limit(COMMUNITY_STORY_LIMIT)
         .execute()
     )
     viewer_id = current_user.user_id if current_user else None
@@ -1709,7 +1756,7 @@ def delete_community_story(
     access_token: str | None = None,
 ) -> bool:
     client = _get_client(access_token)
-    response = client.table("community_stories").select("*").eq("id", story_id).limit(1).execute()
+    response = client.table("community_stories").select(COMMUNITY_STORY_SELECT).eq("id", story_id).limit(1).execute()
     rows = response.data or []
     if not rows:
         raise LookupError("Story introuvable.")
@@ -1890,10 +1937,10 @@ def _load_groups(client, viewer_user_id: str | None = None) -> list[CommunityGro
     try:
         response = (
             client.table("community_groups")
-            .select("*")
+            .select(COMMUNITY_GROUP_SELECT)
             .order("is_official", desc=True)
             .order("member_count", desc=True)
-            .limit(30)
+            .limit(COMMUNITY_GROUP_LIMIT)
             .execute()
         )
         rows = response.data or []
@@ -1920,9 +1967,9 @@ def _load_events_calendar(client, viewer_user_id: str | None = None) -> list[Com
     try:
         response = (
             client.table("community_events_calendar")
-            .select("*")
+            .select(COMMUNITY_EVENT_SELECT)
             .order("event_date", desc=False)
-            .limit(20)
+            .limit(COMMUNITY_EVENT_LIMIT)
             .execute()
         )
         rows = response.data or []
@@ -1947,10 +1994,10 @@ def _load_notifications(client, viewer_user_id: str) -> tuple[list[CommunityNoti
     try:
         response = (
             client.table("community_notifications")
-            .select("*")
+            .select(COMMUNITY_NOTIFICATION_SELECT)
             .eq("user_id", viewer_user_id)
             .order("created_at", desc=True)
-            .limit(20)
+            .limit(COMMUNITY_NOTIFICATION_LIMIT)
             .execute()
         )
         rows = response.data or []
@@ -1965,7 +2012,15 @@ def _load_notifications(client, viewer_user_id: str) -> tuple[list[CommunityNoti
             )
             for r in rows
         ]
-        unread = sum(1 for item in items if not item.is_read)
+        unread_response = (
+            client.table("community_notifications")
+            .select("id", count="exact")
+            .eq("user_id", viewer_user_id)
+            .eq("is_read", False)
+            .limit(1)
+            .execute()
+        )
+        unread = int(getattr(unread_response, "count", 0) or 0)
         return items, unread
     except Exception:
         logger.exception("community_notifications_load_failed user_id=%s", viewer_user_id)
@@ -1985,7 +2040,7 @@ def toggle_community_profile_follow(
 
     target_response = (
         client.table("community_profiles")
-        .select("*")
+        .select(COMMUNITY_PROFILE_SELECT)
         .eq("id", target_profile_id)
         .limit(1)
         .execute()
@@ -2034,14 +2089,14 @@ def toggle_community_profile_follow(
 
     refreshed_target = (
         client.table("community_profiles")
-        .select("*")
+        .select(COMMUNITY_PROFILE_SELECT)
         .eq("id", target_profile_id)
         .limit(1)
         .execute()
     )
     refreshed_current = (
         client.table("community_profiles")
-        .select("*")
+        .select(COMMUNITY_PROFILE_SELECT)
         .eq("id", current_profile.id)
         .limit(1)
         .execute()
@@ -2166,7 +2221,7 @@ def get_community_moderation_queue(
     try:
         response = (
             client.table("community_reports")
-            .select("*")
+            .select(COMMUNITY_REPORT_SELECT)
             .eq("status", "pending")
             .order("created_at", desc=True)
             .limit(100)
@@ -2188,7 +2243,7 @@ def resolve_community_report(
     _ensure_community_tables(client)
     profile = _ensure_user_profile(client, current_user)
     try:
-        existing = client.table("community_reports").select("*").eq("id", report_id).limit(1).execute()
+        existing = client.table("community_reports").select(COMMUNITY_REPORT_SELECT).eq("id", report_id).limit(1).execute()
         rows = existing.data or []
         if not rows:
             raise LookupError("Signalement introuvable.")
@@ -2302,7 +2357,7 @@ def toggle_community_group_membership(
         }).execute()
         client.table("community_groups").update({"member_count": current_member_count + 1}).eq("id", group_id).execute()
         new_is_member = True
-    group_resp = client.table("community_groups").select("*").eq("id", group_id).limit(1).execute()
+    group_resp = client.table("community_groups").select(COMMUNITY_GROUP_SELECT).eq("id", group_id).limit(1).execute()
     group_row = (group_resp.data or [{}])[0]
     group_item = _build_group_item(group_row, member_group_ids={group_id} if new_is_member else set())
     return CommunityGroupMembershipResponse(group=group_item, is_member=new_is_member)
@@ -2418,7 +2473,7 @@ def toggle_community_event_attendance(
         }).execute()
         client.table("community_events_calendar").update({"attendee_count": current_attendee_count + 1}).eq("id", event_id).execute()
         new_is_attending = True
-    event_resp = client.table("community_events_calendar").select("*").eq("id", event_id).limit(1).execute()
+    event_resp = client.table("community_events_calendar").select(COMMUNITY_EVENT_SELECT).eq("id", event_id).limit(1).execute()
     event_row = (event_resp.data or [{}])[0]
     event_item = _build_event_calendar_item(event_row, attending_event_ids={event_id} if new_is_attending else set())
     return CommunityEventAttendanceResponse(event=event_item, is_attending=new_is_attending)
@@ -2618,7 +2673,7 @@ def _profile_user_id(client, profile_id: str) -> str | None:
 def _load_profile_by_id(client, profile_id: str) -> CommunityProfileItem | None:
     response = (
         client.table("community_profiles")
-        .select("*")
+        .select(COMMUNITY_PROFILE_SELECT)
         .eq("id", profile_id)
         .limit(1)
         .execute()
@@ -2626,7 +2681,7 @@ def _load_profile_by_id(client, profile_id: str) -> CommunityProfileItem | None:
     rows = response.data or []
     if not rows:
         return None
-    return _build_profile_item(_build_profile_metrics(client, rows[0]))
+    return _build_profile_item(rows[0])
 
 
 def _direct_pair(current_user_id: str, current_profile_id: str, target_user_id: str, target_profile_id: str) -> dict[str, str]:
@@ -2661,10 +2716,10 @@ def _build_direct_message_item(row: dict[str, Any], *, current_user_id: str) -> 
     )
 
 
-def _load_direct_messages(client, thread_id: str, current_user_id: str, *, limit: int = 80) -> list[CommunityDirectMessageItem]:
+def _load_direct_messages(client, thread_id: str, current_user_id: str, *, limit: int = COMMUNITY_DIRECT_MESSAGE_LIMIT) -> list[CommunityDirectMessageItem]:
     response = (
         client.table("community_direct_messages")
-        .select("*")
+        .select(COMMUNITY_DIRECT_MESSAGE_SELECT)
         .eq("thread_id", thread_id)
         .order("created_at")
         .limit(limit)
@@ -2676,11 +2731,17 @@ def _load_direct_messages(client, thread_id: str, current_user_id: str, *, limit
         for row in rows
         if str(row.get("recipient_user_id") or "") == str(current_user_id) and not row.get("read_at")
     ]
-    for message_id in unread_ids:
+    if unread_ids:
         try:
-            client.table("community_direct_messages").update({"read_at": datetime.now(timezone.utc).isoformat()}).eq("id", message_id).execute()
+            client.table("community_direct_messages").update(
+                {"read_at": datetime.now(timezone.utc).isoformat()}
+            ).in_("id", unread_ids).execute()
         except Exception:
-            logger.exception("community_direct_message_mark_read_failed message_id=%s user_id=%s", message_id, current_user_id)
+            logger.exception(
+                "community_direct_messages_mark_read_failed count=%s user_id=%s",
+                len(unread_ids),
+                current_user_id,
+            )
     return [_build_direct_message_item(row, current_user_id=current_user_id) for row in rows]
 
 
@@ -2693,7 +2754,7 @@ def _build_direct_thread_item(client, thread_row: dict[str, Any], current_user_i
 
     last_resp = (
         client.table("community_direct_messages")
-        .select("*")
+        .select(COMMUNITY_DIRECT_MESSAGE_SELECT)
         .eq("thread_id", thread_id)
         .order("created_at", desc=True)
         .limit(1)
@@ -2726,10 +2787,10 @@ def get_community_direct_threads(
     _ensure_user_profile(client, current_user)
     response = (
         client.table("community_direct_threads")
-        .select("*")
+        .select(COMMUNITY_DIRECT_THREAD_SELECT)
         .or_(f"participant_low_user_id.eq.{current_user.user_id},participant_high_user_id.eq.{current_user.user_id}")
         .order("last_message_at", desc=True)
-        .limit(50)
+        .limit(COMMUNITY_DIRECT_THREAD_LIMIT)
         .execute()
     )
     threads = [
@@ -2757,7 +2818,7 @@ def get_community_direct_thread(
     pair = _direct_pair(current_user.user_id, current_profile.id, target_user_id, target_profile_id)
     response = (
         client.table("community_direct_threads")
-        .select("*")
+        .select(COMMUNITY_DIRECT_THREAD_SELECT)
         .eq("participant_low_user_id", pair["participant_low_user_id"])
         .eq("participant_high_user_id", pair["participant_high_user_id"])
         .limit(1)
@@ -2840,9 +2901,9 @@ def get_community_ads(
     try:
         response = (
             client.table("community_ads")
-            .select("*")
+            .select(COMMUNITY_AD_SELECT)
             .order("created_at", desc=True)
-            .limit(40)
+            .limit(COMMUNITY_AD_LIMIT)
             .execute()
         )
         rows = response.data or []
@@ -2900,11 +2961,11 @@ def get_group_posts(
     try:
         rows = (
             client.table("community_posts")
-            .select("*")
+            .select(COMMUNITY_POST_SELECT)
             .eq("group_id", int(group_id))
             .neq("moderation_status", "pending")
             .order("created_at", desc=True)
-            .limit(50)
+            .limit(COMMUNITY_BOOTSTRAP_POST_LIMIT)
             .execute()
         )
         post_rows = rows.data or []

@@ -27,12 +27,9 @@ import {
   fetchCommunityBootstrap,
   fetchCommunityDirectThread,
   fetchCommunityDirectThreads,
-  fetchCommunityEventsCalendar,
-  fetchCommunityGroups,
   fetchCommunityGroupMembers,
   updateCommunityGroupMemberRole,
   removeCommunityGroupMember,
-  fetchCommunityNotifications,
   markCommunityNotificationRead,
   markAllCommunityNotificationsRead,
   toggleCommunityUserBlock,
@@ -46,7 +43,6 @@ import {
   toggleCommunityReaction,
   toggleCommunityProfileFollow,
   voteCommunityPoll,
-  fetchCommunityAds,
   createCommunityAd,
   rewriteWithAI,
   reportCommunityContent,
@@ -1063,21 +1059,17 @@ export function CommunityNetwork() {
         0,
       );
       postIdRef.current = Math.max(highestPostId + 1, 100);
-      // Load groups, events, notifications in parallel
-      const [groups, events] = await Promise.all([
-        fetchCommunityGroups().catch(() => []),
-        fetchCommunityEventsCalendar().catch(() => []),
-      ]);
-      setApiGroups(groups);
-      setApiEvents(events);
-      fetchCommunityAds().then((data) => setAds(data.ads)).catch(() => {});
-      // Load notifications if user is logged in
+      // Bootstrap already contains these collections. Reusing them avoids a
+      // second round of identical PostgREST-backed reads on every PieHUB open.
+      setApiGroups(payload.groups ?? []);
+      setApiEvents(payload.eventsCalendar ?? []);
+      setAds(payload.ads ?? []);
+      setNotifications(payload.notifications ?? []);
+      setUnreadNotifCount(payload.unreadNotifications ?? 0);
       if (payload.currentProfileId) {
-        Promise.all([fetchCommunityNotifications(), fetchCommunityUserBlocks()]).then(([data, blocks]) => {
-          setNotifications(data.notifications);
-          setUnreadNotifCount(data.unreadCount);
-          setBlockedProfileIds(blocks);
-        }).catch(() => {});
+        // Notifications already come from bootstrap; blocks are user-specific and
+        // still need their dedicated lightweight request.
+        fetchCommunityUserBlocks().then(setBlockedProfileIds).catch(() => {});
         fetchCommunityDirectThreads().then(setDirectThreads).catch(() => setDirectThreads([]));
       }
     } catch {

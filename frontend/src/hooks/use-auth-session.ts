@@ -25,14 +25,22 @@ export function useAuthSession(apiBaseUrl: string) {
     }
 
     void syncSession();
+    // Session state rarely changes minute-to-minute. A five-minute safety sync,
+    // plus focus/auth-change events, keeps the UI current without repeatedly
+    // hitting the backend/Supabase while a tab remains idle.
     const intervalId = window.setInterval(() => {
       void syncSession();
-    }, 60_000);
+    }, 5 * 60_000);
     const handleFocus = () => {
       void syncSession();
     };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void syncSession();
+      }
+    };
     window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     const cleanup = onAuthSessionChange(() => {
       void syncSession();
     });
@@ -41,7 +49,7 @@ export function useAuthSession(apiBaseUrl: string) {
       active = false;
       window.clearInterval(intervalId);
       window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       cleanup();
     };
   }, [apiBaseUrl]);
